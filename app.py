@@ -40,16 +40,30 @@ def check_password():
     with col2:
         st.markdown("### 🔐 ログイン")
         
+        # デバッグ: Secrets読み込み確認（本番環境では削除）
+        try:
+            expected_user = st.secrets.get("auth", {}).get("username", "")
+            expected_pass = st.secrets.get("auth", {}).get("password", "")
+            
+            if not expected_user or not expected_pass:
+                st.warning("⚠️ Streamlit Cloud の「Settings > Secrets」で認証情報を設定してください")
+                st.code("""[auth]
+username = "info@allattain.co.jp"
+password = "Allattain0301@"
+""", language="toml")
+        except Exception as e:
+            st.error(f"Secrets読み込みエラー: {e}")
+        
         with st.form("login_form"):
             username = st.text_input("ユーザー名（メールアドレス）", key="login_username")
             password = st.text_input("パスワード", type="password", key="login_password")
             submit = st.form_submit_button("ログイン", use_container_width=True)
             
             if submit:
-                if (
-                    username == st.secrets.get("auth", {}).get("username", "")
-                    and password == st.secrets.get("auth", {}).get("password", "")
-                ):
+                expected_user = st.secrets.get("auth", {}).get("username", "")
+                expected_pass = st.secrets.get("auth", {}).get("password", "")
+                
+                if username == expected_user and password == expected_pass:
                     st.session_state["password_correct"] = True
                     st.rerun()
                 else:
