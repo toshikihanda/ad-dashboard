@@ -17,8 +17,47 @@ st.set_page_config(
     initial_sidebar_state="collapsed"
 )
 
+# --- SEO: Noindex Setting ---
+st.markdown("""
+<meta name="robots" content="noindex, nofollow">
+""", unsafe_allow_html=True)
+
 # --- Apply Custom Styles ---
 st.markdown(get_custom_css(), unsafe_allow_html=True)
+
+# --- Authentication ---
+def check_password():
+    """Returns True if the user has entered the correct password."""
+    
+    def password_entered():
+        """Checks whether a password entered by the user is correct."""
+        if (
+            st.session_state.get("username") == st.secrets.get("auth", {}).get("username", "")
+            and st.session_state.get("password") == st.secrets.get("auth", {}).get("password", "")
+        ):
+            st.session_state["password_correct"] = True
+            del st.session_state["password"]  # パスワードを即座に削除
+            del st.session_state["username"]  # ユーザー名も削除
+        else:
+            st.session_state["password_correct"] = False
+
+    # 初回または認証失敗時
+    if "password_correct" not in st.session_state:
+        # ログインフォーム
+        st.markdown("### 🔐 ログイン")
+        st.text_input("ユーザー名", key="username", on_change=password_entered)
+        st.text_input("パスワード", type="password", key="password", on_change=password_entered)
+        return False
+    elif not st.session_state["password_correct"]:
+        # パスワード不一致
+        st.markdown("### 🔐 ログイン")
+        st.text_input("ユーザー名", key="username", on_change=password_entered)
+        st.text_input("パスワード", type="password", key="password", on_change=password_entered)
+        st.error("ユーザー名またはパスワードが正しくありません")
+        return False
+    else:
+        # 認証成功
+        return True
 
 def main():
     # --- 1. Data Loading ---
@@ -462,4 +501,5 @@ def display_aggregated_table(dataframe, title):
     st.dataframe(dataframe.head(10)) # デバッグ用
 
 if __name__ == "__main__":
-    main()
+    if check_password():
+        main()
