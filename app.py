@@ -29,35 +29,33 @@ st.markdown(get_custom_css(), unsafe_allow_html=True)
 def check_password():
     """Returns True if the user has entered the correct password."""
     
-    def password_entered():
-        """Checks whether a password entered by the user is correct."""
-        if (
-            st.session_state.get("username") == st.secrets.get("auth", {}).get("username", "")
-            and st.session_state.get("password") == st.secrets.get("auth", {}).get("password", "")
-        ):
-            st.session_state["password_correct"] = True
-            del st.session_state["password"]  # パスワードを即座に削除
-            del st.session_state["username"]  # ユーザー名も削除
-        else:
-            st.session_state["password_correct"] = False
-
-    # 初回または認証失敗時
-    if "password_correct" not in st.session_state:
-        # ログインフォーム
-        st.markdown("### 🔐 ログイン")
-        st.text_input("ユーザー名", key="username", on_change=password_entered)
-        st.text_input("パスワード", type="password", key="password", on_change=password_entered)
-        return False
-    elif not st.session_state["password_correct"]:
-        # パスワード不一致
-        st.markdown("### 🔐 ログイン")
-        st.text_input("ユーザー名", key="username", on_change=password_entered)
-        st.text_input("パスワード", type="password", key="password", on_change=password_entered)
-        st.error("ユーザー名またはパスワードが正しくありません")
-        return False
-    else:
-        # 認証成功
+    # 認証済みの場合
+    if st.session_state.get("password_correct", False):
         return True
+    
+    # ログインフォーム（中央配置）
+    st.markdown("<br>" * 5, unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([1, 2, 1])
+    
+    with col2:
+        st.markdown("### 🔐 ログイン")
+        
+        with st.form("login_form"):
+            username = st.text_input("ユーザー名（メールアドレス）", key="login_username")
+            password = st.text_input("パスワード", type="password", key="login_password")
+            submit = st.form_submit_button("ログイン", use_container_width=True)
+            
+            if submit:
+                if (
+                    username == st.secrets.get("auth", {}).get("username", "")
+                    and password == st.secrets.get("auth", {}).get("password", "")
+                ):
+                    st.session_state["password_correct"] = True
+                    st.rerun()
+                else:
+                    st.error("❌ ユーザー名またはパスワードが正しくありません")
+    
+    return False
 
 def main():
     # --- 1. Data Loading ---
