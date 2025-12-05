@@ -416,88 +416,172 @@ def main():
 
     def display_period_table(df_period, title, tab_mode):
         if df_period.empty:
-            st.markdown(f"### {title}")
+            st.markdown(f"##### {title}")
             st.caption("データなし")
             return
 
-        df_agg = df_period.copy()
+        # データを分離
+        df_meta_period = df_period[df_period["Media"] == "Meta"]
+        df_beyond_period = df_period[df_period["Media"] == "Beyond"]
         
-        # CVR計算用にBeyondのクリック(商品LP遷移)を保持しておく
-        df_agg["Beyond_Clicks"] = df_agg.apply(lambda x: x["Clicks"] if x["Media"] == "Beyond" else 0, axis=1)
-
-        if tab_mode == "合計":
-            # 合計タブの厳密なロジック適用
-            # Cost, Imp, Clicks(Link Click), MCV -> Metaデータのみ
-            # CV -> Beyondデータのみ
-            # Revenue, Profit -> 両方の合計 (processor.pyで計算済み)
-            
-            # Beyond行の Cost, Imp, Clicks, MCV を0にする (集計に含めない)
-            df_agg.loc[df_agg["Media"] == "Beyond", ["Cost", "Impressions", "Clicks", "MCV"]] = 0
-            
-            # Meta行の CV を0にする (集計に含めない)
-            df_agg.loc[df_agg["Media"] == "Meta", "CV"] = 0
-            
-        elif tab_mode == "Meta":
-            # Metaタブ: Metaデータのみ表示 (フィルタ済み前提だが念のため)
-            df_agg = df_agg[df_agg["Media"] == "Meta"]
-            
-        elif tab_mode == "Beyond":
-            # Beyondタブ: Beyondデータのみ表示
-            df_agg = df_agg[df_agg["Media"] == "Beyond"]
-
-        # GroupBy
-        grouped = df_agg.groupby("Campaign_Name").agg({
-            "Cost": "sum",
-            "Revenue": "sum",
-            "Gross_Profit": "sum",
-            "CV": "sum",
-            "MCV": "sum",
-            "Clicks": "sum", # ここはMetaのClicks(合計タブの場合)
-            "Beyond_Clicks": "sum", # CVR計算用
-            "Impressions": "sum"
-        }).reset_index()
+        # 案件リストを取得
+        all_projects = set()
+        if not df_meta_period.empty:
+            all_projects.update(df_meta_period["Campaign_Name"].unique())
+        if not df_beyond_period.empty:
+            all_projects.update(df_beyond_period["Campaign_Name"].unique())
         
-        # 計算指標
-        # CPA = Cost / CV
-        grouped["CPA"] = grouped.apply(lambda x: safe_div(x["Cost"], x["CV"]), axis=1)
-        # ROAS = Revenue / Cost
-        grouped["ROAS"] = grouped.apply(lambda x: safe_div(x["Revenue"], x["Cost"]) * 100, axis=1)
-        # CVR = CV / Beyond_Clicks (合計タブの場合)
-        # Metaタブなら CV/Clicks(Link Click) ? いやMetaタブのCVR定義は指定ないが、通常は MCV/Clicks(MCVR) かな？
-        # しかし display_kpi_cards_meta には CVR がない (CTRはある)。
-        # Beyondタブなら CV/Clicks(商品LP遷移)。
+        if not all_projects:
+            st.markdown(f"##### {title}")
+            st.caption("データなし")
+            return
         
-        if tab_mode == "合計":
-             grouped["CVR"] = grouped.apply(lambda x: safe_div(x["CV"], x["Beyond_Clicks"]) * 100, axis=1)
-        elif tab_mode == "Beyond":
-             grouped["CVR"] = grouped.apply(lambda x: safe_div(x["CV"], x["Clicks"]) * 100, axis=1)
+        table_data = []
         
-        # 表示用カラム選択
-        if tab_mode == "Meta":
-            cols = ["Campaign_Name", "Cost", "Impressions", "Clicks", "CV", "CPA"]
-            rename = {"CV": "CV(MCV)", "Impressions": "Imp", "Clicks": "Click"}
-        elif tab_mode == "Beyond":
-            cols = ["Campaign_Name", "Revenue", "Cost", "Gross_Profit", "ROAS", "CV", "CPA", "CVR"]
-            rename = {"Gross_Profit": "粗利", "Revenue": "売上", "Cost": "出稿金額", "Clicks": "LP遷移"}
-        else: # 合計
-            cols = ["Campaign_Name", "Revenue", "Cost", "Gross_Profit", "ROAS", "CV", "CPA", "CVR"]
-            rename = {"Gross_Profit": "粗利", "Revenue": "売上", "Cost": "出稿金額"}
-
-        # フォーマット
-        disp_df = grouped[cols].rename(columns=rename)
+        for project_name in sorted(all_projects):
+            if tab_mode == "合計":
+                # === 合計タブ ===
+                # Metaデータから取得
+                meta_project = df_meta_period[df_meta_period["Campaign_Name"] == project_name]
+                impressions = meta_project["Impressions"].sum()
+                meta_clicks = meta_project["Clicks"].sum()
+                meta_cost = meta_project["Cost"].sum()
+                
+                # Beyondデータから取得
+                beyond_project = df_beyond_period[df_beyond_period["Campaign_Name"] == project_name]
+                beyond_cost = beyond_project["Cost"].sum()
+                beyond_pv = beyond_project["PV"].sum()
+                beyond_clicks = beyond_project["Clicks"].sum()  # MCV（記事LP遷移）
+                beyond_cv = beyond_project["CV"].sum()
+                
+                # 売上計算
+                settings = PROJECT_SETTINGS.get(project_name, {})
+                if settings.get('type') == '成果':
+                    revenue = beyond_cv * settings.get('unit_price', 0)
+                else:
+                    revenue = beyond_cost * settings.get('fee_rate', 0)
+                
+                profit = revenue - beyond_cost
+                recovery_rate = safe_divide(revenue, beyond_cost) * 100
+                roas = safe_divide(profit, revenue) * 100
+                
+                # 率計算
+                ctr = safe_divide(meta_clicks, impressions) * 100
+                mcvr = safe_divide(beyond_clicks, beyond_pv) * 100
+                cvr = safe_divide(beyond_cv, beyond_clicks) * 100
+                
+                # コスト計算
+                cpm = safe_divide(meta_cost, impressions) * 1000
+                cpc = safe_divide(meta_cost, meta_clicks)
+                mcpa = safe_divide(beyond_cost, beyond_clicks)
+                cpa = safe_divide(beyond_cost, beyond_cv)
+                
+                table_data.append({
+                    '案件名': project_name,
+                    '売上': int(revenue),
+                    '出稿金額': int(beyond_cost),
+                    '粗利': int(profit),
+                    '回収率': f"{recovery_rate:.1f}%",
+                    'ROAS': f"{roas:.1f}%",
+                    'Imp': int(impressions),
+                    'Clicks': int(meta_clicks),
+                    'MCV': int(beyond_clicks),
+                    'CV': int(beyond_cv),
+                    'CTR': f"{ctr:.1f}%",
+                    'MCVR': f"{mcvr:.1f}%",
+                    'CVR': f"{cvr:.1f}%",
+                    'CPM': int(cpm),
+                    'CPC': int(cpc),
+                    'MCPA': int(mcpa),
+                    'CPA': int(cpa),
+                })
+                
+            elif tab_mode == "Meta":
+                # === Metaタブ ===
+                meta_project = df_meta_period[df_meta_period["Campaign_Name"] == project_name]
+                
+                cost = meta_project["Cost"].sum()
+                impressions = meta_project["Impressions"].sum()
+                clicks = meta_project["Clicks"].sum()
+                cv = meta_project["MCV"].sum()  # MetaのCV = MCV相当
+                
+                ctr = safe_divide(clicks, impressions) * 100
+                cpm = safe_divide(cost, impressions) * 1000
+                cpc = safe_divide(cost, clicks)
+                cpa = safe_divide(cost, cv)
+                
+                table_data.append({
+                    '案件名': project_name,
+                    '出稿金額': int(cost),
+                    'Imp': int(impressions),
+                    'Clicks': int(clicks),
+                    'CV': int(cv),
+                    'CTR': f"{ctr:.1f}%",
+                    'CPM': int(cpm),
+                    'CPC': int(cpc),
+                    'CPA': int(cpa),
+                })
+                
+            elif tab_mode == "Beyond":
+                # === Beyondタブ ===
+                beyond_project = df_beyond_period[df_beyond_period["Campaign_Name"] == project_name]
+                
+                cost = beyond_project["Cost"].sum()
+                pv = beyond_project["PV"].sum()
+                clicks = beyond_project["Clicks"].sum()  # MCV（記事LP遷移）
+                cv = beyond_project["CV"].sum()
+                fv_exit = beyond_project["FV_Exit"].sum()
+                sv_exit = beyond_project["SV_Exit"].sum()
+                
+                # 売上計算
+                settings = PROJECT_SETTINGS.get(project_name, {})
+                if settings.get('type') == '成果':
+                    revenue = cv * settings.get('unit_price', 0)
+                else:
+                    revenue = cost * settings.get('fee_rate', 0)
+                
+                profit = revenue - cost
+                recovery_rate = safe_divide(revenue, cost) * 100
+                roas = safe_divide(profit, revenue) * 100
+                mcvr = safe_divide(clicks, pv) * 100
+                cvr = safe_divide(cv, clicks) * 100
+                cpc = safe_divide(cost, clicks)
+                cpa = safe_divide(cost, cv)
+                mcpa = safe_divide(cost, clicks)
+                fv_rate = safe_divide(fv_exit, pv) * 100
+                sv_rate = safe_divide(sv_exit, (pv - fv_exit)) * 100
+                total_exit_rate = safe_divide((fv_exit + sv_exit), pv) * 100
+                
+                table_data.append({
+                    '案件名': project_name,
+                    '売上': int(revenue),
+                    '出稿金額': int(cost),
+                    '粗利': int(profit),
+                    '回収率': f"{recovery_rate:.1f}%",
+                    'ROAS': f"{roas:.1f}%",
+                    'PV': int(pv),
+                    'Clicks': int(clicks),
+                    'CV': int(cv),
+                    'MCVR': f"{mcvr:.1f}%",
+                    'CVR': f"{cvr:.1f}%",
+                    'CPC': int(cpc),
+                    'CPA': int(cpa),
+                    'MCPA': int(mcpa),
+                    'FV離脱率': f"{fv_rate:.1f}%",
+                    'SV離脱率': f"{sv_rate:.1f}%",
+                    'FV+SV離脱率': f"{total_exit_rate:.1f}%",
+                })
+        
+        if not table_data:
+            st.markdown(f"##### {title}")
+            st.caption("データなし")
+            return
+        
+        # DataFrameに変換
+        result_df = pd.DataFrame(table_data)
         
         st.markdown(f"##### {title}")
-        st.dataframe(disp_df.style.format({
-            "Revenue": "{:,.0f}", "売上": "{:,.0f}",
-            "Cost": "{:,.0f}", "出稿金額": "{:,.0f}",
-            "Gross_Profit": "{:,.0f}", "粗利": "{:,.0f}",
-            "ROAS": "{:.1f}%",
-            "CPA": "{:,.0f}",
-            "CV": "{:,.0f}", "CV(MCV)": "{:,.0f}",
-            "Imp": "{:,.0f}", "Impressions": "{:,.0f}",
-            "Clicks": "{:,.0f}", "Click": "{:,.0f}",
-            "CVR": "{:.1f}%"
-        }), use_container_width=True)
+        st.dataframe(result_df, use_container_width=True)
 
     # フィルタ用ベースデータ作成 (日付フィルタ以外を適用)
     # 1. Media Filter
