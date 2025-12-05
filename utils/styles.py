@@ -66,6 +66,23 @@ def get_custom_css():
         .text-green { color: #84CC16 !important; } /* 指定: ライムグリーン */
         .text-orange { color: #F59E0B !important; }
         
+        /* タブ風ボタンのスタイル */
+        div[data-testid="column"] button {
+            background-color: #FFFFFF;
+            color: #1F2937;
+            padding: 8px 24px;
+            border: 1px solid #E5E7EB;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 14px;
+        }
+        
+        div[data-testid="column"] button:hover {
+            background-color: #F3F4F6;
+        }
+        
         /* タブ風ラジオボタンのスタイル */
         div[role="radiogroup"] {
             display: flex;
