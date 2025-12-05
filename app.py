@@ -49,6 +49,7 @@ st.markdown("""
         font-weight: 500;
         color: #6B7280;
         margin-bottom: 4px;
+        line-height: 1.4;
     }
     
     /* セレクトボックスの入力フィールドの高さを取得してボタンに合わせる */
@@ -66,11 +67,19 @@ st.markdown("""
         font-weight: 500;
         color: #6B7280;
         margin-bottom: 4px;
+        line-height: 1.4;
     }
     
     /* 日付入力フィールドの高さを調整 */
     .stDateInput > div > div {
         height: 38.4px;
+    }
+    
+    /* ボタンエリアの垂直位置を調整 */
+    div[data-testid="column"]:has(button) {
+        display: flex;
+        flex-direction: column;
+        justify-content: flex-end;
     }
     
     /* メトリクスカード間の余白を調整 */
@@ -158,6 +167,8 @@ def main():
     
     with header_col2:
         # タブを1行にまとめる（合計、Meta、Beyondを横並び）
+        # ラベルの高さ分だけ下に配置するためのスペーサー
+        st.markdown("<div style='height: 24px;'></div>", unsafe_allow_html=True)
         current_tab = st.session_state.get("media_tab", "合計")
         
         # ボタンを横並びに配置（間隔を調整）
