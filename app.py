@@ -25,6 +25,37 @@ st.markdown("""
 # --- Apply Custom Styles ---
 st.markdown(get_custom_css(), unsafe_allow_html=True)
 
+# --- 無駄な余白を削除するCSS ---
+st.markdown("""
+<style>
+    /* 上部の余白を削除 */
+    .block-container {
+        padding-top: 1rem;
+        padding-bottom: 1rem;
+    }
+    
+    /* ヘッダー下の余白を削除 */
+    .stRadio > div {
+        margin-bottom: 0;
+    }
+    
+    /* セレクトボックスの余白を削除 */
+    .stSelectbox {
+        margin-bottom: 0;
+    }
+    
+    /* メトリクスカード間の余白を調整 */
+    [data-testid="metric-container"] {
+        padding: 10px 15px;
+    }
+    
+    /* セクション間の余白を調整 */
+    .element-container {
+        margin-bottom: 0.5rem;
+    }
+</style>
+""", unsafe_allow_html=True)
+
 # --- Authentication ---
 def check_password():
     """Returns True if the user has entered the correct password."""
@@ -80,44 +111,33 @@ def main():
         st.error("データの読み込みに失敗したか、対象データがありません。")
         return
 
-    # --- 2. Header Area (Title, Tabs, Date) ---
-    with st.container():
-        col_title, col_tabs, col_date = st.columns([1, 2, 1])
-        
-        with col_title:
-            st.markdown('<h1 style="margin-top: 5px;">運用分析用</h1>', unsafe_allow_html=True)
-            
-        with col_tabs:
-            # タブ順序変更: 合計 -> Meta -> Beyond
-            selected_tab = st.radio(
-                "Media Tab",
-                ["合計", "Meta", "Beyond"],
-                horizontal=True,
-                label_visibility="collapsed",
-                key="media_tab"
-            )
-            
-        with col_date:
-            # 期間初期値: 当月1日 〜 今日
-            today = datetime.now().date()
-            first_day_of_month = today.replace(day=1)
-            date_range = st.date_input("", value=(first_day_of_month, today), label_visibility="collapsed")
-
-    # --- 3. Data Filtering based on Tab ---
-    # ここではタブごとの「表示用データ」を作るのではなく、
-    # フィルタリング用のマスタデータとして df を使う。
-    # 実際の集計は KPI計算時に Meta/Beyond を使い分ける。
+    # --- 2. Header Area (1行にすべて配置) ---
+    # 期間初期値: 当月1日 〜 今日
+    today = datetime.now().date()
+    first_day_of_month = today.replace(day=1)
     
-    # ただし、フィルタの選択肢はタブに依存する
+    # ヘッダー部分（1行にすべて配置）
+    header_col1, header_col2, header_col3, header_col4, header_col5, header_col6 = st.columns([1.5, 2, 1.5, 1.5, 1.5, 2])
+    
+    with header_col1:
+        st.markdown("### 運用分析用")
+    
+    with header_col2:
+        selected_tab = st.radio(
+            "表示モード",
+            ["合計", "Meta", "Beyond"],
+            horizontal=True,
+            label_visibility="collapsed",
+            key="media_tab"
+        )
+    
+    # フィルタの選択肢を準備（タブに基づく）
     if selected_tab == "Meta":
         df_filter_source = df[df["Media"] == "Meta"]
     elif selected_tab == "Beyond":
         df_filter_source = df[df["Media"] == "Beyond"]
     else:
         df_filter_source = df # 合計
-
-    # --- 4. Filter Area ---
-    st.markdown('<div style="background-color: #FFFFFF; padding: 16px; border-radius: 8px; margin-top: 0px; margin-bottom: 24px; border: 1px solid #E5E7EB;">', unsafe_allow_html=True)
     
     all_campaigns = ["All"] + list(df_filter_source["Campaign_Name"].unique())
     
@@ -130,22 +150,38 @@ def main():
         all_creatives = ["All"] + list(df_filter_source["Creative"].dropna().unique())
     else:
         # 合計: 両方混ぜるか、あるいはフィルタしないか。
-        # 要望では「合計」タブのフィルタ挙動は明記ないが、Meta/Beyond両方のデータがあるので
-        # 便宜上両方出しておく
         all_articles = ["All"] + list(df[df["Media"]=="Beyond"]["Creative"].dropna().unique())
         all_creatives = ["All"] + list(df[df["Media"]=="Meta"]["Creative"].dropna().unique())
-
-    c1, c2, c3, c4 = st.columns(4)
-    with c1:
-        selected_campaign = st.selectbox("商品名", all_campaigns)
-    with c2:
-        selected_article = st.selectbox("記事", all_articles, disabled=(selected_tab=="Meta"))
-    with c3:
-        selected_creative = st.selectbox("クリエイティブ", all_creatives, disabled=(selected_tab=="Beyond"))
-    with c4:
-        st.selectbox("お取引先", ["All"])
-
-    st.markdown('</div>', unsafe_allow_html=True)
+    
+    with header_col3:
+        selected_campaign = st.selectbox(
+            "商品名",
+            options=all_campaigns,
+            label_visibility="collapsed"
+        )
+    
+    with header_col4:
+        selected_article = st.selectbox(
+            "記事",
+            options=all_articles,
+            disabled=(selected_tab=="Meta"),
+            label_visibility="collapsed"
+        )
+    
+    with header_col5:
+        selected_creative = st.selectbox(
+            "クリエイティブ",
+            options=all_creatives,
+            disabled=(selected_tab=="Beyond"),
+            label_visibility="collapsed"
+        )
+    
+    with header_col6:
+        date_range = st.date_input(
+            "期間",
+            value=(first_day_of_month, today),
+            label_visibility="collapsed"
+        )
 
     # --- 5. Apply Filters ---
     # フィルタリングは df 全体に対して行う
@@ -317,7 +353,7 @@ def main():
         cpa = int(cpa)
         
         # 表示（順番を整理）
-        display_kpi_cards_total(revenue, cost, profit, recovery_rate, roas, beyond_cv, cpa, beyond_clicks, mcpa, cvr, mcvr, impressions, meta_clicks, ctr, cpm, cpc)
+        display_kpi_cards_total(cost, revenue, profit, impressions, meta_clicks, beyond_clicks, beyond_cv, ctr, mcvr, cvr, cpm, cpc, mcpa, cpa)
 
     elif selected_tab == "Meta":
         # --- Metaタブ ロジック ---
@@ -345,7 +381,7 @@ def main():
         cpc = int(cpc)
         cpa = int(cpa)
         
-        display_kpi_cards_meta(impressions, clicks, cost, cv, ctr, cpm, cpc, cpa)
+        display_kpi_cards_meta(cost, impressions, clicks, cv, ctr, cpm, cpc, cpa)
 
     elif selected_tab == "Beyond":
         # --- Beyondタブ ロジック ---
@@ -474,22 +510,20 @@ def main():
                 
                 table_data.append({
                     '案件名': project_name,
-                    '売上': int(revenue),
                     '出稿金額': int(beyond_cost),
+                    '売上': int(revenue),
                     '粗利': int(profit),
-                    '回収率': f"{recovery_rate:.1f}%",
-                    'ROAS': f"{roas:.1f}%",
-                    'CV': int(beyond_cv),
-                    'CPA': int(cpa),
-                    'MCV': int(beyond_clicks),
-                    'MCPA': int(mcpa),
-                    'CVR': f"{cvr:.1f}%",
-                    'MCVR': f"{mcvr:.1f}%",
                     'Imp': int(impressions),
                     'Clicks': int(meta_clicks),
+                    '商品LPクリック': int(beyond_clicks),
+                    'CV': int(beyond_cv),
                     'CTR': f"{ctr:.1f}%",
+                    'MCVR': f"{mcvr:.1f}%",
+                    'CVR': f"{cvr:.1f}%",
                     'CPM': int(cpm),
                     'CPC': int(cpc),
+                    'MCPA': int(mcpa),
+                    'CPA': int(cpa),
                 })
                 
             elif tab_mode == "Meta":
@@ -611,37 +645,31 @@ def kpi_card(label, value, unit="", color_class=""):
     </div>
     """, unsafe_allow_html=True)
 
-def display_kpi_cards_total(rev, cost, prof, recovery_rate, roas, cv, cpa, mcv, mcpa, cvr, mcvr, impressions, clicks, ctr, cpm, cpc):
-    # 【1行目】経営指標（お金の流れ）
-    c1, c2, c3, c4, c5 = st.columns(5)
-    with c1: kpi_card("売上", rev, "円", "text-blue")
-    with c2: kpi_card("出稿金額", cost, "円", "text-red")
-    with c3: kpi_card("粗利", prof, "円", "text-orange")
-    with c4: kpi_card("回収率", recovery_rate, "%", "text-green")
-    with c5: kpi_card("ROAS", roas, "%", "text-green")
+def display_kpi_cards_total(cost, revenue, profit, impressions, clicks, mcv, cv, ctr, mcvr, cvr, cpm, cpc, mcpa, cpa):
+    # 【1行目】7つ
+    c1, c2, c3, c4, c5, c6, c7 = st.columns(7)
+    with c1: kpi_card("出稿金額", cost, "円", "text-red")
+    with c2: kpi_card("売上", revenue, "円", "text-blue")
+    with c3: kpi_card("粗利", profit, "円", "text-orange")
+    with c4: kpi_card("Imp", impressions, "")
+    with c5: kpi_card("Clicks", clicks, "")
+    with c6: kpi_card("商品LPクリック", mcv, "件")
+    with c7: kpi_card("CV", cv, "件")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 【2行目】成果指標（CVまでの流れ）
-    c6, c7, c8, c9, c10, c11 = st.columns(6)
-    with c6: kpi_card("CV", cv, "件")
-    with c7: kpi_card("CPA", cpa, "円")
-    with c8: kpi_card("MCV", mcv, "件")
-    with c9: kpi_card("MCPA", mcpa, "円")
+    # 【2行目】7つ
+    c8, c9, c10, c11, c12, c13, c14 = st.columns(7)
+    with c8: kpi_card("CTR", ctr, "%", "text-green")
+    with c9: kpi_card("MCVR", mcvr, "%", "text-green")
     with c10: kpi_card("CVR", cvr, "%", "text-green")
-    with c11: kpi_card("MCVR", mcvr, "%", "text-green")
-    
-    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 【3行目】流入指標（広告の効率）
-    c12, c13, c14, c15, c16 = st.columns(5)
-    with c12: kpi_card("Imp", impressions, "")
-    with c13: kpi_card("Clicks", clicks, "")
-    with c14: kpi_card("CTR", ctr, "%", "text-green")
-    with c15: kpi_card("CPM", cpm, "円")
-    with c16: kpi_card("CPC", cpc, "円")
+    with c11: kpi_card("CPM", cpm, "円")
+    with c12: kpi_card("CPC", cpc, "円")
+    with c13: kpi_card("MCPA", mcpa, "円")
+    with c14: kpi_card("CPA", cpa, "円")
 
-def display_kpi_cards_meta(impressions, clicks, cost, cv, ctr, cpm, cpc, cpa):
+def display_kpi_cards_meta(cost, impressions, clicks, cv, ctr, cpm, cpc, cpa):
     # Metaタブで表示するKPIカード
-    # 【1行目】コストと成果
+    # 【1行目】
     c1, c2, c3, c4 = st.columns(4)
     with c1: kpi_card("出稿金額", cost, "円", "text-red")
     with c2: kpi_card("Imp", impressions, "")
@@ -649,16 +677,16 @@ def display_kpi_cards_meta(impressions, clicks, cost, cv, ctr, cpm, cpc, cpa):
     with c4: kpi_card("CV", cv, "件")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 【2行目】効率指標
+    # 【2行目】
     c5, c6, c7, c8 = st.columns(4)
     with c5: kpi_card("CTR", ctr, "%", "text-green")
-    with c6: kpi_card("CPA", cpa, "円")
+    with c6: kpi_card("CPM", cpm, "円")
     with c7: kpi_card("CPC", cpc, "円")
-    with c8: kpi_card("CPM", cpm, "円")
+    with c8: kpi_card("CPA", cpa, "円")
 
 def display_kpi_cards_beyond(cost, pv, clicks, cv, mcvr, cvr, cpc, cpa, mcpa, fv_exit_rate, sv_exit_rate, total_exit_rate):
     # Beyondタブで表示するKPIカード
-    # 【1行目】コストと成果
+    # 【1行目】
     c1, c2, c3, c4 = st.columns(4)
     with c1: kpi_card("出稿金額", cost, "円", "text-red")
     with c2: kpi_card("PV", pv, "")
@@ -666,17 +694,13 @@ def display_kpi_cards_beyond(cost, pv, clicks, cv, mcvr, cvr, cpc, cpa, mcpa, fv
     with c4: kpi_card("CV", cv, "件")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 【2行目】効率指標
-    c5, c6, c7, c8, c9 = st.columns(5)
+    # 【2行目】
+    c5, c6, c7, c8, c9, c10, c11, c12 = st.columns(8)
     with c5: kpi_card("MCVR", mcvr, "%", "text-green")
     with c6: kpi_card("CVR", cvr, "%", "text-green")
     with c7: kpi_card("CPC", cpc, "円")
     with c8: kpi_card("CPA", cpa, "円")
     with c9: kpi_card("MCPA", mcpa, "円")
-    
-    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 【3行目】離脱指標
-    c10, c11, c12 = st.columns(3)
     with c10: kpi_card("FV離脱率", fv_exit_rate, "%")
     with c11: kpi_card("SV離脱率", sv_exit_rate, "%")
     with c12: kpi_card("FV+SV離脱率", total_exit_rate, "%")
