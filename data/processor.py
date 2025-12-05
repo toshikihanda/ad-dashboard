@@ -23,7 +23,8 @@ PROJECT_SETTINGS = {
 }
 
 def safe_divide(numerator, denominator):
-    if denominator == 0 or pd.isna(denominator):
+    """0除算を防ぐ関数"""
+    if denominator == 0 or pd.isna(denominator) or denominator is None:
         return 0
     return numerator / denominator
 
@@ -154,7 +155,14 @@ def process_beyond_data(df_live, df_history):
     if combined.empty: return pd.DataFrame()
 
     # 2. Filter & Map
-    combined = combined[combined['folder_name'].isin(BEYOND_NAME_MAPPING.keys())].copy()
+    # 対象案件のフィルタリング
+    target_beyond_names = list(BEYOND_NAME_MAPPING.keys())
+    combined = combined[combined['folder_name'].isin(target_beyond_names)].copy()
+    
+    # utm_creative で始まる parameter のみを抽出
+    if 'parameter' in combined.columns:
+        combined = combined[combined['parameter'].str.startswith('utm_creative=', na=False)].copy()
+    
     combined['Campaign_Name'] = combined['folder_name'].map(BEYOND_NAME_MAPPING)
     
     # 3. Rename

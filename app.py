@@ -191,7 +191,35 @@ def main():
     df_meta = df_filtered[df_filtered["Media"] == "Meta"]
     df_beyond = df_filtered[df_filtered["Media"] == "Beyond"]
     
-    def safe_div(n, d): return n / d if d != 0 else 0
+    # safe_divide関数をインポート
+    from data.processor import safe_divide
+    
+    # --- デバッグ用: Beyondデータのフィルタ結果確認（開発中のみ） ---
+    # コメントアウトを外すと表示されます
+    # if True:  # 開発中は True、本番では False に変更
+    #     # フィルタ前のBeyondデータを取得
+    #     beyond_live = raw_data.get('Beyond_Live', pd.DataFrame())
+    #     beyond_history = raw_data.get('Beyond_History', pd.DataFrame())
+    #     if not beyond_live.empty or not beyond_history.empty:
+    #         beyond_all = pd.concat([beyond_live, beyond_history], ignore_index=True)
+    #         # folder_nameでフィルタ
+    #         target_beyond_names = ['【運用】SAC_成果', '【運用】SAC_予算', '【運用】ルーチェ_予算']
+    #         beyond_filtered_by_folder = beyond_all[beyond_all['folder_name'].isin(target_beyond_names)]
+    #         # utm_creativeでフィルタ
+    #         if 'parameter' in beyond_filtered_by_folder.columns:
+    #             beyond_filtered_by_utm = beyond_filtered_by_folder[beyond_filtered_by_folder['parameter'].str.startswith('utm_creative=', na=False)]
+    #         else:
+    #             beyond_filtered_by_utm = pd.DataFrame()
+    #         
+    #         st.write(f"Beyondデータ（フィルタ前）: {len(beyond_all)}件")
+    #         st.write(f"Beyondデータ（folder_name フィルタ後）: {len(beyond_filtered_by_folder)}件")
+    #         st.write(f"Beyondデータ（utm_creative フィルタ後）: {len(beyond_filtered_by_utm)}件")
+    #         st.write(f"Beyondデータ（最終フィルタ後）: {len(df_beyond)}件")
+    #         if not beyond_filtered_by_utm.empty:
+    #             st.write("フィルタ後のデータサンプル:")
+    #             display_cols = ['date_jst', 'folder_name', 'parameter', 'cost', 'click', 'cv']
+    #             available_cols = [col for col in display_cols if col in beyond_filtered_by_utm.columns]
+    #             st.dataframe(beyond_filtered_by_utm[available_cols].head(10))
     
     # 共通: 案件ごとの設定
     PROJECT_SETTINGS = {
@@ -199,104 +227,174 @@ def main():
         'SAC_予算': {'type': '予算', 'unit_price': None, 'fee_rate': 0.2},
         'ルーチェ_予算': {'type': '予算', 'unit_price': None, 'fee_rate': 0.2}
     }
+    
+    # 売上計算関数
+    def calculate_revenue_by_project(df, project_settings):
+        total_revenue = 0
+        for project_name, settings in project_settings.items():
+            project_data = df[df['Campaign_Name'] == project_name]
+            project_cv = project_data['CV'].sum()
+            project_cost = project_data['Cost'].sum()
+            
+            if settings['type'] == '成果':
+                # 成果型: CV × 単価
+                revenue = project_cv * settings['unit_price']
+            else:
+                # 予算型: Cost × 手数料率
+                revenue = project_cost * settings['fee_rate']
+            
+            total_revenue += revenue
+        return total_revenue
 
     if selected_tab == "合計":
         # --- 合計タブ ロジック ---
-        # Meta: Cost, Imp, Click, MCV
-        # Beyond: CV
+        # === Metaデータから取得する指標 ===
+        impressions = df_meta["Impressions"].sum()
+        meta_clicks = df_meta["Clicks"].sum()  # processor.pyで "Link Clicks" -> "Clicks" にリネーム済み
+        meta_cost = df_meta["Cost"].sum()  # processor.pyで "Amount Spent" -> "Cost" にリネーム済み（CPM/CPC計算用）
         
-        cost = df_meta["Cost"].sum()
-        imp = df_meta["Impressions"].sum()
-        clicks = df_meta["Clicks"].sum()
-        mcv = df_meta["MCV"].sum()
+        # === Beyondデータから取得する指標 ===
+        # ※ utm_creative でフィルタ済みのデータを使用
+        beyond_cost = df_beyond["Cost"].sum()      # ★ 出稿金額はBeyond
+        beyond_pv = df_beyond["PV"].sum()          # PV
+        beyond_clicks = df_beyond["Clicks"].sum()   # MCV（記事LP遷移）
+        beyond_cv = df_beyond["CV"].sum()          # CV（購入）
         
-        cv = df_beyond["CV"].sum()
+        # === 率系（Rate）===
+        # CTR: Metaで計算
+        ctr = safe_divide(meta_clicks, impressions) * 100
         
-        # 売上計算 (案件別に計算して合計)
-        # フィルタ後のデータに含まれる案件ごとに計算
-        revenue = 0
-        # 案件リストを取得 (Meta/Beyondどちらかにあれば計算対象)
-        campaigns = set(df_meta["Campaign_Name"].unique()) | set(df_beyond["Campaign_Name"].unique())
+        # MCVR: Beyondで計算（記事LPからの遷移率）
+        mcvr = safe_divide(beyond_clicks, beyond_pv) * 100
         
-        for camp in campaigns:
-            # その案件のCV (Beyond) と Cost (Meta) を取得
-            camp_cv = df_beyond[df_beyond["Campaign_Name"] == camp]["CV"].sum()
-            camp_cost = df_meta[df_meta["Campaign_Name"] == camp]["Cost"].sum()
-            
-            conf = PROJECT_SETTINGS.get(camp)
-            if conf:
-                if conf['type'] == '成果':
-                    revenue += camp_cv * conf['unit_price']
-                else:
-                    revenue += camp_cost * conf['fee_rate']
+        # CVR: Beyondで計算（購入率）
+        cvr = safe_divide(beyond_cv, beyond_clicks) * 100
         
-        gross_profit = revenue - cost
-        roas = safe_div(revenue, cost) * 100
+        # === コスト系（Cost）===
+        # CPM: Metaで計算（広告効率）
+        cpm = safe_divide(meta_cost, impressions) * 1000
         
-        cpa = safe_div(cost, cv)
-        mcpa = safe_div(cost, mcv)
-        cpc = safe_div(cost, clicks)
-        cpm = safe_div(cost, imp) * 1000
-        ctr = safe_div(clicks, imp) * 100
-        mcvr = safe_div(mcv, clicks) * 100
-        # CVR = CV / Beyond Click (商品LP遷移)
-        beyond_clicks = df_beyond["Clicks"].sum()
-        cvr = safe_div(cv, beyond_clicks) * 100
-
-        # 表示 (2行)
-        display_kpi_cards_total(revenue, cost, gross_profit, roas, cv, cpa, mcpa, cpc, cpm, ctr, mcvr, cvr)
+        # CPC: Metaで計算（広告効率）
+        cpc = safe_divide(meta_cost, meta_clicks)
+        
+        # MCPA: Beyondで計算
+        mcpa = safe_divide(beyond_cost, beyond_clicks)
+        
+        # CPA: Beyondで計算
+        cpa = safe_divide(beyond_cost, beyond_cv)
+        
+        # === 金額系（Revenue）===
+        # 出稿金額: Beyondを使用
+        cost = beyond_cost
+        
+        # 売上: 案件タイプ別に計算
+        revenue = calculate_revenue_by_project(df_beyond, PROJECT_SETTINGS)
+        
+        # 粗利
+        profit = revenue - cost
+        
+        # 回収率（従来通り）
+        recovery_rate = safe_divide(revenue, cost) * 100
+        
+        # ROAS（粗利ベース）
+        roas = safe_divide(profit, revenue) * 100
+        
+        # === 小数点の処理 ===
+        # パーセント系 → 小数点第1位まで
+        ctr = round(ctr, 1)
+        mcvr = round(mcvr, 1)
+        cvr = round(cvr, 1)
+        recovery_rate = round(recovery_rate, 1)
+        roas = round(roas, 1)
+        
+        # 金額系 → 整数（小数点切り捨て）
+        cost = int(cost)
+        revenue = int(revenue)
+        profit = int(profit)
+        cpm = int(cpm)
+        cpc = int(cpc)
+        mcpa = int(mcpa)
+        cpa = int(cpa)
+        
+        # 表示
+        display_kpi_cards_total(revenue, cost, profit, recovery_rate, beyond_cv, cpa, impressions, meta_clicks, beyond_clicks, ctr, mcvr, cvr, cpm, cpc, mcpa, roas)
 
     elif selected_tab == "Meta":
         # --- Metaタブ ロジック ---
-        # 売上・粗利・回収率は表示しない
-        cost = df_meta["Cost"].sum()
-        imp = df_meta["Impressions"].sum()
-        clicks = df_meta["Clicks"].sum()
-        cv = df_meta["MCV"].sum() # Metaタブでは Results(MCV) を CV として表示
+        # Metaデータのみを使用。売上・粗利は表示しない。
+        impressions = df_meta["Impressions"].sum()
+        clicks = df_meta["Clicks"].sum()  # processor.pyで "Link Clicks" -> "Clicks" にリネーム済み
+        cost = df_meta["Cost"].sum()  # processor.pyで "Amount Spent" -> "Cost" にリネーム済み
+        cv = df_meta["MCV"].sum()  # processor.pyで "Results" -> "MCV" にリネーム済み（MetaのCV = MCV相当）
         
-        cpa = safe_div(cost, cv)
-        cpc = safe_div(cost, clicks)
-        cpm = safe_div(cost, imp) * 1000
-        ctr = safe_div(clicks, imp) * 100
+        ctr = safe_divide(clicks, impressions) * 100
+        cpm = safe_divide(cost, impressions) * 1000
+        cpc = safe_divide(cost, clicks)
+        cpa = safe_divide(cost, cv)
         
-        display_kpi_cards_meta(cost, imp, clicks, cv, cpa, cpc, cpm, ctr)
+        # === 小数点の処理 ===
+        # パーセント系 → 小数点第1位まで
+        ctr = round(ctr, 1)
+        
+        # 金額系 → 整数（小数点切り捨て）
+        cost = int(cost)
+        impressions = int(impressions)
+        clicks = int(clicks)
+        cv = int(cv)
+        cpm = int(cpm)
+        cpc = int(cpc)
+        cpa = int(cpa)
+        
+        display_kpi_cards_meta(impressions, clicks, cost, cv, ctr, cpm, cpc, cpa)
 
     elif selected_tab == "Beyond":
         # --- Beyondタブ ロジック ---
+        # Beyondデータのみを使用（utm_creative でフィルタ済み）
         cost = df_beyond["Cost"].sum()
         pv = df_beyond["PV"].sum()
-        clicks = df_beyond["Clicks"].sum() # 商品LP遷移
+        clicks = df_beyond["Clicks"].sum()  # MCV（記事LP遷移）
         cv = df_beyond["CV"].sum()
-        
-        # 売上計算 (Beyond Cost ベース?) -> 要望: "売上 = 各案件の売上を合計"
-        # Beyondタブでの売上計算ロジック:
-        # 成果型: CV * 単価
-        # 予算型: Cost * 手数料率 (Beyond Costを使う)
-        revenue = 0
-        for camp in df_beyond["Campaign_Name"].unique():
-            camp_cv = df_beyond[df_beyond["Campaign_Name"] == camp]["CV"].sum()
-            camp_cost = df_beyond[df_beyond["Campaign_Name"] == camp]["Cost"].sum()
-            conf = PROJECT_SETTINGS.get(camp)
-            if conf:
-                if conf['type'] == '成果':
-                    revenue += camp_cv * conf['unit_price']
-                else:
-                    revenue += camp_cost * conf['fee_rate']
-
-        gross_profit = revenue - cost
-        roas = safe_div(revenue, cost) * 100
-        
-        cpa = safe_div(cost, cv)
-        cpc = safe_div(cost, clicks)
-        cvr = safe_div(cv, clicks) * 100
-        
         fv_exit = df_beyond["FV_Exit"].sum()
         sv_exit = df_beyond["SV_Exit"].sum()
-        fv_exit_rate = safe_div(fv_exit, pv) * 100
-        sv_exit_rate = safe_div(sv_exit, (pv - fv_exit)) * 100
-        total_exit_rate = safe_div(fv_exit + sv_exit, pv) * 100
         
-        display_kpi_cards_beyond(revenue, cost, gross_profit, roas, cv, cpa, cpc, cvr, fv_exit_rate, sv_exit_rate, total_exit_rate)
+        # 率
+        cvr = safe_divide(cv, clicks) * 100
+        mcvr = safe_divide(clicks, pv) * 100
+        
+        # コスト
+        cpa = safe_divide(cost, cv)
+        cpc = safe_divide(cost, clicks)
+        
+        # 離脱率
+        fv_exit_rate = safe_divide(fv_exit, pv) * 100
+        sv_exit_rate = safe_divide(sv_exit, (pv - fv_exit)) * 100
+        total_exit_rate = safe_divide((fv_exit + sv_exit), pv) * 100
+        
+        # 売上・粗利（Beyond内で完結）
+        revenue = calculate_revenue_by_project(df_beyond, PROJECT_SETTINGS)
+        profit = revenue - cost
+        recovery_rate = safe_divide(revenue, cost) * 100
+        
+        # === 小数点の処理 ===
+        # パーセント系 → 小数点第1位まで
+        cvr = round(cvr, 1)
+        mcvr = round(mcvr, 1)
+        fv_exit_rate = round(fv_exit_rate, 1)
+        sv_exit_rate = round(sv_exit_rate, 1)
+        total_exit_rate = round(total_exit_rate, 1)
+        recovery_rate = round(recovery_rate, 1)
+        
+        # 金額系 → 整数（小数点切り捨て）
+        cost = int(cost)
+        revenue = int(revenue)
+        profit = int(profit)
+        pv = int(pv)
+        clicks = int(clicks)
+        cv = int(cv)
+        cpa = int(cpa)
+        cpc = int(cpc)
+        
+        display_kpi_cards_beyond(revenue, cost, profit, recovery_rate, cv, cpa, pv, clicks, mcvr, cvr, cpc, fv_exit_rate, sv_exit_rate, total_exit_rate)
 
     # --- 7. Tables & Charts ---
     
@@ -456,54 +554,77 @@ def kpi_card(label, value, unit="", color_class=""):
     </div>
     """, unsafe_allow_html=True)
 
-def display_kpi_cards_total(rev, cost, prof, roas, cv, cpa, mcpa, cpc, cpm, ctr, mcvr, cvr):
+def display_kpi_cards_total(rev, cost, prof, recovery_rate, cv, cpa, impressions, clicks, mcv, ctr, mcvr, cvr, cpm, cpc, mcpa, roas):
+    # 1行目（主要指標）
     c1, c2, c3, c4, c5, c6 = st.columns(6)
     with c1: kpi_card("売上", rev, "円", "text-blue")
     with c2: kpi_card("出稿金額", cost, "円", "text-red")
     with c3: kpi_card("粗利", prof, "円", "text-orange")
-    with c4: kpi_card("回収率", roas, "%", "text-green")
+    with c4: kpi_card("回収率", recovery_rate, "%", "text-green")
     with c5: kpi_card("CV", cv, "件")
     with c6: kpi_card("CPA", cpa, "円")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    # 2行目（流入指標）
     c7, c8, c9, c10, c11, c12 = st.columns(6)
-    with c7: kpi_card("MCPA", mcpa, "円")
-    with c8: kpi_card("CPC", cpc, "円")
-    with c9: kpi_card("CPM", cpm, "円")
+    with c7: kpi_card("Impressions", impressions, "")
+    with c8: kpi_card("Clicks", clicks, "")
+    with c9: kpi_card("MCV", mcv, "件")
     with c10: kpi_card("CTR", ctr, "%", "text-green")
     with c11: kpi_card("MCVR", mcvr, "%", "text-green")
     with c12: kpi_card("CVR", cvr, "%", "text-green")
+    
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    # 3行目（コスト効率）
+    c13, c14, c15, c16, c17, c18 = st.columns(6)
+    with c13: kpi_card("CPM", cpm, "円")
+    with c14: kpi_card("CPC", cpc, "円")
+    with c15: kpi_card("MCPA", mcpa, "円")
+    with c16: kpi_card("ROAS", roas, "%", "text-green")
+    # c17, c18 は空欄
 
-def display_kpi_cards_meta(cost, imp, clicks, cv, cpa, cpc, cpm, ctr):
+def display_kpi_cards_meta(impressions, clicks, cost, cv, ctr, cpm, cpc, cpa):
+    # Metaタブで表示するKPIカード
     c1, c2, c3, c4 = st.columns(4)
-    with c1: kpi_card("出稿金額", cost, "円", "text-red")
-    with c2: kpi_card("imp", imp, "")
-    with c3: kpi_card("クリック", clicks, "")
+    with c1: kpi_card("Impressions", impressions, "")
+    with c2: kpi_card("Clicks", clicks, "")
+    with c3: kpi_card("Cost", cost, "円", "text-red")
     with c4: kpi_card("CV", cv, "件")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
     c5, c6, c7, c8 = st.columns(4)
-    with c5: kpi_card("CPA", cpa, "円")
-    with c6: kpi_card("CPC", cpc, "円")
-    with c7: kpi_card("CPM", cpm, "円")
-    with c8: kpi_card("CTR", ctr, "%", "text-green")
+    with c5: kpi_card("CTR", ctr, "%", "text-green")
+    with c6: kpi_card("CPM", cpm, "円")
+    with c7: kpi_card("CPC", cpc, "円")
+    with c8: kpi_card("CPA", cpa, "円")
 
-def display_kpi_cards_beyond(rev, cost, prof, roas, cv, cpa, cpc, cvr, fv_exit, sv_exit, total_exit):
+def display_kpi_cards_beyond(revenue, cost, profit, recovery_rate, cv, cpa, pv, clicks, mcvr, cvr, cpc, fv_exit_rate, sv_exit_rate, total_exit_rate):
+    # Beyondタブで表示するKPIカード
+    # 1行目
     c1, c2, c3, c4, c5, c6 = st.columns(6)
-    with c1: kpi_card("売上", rev, "円", "text-blue")
+    with c1: kpi_card("売上", revenue, "円", "text-blue")
     with c2: kpi_card("出稿金額", cost, "円", "text-red")
-    with c3: kpi_card("粗利", prof, "円", "text-orange")
-    with c4: kpi_card("回収率", roas, "%", "text-green")
+    with c3: kpi_card("粗利", profit, "円", "text-orange")
+    with c4: kpi_card("回収率", recovery_rate, "%", "text-green")
     with c5: kpi_card("CV", cv, "件")
     with c6: kpi_card("CPA", cpa, "円")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    c7, c8, c9, c10, c11 = st.columns(5)
-    with c7: kpi_card("CPC", cpc, "円")
-    with c8: kpi_card("CVR", cvr, "%", "text-green")
-    with c9: kpi_card("FV離脱率", fv_exit, "%")
-    with c10: kpi_card("SV離脱率", sv_exit, "%")
-    with c11: kpi_card("FV+SV離脱率", total_exit, "%")
+    # 2行目
+    c7, c8, c9, c10, c11, c12 = st.columns(6)
+    with c7: kpi_card("PV", pv, "")
+    with c8: kpi_card("Clicks", clicks, "件")
+    with c9: kpi_card("MCVR", mcvr, "%", "text-green")
+    with c10: kpi_card("CVR", cvr, "%", "text-green")
+    with c11: kpi_card("CPC", cpc, "円")
+    # c12 は空欄
+    
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    # 3行目
+    c13, c14, c15 = st.columns(3)
+    with c13: kpi_card("FV離脱率", fv_exit_rate, "%")
+    with c14: kpi_card("SV離脱率", sv_exit_rate, "%")
+    with c15: kpi_card("FV+SV離脱率", total_exit_rate, "%")
 
 # テーブル表示関数 (簡易版)
 def display_aggregated_table(dataframe, title):
