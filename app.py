@@ -116,59 +116,30 @@ def main():
     today = datetime.now().date()
     first_day_of_month = today.replace(day=1)
     
-    # ヘッダー部分
-    header_row1_col1, header_row1_col2, header_row1_col3, header_row1_col4, header_row1_col5, header_row1_col6 = st.columns([1.5, 2, 1.5, 1.5, 1.5, 2])
+    # ヘッダー部分（1行にすべて配置）
+    header_col1, header_col2, header_col3, header_col4, header_col5, header_col6 = st.columns([1.5, 2, 1.5, 1.5, 1.5, 2])
     
-    with header_row1_col1:
+    with header_col1:
         st.markdown("### 運用分析用")
     
-    with header_row1_col2:
-        # タブを2行レイアウトに変更
+    with header_col2:
+        # タブを1行にまとめる（合計、Meta、Beyondを横並び）
         current_tab = st.session_state.get("media_tab", "合計")
         
-        # カスタムタブボタンのスタイル
-        tab_style = """
-        <style>
-            .custom-tab-button {
-                padding: 8px 24px;
-                border: 1px solid #E5E7EB;
-                border-radius: 6px;
-                font-weight: 700;
-                font-size: 14px;
-                cursor: pointer;
-                transition: all 0.2s ease;
-            }
-            .custom-tab-button.selected {
-                background-color: #1F2937;
-                color: #FFFFFF;
-                border-color: #1F2937;
-            }
-            .custom-tab-button:not(.selected) {
-                background-color: #FFFFFF;
-                color: #1F2937;
-            }
-        </style>
-        """
-        st.markdown(tab_style, unsafe_allow_html=True)
-        
-        # 1行目: 合計
-        tab_row1_col1, tab_row1_col2, tab_row1_col3 = st.columns([1, 1, 1])
-        with tab_row1_col2:
+        tab_col1, tab_col2, tab_col3 = st.columns([1, 1, 1])
+        with tab_col1:
             is_selected = current_tab == "合計"
             button_type = "primary" if is_selected else "secondary"
             if st.button("合計", key="tab_total", use_container_width=True, type=button_type):
                 st.session_state.media_tab = "合計"
                 st.rerun()
-        
-        # 2行目: Meta と Beyond
-        tab_row2_col1, tab_row2_col2 = st.columns([1, 1])
-        with tab_row2_col1:
+        with tab_col2:
             is_selected = current_tab == "Meta"
             button_type = "primary" if is_selected else "secondary"
             if st.button("Meta", key="tab_meta", use_container_width=True, type=button_type):
                 st.session_state.media_tab = "Meta"
                 st.rerun()
-        with tab_row2_col2:
+        with tab_col3:
             is_selected = current_tab == "Beyond"
             button_type = "primary" if is_selected else "secondary"
             if st.button("Beyond", key="tab_beyond", use_container_width=True, type=button_type):
@@ -272,56 +243,6 @@ def main():
     
     # safe_divide関数をインポート
     from data.processor import safe_divide
-    
-    # === デバッグ用（確認後に削除） ===
-    st.markdown("### デバッグ情報")
-    
-    # フィルタ前のBeyondデータを取得
-    beyond_live = raw_data.get('Beyond_Live', pd.DataFrame())
-    beyond_history = raw_data.get('Beyond_History', pd.DataFrame())
-    
-    if not beyond_live.empty or not beyond_history.empty:
-        beyond_data = pd.concat([beyond_live, beyond_history], ignore_index=True)
-        
-        # utm_creative でフィルタしたデータを取得（processor.pyと同じロジック）
-        from data.processor import BEYOND_NAME_MAPPING
-        target_beyond_names = list(BEYOND_NAME_MAPPING.keys())
-        beyond_filtered_by_folder = beyond_data[beyond_data['folder_name'].isin(target_beyond_names)].copy()
-        
-        if 'parameter' in beyond_filtered_by_folder.columns:
-            beyond_filtered = beyond_filtered_by_folder[beyond_filtered_by_folder['parameter'].str.startswith('utm_creative=', na=False)].copy()
-        else:
-            beyond_filtered = pd.DataFrame()
-        
-        st.write(f"Beyondデータ（フィルタ前）: {len(beyond_data)}件")
-        st.write(f"Beyondデータ（folder_name フィルタ後）: {len(beyond_filtered_by_folder)}件")
-        st.write(f"Beyondデータ（utm_creative フィルタ後）: {len(beyond_filtered)}件")
-        st.write(f"Beyondデータ（最終フィルタ後: 日付・案件等）: {len(df_beyond)}件")
-        
-        if len(beyond_filtered) > 0:
-            st.write("Beyondフィルタ後のデータサンプル（utm_creative フィルタ後）:")
-            display_cols = ['date_jst', 'folder_name', 'parameter', 'cost', 'click', 'cv']
-            available_cols = [col for col in display_cols if col in beyond_filtered.columns]
-            if available_cols:
-                st.dataframe(beyond_filtered[available_cols].head(20))
-            
-            st.write(f"Beyond cost 合計（utm_creative フィルタ後）: {beyond_filtered['cost'].sum():,.0f}")
-            st.write(f"Beyond click 合計（utm_creative フィルタ後）: {beyond_filtered['click'].sum():,.0f}")
-            st.write(f"Beyond cv 合計（utm_creative フィルタ後）: {beyond_filtered['cv'].sum():,.0f}")
-            
-            # 最終フィルタ後のデータも表示
-            if not df_beyond.empty:
-                st.write("最終フィルタ後のBeyondデータ（日付・案件等フィルタ後）:")
-                st.write(f"最終 cost 合計: {df_beyond['Cost'].sum():,.0f}")
-                st.write(f"最終 Clicks 合計: {df_beyond['Clicks'].sum():,.0f}")
-                st.write(f"最終 CV 合計: {df_beyond['CV'].sum():,.0f}")
-        else:
-            st.warning("utm_creative でフィルタした結果、データが0件です")
-    else:
-        st.warning("Beyondデータが読み込まれていません")
-    
-    st.markdown("---")
-    # === デバッグ用ここまで ===
     
     # --- デバッグ用: Beyondデータのフィルタ結果確認（開発中のみ） ---
     # コメントアウトを外すと表示されます
