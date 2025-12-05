@@ -70,7 +70,7 @@ def get_custom_css():
         div[data-testid="column"] button {
             background-color: #FFFFFF;
             color: #1F2937;
-            padding: 8px 24px;
+            padding: 10px 20px;
             border: 1px solid #E5E7EB;
             border-radius: 6px;
             transition: all 0.2s ease;
@@ -78,11 +78,16 @@ def get_custom_css():
             font-weight: 700;
             font-size: 14px;
             white-space: nowrap;
-            min-width: 80px;
+            min-width: 90px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         
         div[data-testid="column"] button:hover {
             background-color: #F3F4F6;
+            border-color: #D1D5DB;
         }
         
         /* プライマリボタン（選択中）のスタイル */
@@ -90,6 +95,18 @@ def get_custom_css():
             background-color: #DC3545 !important;
             color: #FFFFFF !important;
             border-color: #DC3545 !important;
+        }
+        
+        div[data-testid="column"] button[kind="primary"]:hover {
+            background-color: #C82333 !important;
+            border-color: #C82333 !important;
+        }
+        
+        /* セカンダリボタン（未選択）のスタイル */
+        div[data-testid="column"] button[kind="secondary"] {
+            background-color: #FFFFFF !important;
+            color: #1F2937 !important;
+            border-color: #E5E7EB !important;
         }
         
         /* タブ風ラジオボタンのスタイル */
