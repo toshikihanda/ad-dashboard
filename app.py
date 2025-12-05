@@ -380,11 +380,30 @@ def main():
         cpa = safe_divide(beyond_cost, beyond_cv)
         
         # === 金額系（Revenue）===
-        # 出稿金額: Beyondを使用
+        # 出稿金額: Beyondを使用（表示用）
         cost = beyond_cost
         
         # 売上: 案件タイプ別に計算
-        revenue = calculate_revenue_by_project(df_beyond, PROJECT_SETTINGS)
+        # 予算型の場合、Beyondのcostが0の場合はMetaのCostを使用
+        revenue = 0
+        for project_name, settings in PROJECT_SETTINGS.items():
+            project_beyond = df_beyond[df_beyond['Campaign_Name'] == project_name]
+            project_meta = df_meta[df_meta['Campaign_Name'] == project_name]
+            project_cv = project_beyond['CV'].sum()
+            project_beyond_cost = project_beyond['Cost'].sum()
+            project_meta_cost = project_meta['Cost'].sum()
+            
+            if settings['type'] == '成果':
+                # 成果型: CV × 単価
+                revenue += project_cv * settings['unit_price']
+            else:
+                # 予算型: Cost × 手数料率
+                # Beyondのcostが0の場合は、MetaのCostを使用
+                if project_beyond_cost == 0:
+                    cost_for_revenue = project_meta_cost
+                else:
+                    cost_for_revenue = project_beyond_cost
+                revenue += cost_for_revenue * settings['fee_rate']
         
         # 粗利
         profit = revenue - cost
@@ -549,11 +568,24 @@ def main():
                 # 売上計算
                 settings = PROJECT_SETTINGS.get(project_name, {})
                 if settings.get('type') == '成果':
+                    # 成果型: CV × 単価
                     revenue = beyond_cv * settings.get('unit_price', 0)
+                    # 出稿金額はBeyondを使用
+                    cost_for_revenue = beyond_cost
                 else:
-                    revenue = beyond_cost * settings.get('fee_rate', 0)
+                    # 予算型: Cost × 手数料率
+                    # Beyondのcostが0の場合は、MetaのCostを使用
+                    if beyond_cost == 0:
+                        cost_for_revenue = meta_cost
+                    else:
+                        cost_for_revenue = beyond_cost
+                    revenue = cost_for_revenue * settings.get('fee_rate', 0)
+                    # 出稿金額はBeyondを使用（表示用）
+                    # ただし、売上計算にはMetaのCostも考慮
                 
-                profit = revenue - beyond_cost
+                # 出稿金額はBeyondを使用（表示用）
+                cost_for_display = beyond_cost
+                profit = revenue - cost_for_display
                 recovery_rate = safe_divide(revenue, beyond_cost) * 100
                 roas = safe_divide(profit, revenue) * 100
                 
@@ -570,7 +602,7 @@ def main():
                 
                 table_data.append({
                     '案件名': project_name,
-                    '出稿金額': int(beyond_cost),
+                    '出稿金額': int(cost_for_display),
                     '売上': int(revenue),
                     '粗利': int(profit),
                     'Imp': int(impressions),
