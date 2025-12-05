@@ -316,8 +316,8 @@ def main():
         mcpa = int(mcpa)
         cpa = int(cpa)
         
-        # 表示
-        display_kpi_cards_total(revenue, cost, profit, recovery_rate, beyond_cv, cpa, impressions, meta_clicks, beyond_clicks, ctr, mcvr, cvr, cpm, cpc, mcpa, roas)
+        # 表示（順番を整理）
+        display_kpi_cards_total(revenue, cost, profit, recovery_rate, roas, beyond_cv, cpa, beyond_clicks, mcpa, cvr, mcvr, impressions, meta_clicks, ctr, cpm, cpc)
 
     elif selected_tab == "Meta":
         # --- Metaタブ ロジック ---
@@ -370,10 +370,8 @@ def main():
         sv_exit_rate = safe_divide(sv_exit, (pv - fv_exit)) * 100
         total_exit_rate = safe_divide((fv_exit + sv_exit), pv) * 100
         
-        # 売上・粗利（Beyond内で完結）
-        revenue = calculate_revenue_by_project(df_beyond, PROJECT_SETTINGS)
-        profit = revenue - cost
-        recovery_rate = safe_divide(revenue, cost) * 100
+        # MCPA
+        mcpa = safe_divide(cost, clicks)
         
         # === 小数点の処理 ===
         # パーセント系 → 小数点第1位まで
@@ -382,19 +380,17 @@ def main():
         fv_exit_rate = round(fv_exit_rate, 1)
         sv_exit_rate = round(sv_exit_rate, 1)
         total_exit_rate = round(total_exit_rate, 1)
-        recovery_rate = round(recovery_rate, 1)
         
         # 金額系 → 整数（小数点切り捨て）
         cost = int(cost)
-        revenue = int(revenue)
-        profit = int(profit)
         pv = int(pv)
         clicks = int(clicks)
         cv = int(cv)
         cpa = int(cpa)
         cpc = int(cpc)
+        mcpa = int(mcpa)
         
-        display_kpi_cards_beyond(revenue, cost, profit, recovery_rate, cv, cpa, pv, clicks, mcvr, cvr, cpc, fv_exit_rate, sv_exit_rate, total_exit_rate)
+        display_kpi_cards_beyond(cost, pv, clicks, cv, mcvr, cvr, cpc, cpa, mcpa, fv_exit_rate, sv_exit_rate, total_exit_rate)
 
     # --- 7. Tables & Charts ---
     
@@ -483,17 +479,17 @@ def main():
                     '粗利': int(profit),
                     '回収率': f"{recovery_rate:.1f}%",
                     'ROAS': f"{roas:.1f}%",
+                    'CV': int(beyond_cv),
+                    'CPA': int(cpa),
+                    'MCV': int(beyond_clicks),
+                    'MCPA': int(mcpa),
+                    'CVR': f"{cvr:.1f}%",
+                    'MCVR': f"{mcvr:.1f}%",
                     'Imp': int(impressions),
                     'Clicks': int(meta_clicks),
-                    'MCV': int(beyond_clicks),
-                    'CV': int(beyond_cv),
                     'CTR': f"{ctr:.1f}%",
-                    'MCVR': f"{mcvr:.1f}%",
-                    'CVR': f"{cvr:.1f}%",
                     'CPM': int(cpm),
                     'CPC': int(cpc),
-                    'MCPA': int(mcpa),
-                    'CPA': int(cpa),
                 })
                 
             elif tab_mode == "Meta":
@@ -533,16 +529,7 @@ def main():
                 fv_exit = beyond_project["FV_Exit"].sum()
                 sv_exit = beyond_project["SV_Exit"].sum()
                 
-                # 売上計算
-                settings = PROJECT_SETTINGS.get(project_name, {})
-                if settings.get('type') == '成果':
-                    revenue = cv * settings.get('unit_price', 0)
-                else:
-                    revenue = cost * settings.get('fee_rate', 0)
-                
-                profit = revenue - cost
-                recovery_rate = safe_divide(revenue, cost) * 100
-                roas = safe_divide(profit, revenue) * 100
+                # 売上・粗利・回収率・ROASは計算しない（合計タブでのみ表示）
                 mcvr = safe_divide(clicks, pv) * 100
                 cvr = safe_divide(cv, clicks) * 100
                 cpc = safe_divide(cost, clicks)
@@ -554,11 +541,7 @@ def main():
                 
                 table_data.append({
                     '案件名': project_name,
-                    '売上': int(revenue),
                     '出稿金額': int(cost),
-                    '粗利': int(profit),
-                    '回収率': f"{recovery_rate:.1f}%",
-                    'ROAS': f"{roas:.1f}%",
                     'PV': int(pv),
                     'Clicks': int(clicks),
                     'CV': int(cv),
@@ -605,21 +588,11 @@ def main():
 
     st.markdown("---")
     
-    # 4つの期間テーブル
-    c_today, c_yesterday = st.columns(2)
-    with c_today:
-        display_period_table(get_period_data(df_base, is_today=True), "■案件別数値（当日）", selected_tab)
-    with c_yesterday:
-        display_period_table(get_period_data(df_base, is_yesterday=True), "■案件別数値（昨日）", selected_tab)
-        
-    c_3days, c_7days = st.columns(2)
-    with c_3days:
-        display_period_table(get_period_data(df_base, days_back=2), "■案件別数値（直近3日間）", selected_tab) # 当日含む3日
-    with c_7days:
-        display_period_table(get_period_data(df_base, days_back=6), "■案件別数値（直近7日間）", selected_tab) # 当日含む7日
-
-    st.markdown("---")
-    # 選択期間
+    # すべての期間テーブルを縦1列に配置
+    display_period_table(get_period_data(df_base, is_today=True), "■案件別数値（当日）", selected_tab)
+    display_period_table(get_period_data(df_base, is_yesterday=True), "■案件別数値（昨日）", selected_tab)
+    display_period_table(get_period_data(df_base, days_back=2), "■案件別数値（直近3日間）", selected_tab)  # 当日含む3日
+    display_period_table(get_period_data(df_base, days_back=6), "■案件別数値（直近7日間）", selected_tab)  # 当日含む7日
     display_period_table(df_filtered, "■案件別数値（選択期間）", selected_tab)
     
     st.markdown("---")
@@ -638,77 +611,75 @@ def kpi_card(label, value, unit="", color_class=""):
     </div>
     """, unsafe_allow_html=True)
 
-def display_kpi_cards_total(rev, cost, prof, recovery_rate, cv, cpa, impressions, clicks, mcv, ctr, mcvr, cvr, cpm, cpc, mcpa, roas):
-    # 1行目（主要指標）
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
+def display_kpi_cards_total(rev, cost, prof, recovery_rate, roas, cv, cpa, mcv, mcpa, cvr, mcvr, impressions, clicks, ctr, cpm, cpc):
+    # 【1行目】経営指標（お金の流れ）
+    c1, c2, c3, c4, c5 = st.columns(5)
     with c1: kpi_card("売上", rev, "円", "text-blue")
     with c2: kpi_card("出稿金額", cost, "円", "text-red")
     with c3: kpi_card("粗利", prof, "円", "text-orange")
     with c4: kpi_card("回収率", recovery_rate, "%", "text-green")
-    with c5: kpi_card("CV", cv, "件")
-    with c6: kpi_card("CPA", cpa, "円")
+    with c5: kpi_card("ROAS", roas, "%", "text-green")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 2行目（流入指標）
-    c7, c8, c9, c10, c11, c12 = st.columns(6)
-    with c7: kpi_card("Impressions", impressions, "")
-    with c8: kpi_card("Clicks", clicks, "")
-    with c9: kpi_card("MCV", mcv, "件")
-    with c10: kpi_card("CTR", ctr, "%", "text-green")
+    # 【2行目】成果指標（CVまでの流れ）
+    c6, c7, c8, c9, c10, c11 = st.columns(6)
+    with c6: kpi_card("CV", cv, "件")
+    with c7: kpi_card("CPA", cpa, "円")
+    with c8: kpi_card("MCV", mcv, "件")
+    with c9: kpi_card("MCPA", mcpa, "円")
+    with c10: kpi_card("CVR", cvr, "%", "text-green")
     with c11: kpi_card("MCVR", mcvr, "%", "text-green")
-    with c12: kpi_card("CVR", cvr, "%", "text-green")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 3行目（コスト効率）
-    c13, c14, c15, c16, c17, c18 = st.columns(6)
-    with c13: kpi_card("CPM", cpm, "円")
-    with c14: kpi_card("CPC", cpc, "円")
-    with c15: kpi_card("MCPA", mcpa, "円")
-    with c16: kpi_card("ROAS", roas, "%", "text-green")
-    # c17, c18 は空欄
+    # 【3行目】流入指標（広告の効率）
+    c12, c13, c14, c15, c16 = st.columns(5)
+    with c12: kpi_card("Imp", impressions, "")
+    with c13: kpi_card("Clicks", clicks, "")
+    with c14: kpi_card("CTR", ctr, "%", "text-green")
+    with c15: kpi_card("CPM", cpm, "円")
+    with c16: kpi_card("CPC", cpc, "円")
 
 def display_kpi_cards_meta(impressions, clicks, cost, cv, ctr, cpm, cpc, cpa):
     # Metaタブで表示するKPIカード
+    # 【1行目】コストと成果
     c1, c2, c3, c4 = st.columns(4)
-    with c1: kpi_card("Impressions", impressions, "")
-    with c2: kpi_card("Clicks", clicks, "")
-    with c3: kpi_card("Cost", cost, "円", "text-red")
+    with c1: kpi_card("出稿金額", cost, "円", "text-red")
+    with c2: kpi_card("Imp", impressions, "")
+    with c3: kpi_card("Clicks", clicks, "")
     with c4: kpi_card("CV", cv, "件")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    # 【2行目】効率指標
     c5, c6, c7, c8 = st.columns(4)
     with c5: kpi_card("CTR", ctr, "%", "text-green")
-    with c6: kpi_card("CPM", cpm, "円")
+    with c6: kpi_card("CPA", cpa, "円")
+    with c7: kpi_card("CPC", cpc, "円")
+    with c8: kpi_card("CPM", cpm, "円")
+
+def display_kpi_cards_beyond(cost, pv, clicks, cv, mcvr, cvr, cpc, cpa, mcpa, fv_exit_rate, sv_exit_rate, total_exit_rate):
+    # Beyondタブで表示するKPIカード
+    # 【1行目】コストと成果
+    c1, c2, c3, c4 = st.columns(4)
+    with c1: kpi_card("出稿金額", cost, "円", "text-red")
+    with c2: kpi_card("PV", pv, "")
+    with c3: kpi_card("Clicks", clicks, "件")
+    with c4: kpi_card("CV", cv, "件")
+    
+    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
+    # 【2行目】効率指標
+    c5, c6, c7, c8, c9 = st.columns(5)
+    with c5: kpi_card("MCVR", mcvr, "%", "text-green")
+    with c6: kpi_card("CVR", cvr, "%", "text-green")
     with c7: kpi_card("CPC", cpc, "円")
     with c8: kpi_card("CPA", cpa, "円")
-
-def display_kpi_cards_beyond(revenue, cost, profit, recovery_rate, cv, cpa, pv, clicks, mcvr, cvr, cpc, fv_exit_rate, sv_exit_rate, total_exit_rate):
-    # Beyondタブで表示するKPIカード
-    # 1行目
-    c1, c2, c3, c4, c5, c6 = st.columns(6)
-    with c1: kpi_card("売上", revenue, "円", "text-blue")
-    with c2: kpi_card("出稿金額", cost, "円", "text-red")
-    with c3: kpi_card("粗利", profit, "円", "text-orange")
-    with c4: kpi_card("回収率", recovery_rate, "%", "text-green")
-    with c5: kpi_card("CV", cv, "件")
-    with c6: kpi_card("CPA", cpa, "円")
+    with c9: kpi_card("MCPA", mcpa, "円")
     
     st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 2行目
-    c7, c8, c9, c10, c11, c12 = st.columns(6)
-    with c7: kpi_card("PV", pv, "")
-    with c8: kpi_card("Clicks", clicks, "件")
-    with c9: kpi_card("MCVR", mcvr, "%", "text-green")
-    with c10: kpi_card("CVR", cvr, "%", "text-green")
-    with c11: kpi_card("CPC", cpc, "円")
-    # c12 は空欄
-    
-    st.markdown("<div style='margin-top: 16px;'></div>", unsafe_allow_html=True)
-    # 3行目
-    c13, c14, c15 = st.columns(3)
-    with c13: kpi_card("FV離脱率", fv_exit_rate, "%")
-    with c14: kpi_card("SV離脱率", sv_exit_rate, "%")
-    with c15: kpi_card("FV+SV離脱率", total_exit_rate, "%")
+    # 【3行目】離脱指標
+    c10, c11, c12 = st.columns(3)
+    with c10: kpi_card("FV離脱率", fv_exit_rate, "%")
+    with c11: kpi_card("SV離脱率", sv_exit_rate, "%")
+    with c12: kpi_card("FV+SV離脱率", total_exit_rate, "%")
 
 # テーブル表示関数 (簡易版)
 def display_aggregated_table(dataframe, title):
