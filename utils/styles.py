@@ -70,7 +70,7 @@ def get_custom_css():
         div[data-testid="column"] button {
             background-color: #FFFFFF;
             color: #1F2937;
-            padding: 8px 16px;
+            padding: 0;
             border: 1px solid #E5E7EB;
             border-radius: 8px;
             transition: all 0.2s ease;
@@ -79,11 +79,12 @@ def get_custom_css():
             font-size: 14px;
             white-space: nowrap;
             min-width: 70px;
-            height: 36px;
+            height: 38.4px;
             display: flex;
             align-items: center;
             justify-content: center;
             margin: 0 2px;
+            line-height: 1;
         }
         
         div[data-testid="column"] button:hover {

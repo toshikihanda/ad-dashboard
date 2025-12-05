@@ -51,6 +51,11 @@ st.markdown("""
         margin-bottom: 4px;
     }
     
+    /* セレクトボックスの入力フィールドの高さを取得してボタンに合わせる */
+    .stSelectbox > div > div {
+        height: 38.4px;
+    }
+    
     /* 日付入力の余白を調整 */
     .stDateInput {
         margin-bottom: 0.5rem;
@@ -61,6 +66,11 @@ st.markdown("""
         font-weight: 500;
         color: #6B7280;
         margin-bottom: 4px;
+    }
+    
+    /* 日付入力フィールドの高さを調整 */
+    .stDateInput > div > div {
+        height: 38.4px;
     }
     
     /* メトリクスカード間の余白を調整 */
