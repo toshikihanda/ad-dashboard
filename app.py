@@ -171,27 +171,27 @@ def main():
         all_articles = ["All"] + list(df[df["Media"]=="Beyond"]["Creative"].dropna().unique())
         all_creatives = ["All"] + list(df[df["Media"]=="Meta"]["Creative"].dropna().unique())
     
-    with header_row1_col3:
+    with header_col3:
         selected_campaign = st.selectbox(
             "商品名",
             options=all_campaigns
         )
     
-    with header_row1_col4:
+    with header_col4:
         selected_article = st.selectbox(
             "記事",
             options=all_articles,
             disabled=(selected_tab=="Meta")
         )
     
-    with header_row1_col5:
+    with header_col5:
         selected_creative = st.selectbox(
             "クリエイティブ",
             options=all_creatives,
             disabled=(selected_tab=="Beyond")
         )
     
-    with header_row1_col6:
+    with header_col6:
         date_range = st.date_input(
             "期間",
             value=(first_day_of_month, today)
