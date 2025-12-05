@@ -126,7 +126,8 @@ def main():
         # タブを1行にまとめる（合計、Meta、Beyondを横並び）
         current_tab = st.session_state.get("media_tab", "合計")
         
-        tab_col1, tab_col2, tab_col3 = st.columns([1, 1, 1])
+        # ボタンの幅を調整（合計を少し広く、MetaとBeyondを同じ幅に）
+        tab_col1, tab_col2, tab_col3 = st.columns([1.2, 1, 1])
         with tab_col1:
             is_selected = current_tab == "合計"
             button_type = "primary" if is_selected else "secondary"

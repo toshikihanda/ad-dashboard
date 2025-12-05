@@ -77,10 +77,19 @@ def get_custom_css():
             cursor: pointer;
             font-weight: 700;
             font-size: 14px;
+            white-space: nowrap;
+            min-width: 80px;
         }
         
         div[data-testid="column"] button:hover {
             background-color: #F3F4F6;
+        }
+        
+        /* プライマリボタン（選択中）のスタイル */
+        div[data-testid="column"] button[kind="primary"] {
+            background-color: #DC3545 !important;
+            color: #FFFFFF !important;
+            border-color: #DC3545 !important;
         }
         
         /* タブ風ラジオボタンのスタイル */
