@@ -141,7 +141,7 @@ def main():
     first_day_of_month = today.replace(day=1)
     
     # ヘッダー部分（1行にすべて配置）
-    header_col1, header_col2, header_col3, header_col4, header_col5, header_col6 = st.columns([1.5, 2.2, 1.5, 1.5, 1.5, 2])
+    header_col1, header_col2, header_col3, header_col4, header_col5, header_col6 = st.columns([1.2, 1.8, 1.3, 1.3, 1.3, 1.8])
     
     with header_col1:
         st.markdown("### 運用分析用")
@@ -150,8 +150,8 @@ def main():
         # タブを1行にまとめる（合計、Meta、Beyondを横並び）
         current_tab = st.session_state.get("media_tab", "合計")
         
-        # ボタンの幅を調整（合計を少し広く、MetaとBeyondを同じ幅に）
-        tab_col1, tab_col2, tab_col3 = st.columns([1.1, 1, 1])
+        # ボタンを横並びに配置（間隔を調整）
+        tab_col1, tab_col2, tab_col3 = st.columns([1, 1, 1])
         with tab_col1:
             is_selected = current_tab == "合計"
             button_type = "primary" if is_selected else "secondary"
