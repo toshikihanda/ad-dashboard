@@ -423,13 +423,14 @@ def main():
         roas = round(roas, 1)
         
         # 金額系 → 整数（小数点切り捨て）
-        cost = int(cost)
-        revenue = int(revenue)
-        profit = int(profit)
-        cpm = int(cpm)
-        cpc = int(cpc)
-        mcpa = int(mcpa)
-        cpa = int(cpa)
+        # NaNチェックを追加
+        cost = int(cost) if not pd.isna(cost) else 0
+        revenue = int(revenue) if not pd.isna(revenue) else 0
+        profit = int(profit) if not pd.isna(profit) else 0
+        cpm = int(cpm) if not pd.isna(cpm) else 0
+        cpc = int(cpc) if not pd.isna(cpc) else 0
+        mcpa = int(mcpa) if not pd.isna(mcpa) else 0
+        cpa = int(cpa) if not pd.isna(cpa) else 0
         
         # 表示（順番を整理）
         display_kpi_cards_total(cost, revenue, profit, impressions, meta_clicks, beyond_clicks, beyond_cv, ctr, mcvr, cvr, cpm, cpc, mcpa, cpa)
@@ -452,13 +453,14 @@ def main():
         ctr = round(ctr, 1)
         
         # 金額系 → 整数（小数点切り捨て）
-        cost = int(cost)
-        impressions = int(impressions)
-        clicks = int(clicks)
-        cv = int(cv)
-        cpm = int(cpm)
-        cpc = int(cpc)
-        cpa = int(cpa)
+        # NaNチェックを追加
+        cost = int(cost) if not pd.isna(cost) else 0
+        impressions = int(impressions) if not pd.isna(impressions) else 0
+        clicks = int(clicks) if not pd.isna(clicks) else 0
+        cv = int(cv) if not pd.isna(cv) else 0
+        cpm = int(cpm) if not pd.isna(cpm) else 0
+        cpc = int(cpc) if not pd.isna(cpc) else 0
+        cpa = int(cpa) if not pd.isna(cpa) else 0
         
         display_kpi_cards_meta(cost, impressions, clicks, cv, ctr, cpm, cpc, cpa)
 
@@ -497,13 +499,14 @@ def main():
         total_exit_rate = round(total_exit_rate, 1)
         
         # 金額系 → 整数（小数点切り捨て）
-        cost = int(cost)
-        pv = int(pv)
-        clicks = int(clicks)
-        cv = int(cv)
-        cpa = int(cpa)
-        cpc = int(cpc)
-        mcpa = int(mcpa)
+        # NaNチェックを追加
+        cost = int(cost) if not pd.isna(cost) else 0
+        pv = int(pv) if not pd.isna(pv) else 0
+        clicks = int(clicks) if not pd.isna(clicks) else 0
+        cv = int(cv) if not pd.isna(cv) else 0
+        cpa = int(cpa) if not pd.isna(cpa) else 0
+        cpc = int(cpc) if not pd.isna(cpc) else 0
+        mcpa = int(mcpa) if not pd.isna(mcpa) else 0
         
         display_kpi_cards_beyond(cost, pv, clicks, cv, mcvr, cvr, cpc, cpa, mcpa, fv_exit_rate, sv_exit_rate, total_exit_rate)
 
@@ -602,20 +605,22 @@ def main():
                 
                 table_data.append({
                     '案件名': project_name,
-                    '出稿金額': int(cost_for_display),
-                    '売上': int(revenue),
-                    '粗利': int(profit),
-                    'Imp': int(impressions),
-                    'Clicks': int(meta_clicks),
-                    '商品LPクリック': int(beyond_clicks),
-                    'CV': int(beyond_cv),
+                    '出稿金額': int(cost_for_display) if not pd.isna(cost_for_display) else 0,
+                    '売上': int(revenue) if not pd.isna(revenue) else 0,
+                    '粗利': int(profit) if not pd.isna(profit) else 0,
+                    '回収率': f"{recovery_rate:.1f}%",
+                    'ROAS': f"{roas:.1f}%",
+                    'Imp': int(impressions) if not pd.isna(impressions) else 0,
+                    'Clicks': int(meta_clicks) if not pd.isna(meta_clicks) else 0,
+                    '商品LPクリック': int(beyond_clicks) if not pd.isna(beyond_clicks) else 0,
+                    'CV': int(beyond_cv) if not pd.isna(beyond_cv) else 0,
                     'CTR': f"{ctr:.1f}%",
                     'MCVR': f"{mcvr:.1f}%",
                     'CVR': f"{cvr:.1f}%",
-                    'CPM': int(cpm),
-                    'CPC': int(cpc),
-                    'MCPA': int(mcpa),
-                    'CPA': int(cpa),
+                    'CPM': int(cpm) if not pd.isna(cpm) else 0,
+                    'CPC': int(cpc) if not pd.isna(cpc) else 0,
+                    'MCPA': int(mcpa) if not pd.isna(mcpa) else 0,
+                    'CPA': int(cpa) if not pd.isna(cpa) else 0,
                 })
                 
             elif tab_mode == "Meta":
@@ -634,14 +639,14 @@ def main():
                 
                 table_data.append({
                     '案件名': project_name,
-                    '出稿金額': int(cost),
-                    'Imp': int(impressions),
-                    'Clicks': int(clicks),
-                    'CV': int(cv),
+                    '出稿金額': int(cost) if not pd.isna(cost) else 0,
+                    'Imp': int(impressions) if not pd.isna(impressions) else 0,
+                    'Clicks': int(clicks) if not pd.isna(clicks) else 0,
+                    'CV': int(cv) if not pd.isna(cv) else 0,
                     'CTR': f"{ctr:.1f}%",
-                    'CPM': int(cpm),
-                    'CPC': int(cpc),
-                    'CPA': int(cpa),
+                    'CPM': int(cpm) if not pd.isna(cpm) else 0,
+                    'CPC': int(cpc) if not pd.isna(cpc) else 0,
+                    'CPA': int(cpa) if not pd.isna(cpa) else 0,
                 })
                 
             elif tab_mode == "Beyond":
@@ -667,15 +672,15 @@ def main():
                 
                 table_data.append({
                     '案件名': project_name,
-                    '出稿金額': int(cost),
-                    'PV': int(pv),
-                    'Clicks': int(clicks),
-                    'CV': int(cv),
+                    '出稿金額': int(cost) if not pd.isna(cost) else 0,
+                    'PV': int(pv) if not pd.isna(pv) else 0,
+                    'Clicks': int(clicks) if not pd.isna(clicks) else 0,
+                    'CV': int(cv) if not pd.isna(cv) else 0,
                     'MCVR': f"{mcvr:.1f}%",
                     'CVR': f"{cvr:.1f}%",
-                    'CPC': int(cpc),
-                    'CPA': int(cpa),
-                    'MCPA': int(mcpa),
+                    'CPC': int(cpc) if not pd.isna(cpc) else 0,
+                    'CPA': int(cpa) if not pd.isna(cpa) else 0,
+                    'MCPA': int(mcpa) if not pd.isna(mcpa) else 0,
                     'FV離脱率': f"{fv_rate:.1f}%",
                     'SV離脱率': f"{sv_rate:.1f}%",
                     'FV+SV離脱率': f"{total_exit_rate:.1f}%",
