@@ -72,7 +72,9 @@ export function RevenueChart({ data, title }: ChartProps) {
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
-                        formatter={(value: number) => value.toLocaleString('ja-JP')}
+                        formatter={(value: number | undefined) =>
+                            value !== undefined ? value.toLocaleString('ja-JP') : ''
+                        }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -103,7 +105,9 @@ export function CostChart({ data, title }: ChartProps) {
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
-                        formatter={(value: number) => value.toLocaleString('ja-JP')}
+                        formatter={(value: number | undefined) =>
+                            value !== undefined ? value.toLocaleString('ja-JP') : ''
+                        }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -134,7 +138,9 @@ export function CVChart({ data, title }: ChartProps) {
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
-                        formatter={(value: number) => value.toLocaleString('ja-JP')}
+                        formatter={(value: number | undefined) =>
+                            value !== undefined ? value.toLocaleString('ja-JP') : ''
+                        }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -199,7 +205,9 @@ export function RateChart({ data, title, numeratorKey, denominatorKey, multiplie
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
                     <Tooltip
-                        formatter={(value: number) => `${value.toFixed(2)}%`}
+                        formatter={(value: number | undefined) =>
+                            value !== undefined ? `${value.toFixed(2)}%` : ''
+                        }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
@@ -264,7 +272,9 @@ export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }:
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
-                        formatter={(value: number) => value.toLocaleString('ja-JP', { maximumFractionDigits: 0 })}
+                        formatter={(value: number | undefined) =>
+                            value !== undefined ? value.toLocaleString('ja-JP', { maximumFractionDigits: 0 }) : ''
+                        }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend wrapperStyle={{ fontSize: 11 }} />
