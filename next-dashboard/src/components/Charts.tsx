@@ -12,7 +12,7 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
-import { ProcessedRow, aggregateByDate } from '@/lib/dataProcessor';
+import { ProcessedRow } from '@/lib/dataProcessor';
 
 interface ChartProps {
     data: ProcessedRow[];
@@ -274,6 +274,114 @@ export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }:
                     <Tooltip
                         formatter={(value: number | undefined) =>
                             value !== undefined ? value.toLocaleString('ja-JP', { maximumFractionDigits: 0 }) : ''
+                        }
+                        labelFormatter={(label) => `日付: ${label}`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    {campaigns.map((campaign) => (
+                        <Line
+                            key={campaign}
+                            type="monotone"
+                            dataKey={campaign}
+                            stroke={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            strokeWidth={2}
+                            dot={{ r: 3 }}
+                        />
+                    ))}
+                </LineChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
+
+interface GenericChartProps extends ChartProps {
+    dataKey: keyof ProcessedRow;
+    unit?: string;
+}
+
+export function GenericBarChart({ data, title, dataKey, unit = '' }: GenericChartProps) {
+    const chartData = prepareChartData(data, dataKey);
+    const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+
+    return (
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
+            <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={unit === '%' ? (v) => `${v}%` : formatYAxis} />
+                    <Tooltip
+                        formatter={(value: number | undefined) =>
+                            value !== undefined ? `${value.toLocaleString('ja-JP', { maximumFractionDigits: unit === '%' ? 1 : 0 })}${unit}` : ''
+                        }
+                        labelFormatter={(label) => `日付: ${label}`}
+                    />
+                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    {campaigns.map((campaign) => (
+                        <Bar
+                            key={campaign}
+                            dataKey={campaign}
+                            stackId="a"
+                            fill={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                        />
+                    ))}
+                </BarChart>
+            </ResponsiveContainer>
+        </div>
+    );
+}
+
+interface GenericRateChartProps extends ChartProps {
+    numeratorKey: keyof ProcessedRow;
+    denominatorKey: keyof ProcessedRow;
+    multiplier?: number;
+    unit?: string;
+}
+
+export function GenericRateChart({ data, title, numeratorKey, denominatorKey, multiplier = 100, unit = '%' }: GenericRateChartProps) {
+    const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const dateMap = new Map<string, ChartDataPoint>();
+
+    for (const row of data) {
+        const dateKey = row.Date.toISOString().split('T')[0];
+        if (!dateMap.has(dateKey)) {
+            dateMap.set(dateKey, { date: dateKey });
+        }
+    }
+
+    // Calculate rates per campaign per date
+    for (const campaign of campaigns) {
+        const campaignData = data.filter(row => row.Campaign_Name === campaign);
+        const campaignDateAgg = new Map<string, { num: number; den: number }>();
+
+        for (const row of campaignData) {
+            const dateKey = row.Date.toISOString().split('T')[0];
+            const existing = campaignDateAgg.get(dateKey) || { num: 0, den: 0 };
+            existing.num += row[numeratorKey] as number;
+            existing.den += row[denominatorKey] as number;
+            campaignDateAgg.set(dateKey, existing);
+        }
+
+        for (const [dateKey, agg] of campaignDateAgg) {
+            const point = dateMap.get(dateKey)!;
+            point[campaign] = agg.den > 0 ? (agg.num / agg.den) * multiplier : 0;
+        }
+    }
+
+    const chartData = Array.from(dateMap.values()).sort((a, b) => a.date.localeCompare(b.date));
+
+    return (
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
+            <ResponsiveContainer width="100%" height={220}>
+                <LineChart data={chartData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
+                    <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
+                    <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
+                    <Tooltip
+                        formatter={(value: number | undefined) =>
+                            value !== undefined ? `${value.toFixed(2)}%` : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
