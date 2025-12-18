@@ -313,7 +313,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
             <div className="mt-8">
                 {selectedTab === 'total' && (
                     <>
-                        <div className="grid grid-cols-7 gap-2">
+                        <div className="grid grid-cols-4 gap-4">
                             <CostChart data={filteredData} title="出稿金額" />
                             <RevenueChart data={filteredData} title="売上" />
                             {/* Profit Chart to be added later if needed, reuse RevenueChart for now as placeholder or custom ProfitChart */}
@@ -324,7 +324,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                             <CVChart data={filteredData} title="CV数" />
                         </div>
                         <div className="h-4" />
-                        <div className="grid grid-cols-7 gap-2">
+                        <div className="grid grid-cols-4 gap-4">
                             <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
                             <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
                             <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
@@ -363,7 +363,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                             <CVChart data={filteredData} title="CV" />
                         </div>
                         <div className="h-4" />
-                        <div className="grid grid-cols-6 gap-2">
+                        <div className="grid grid-cols-4 gap-4">
                             <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
                             <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
                             <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
