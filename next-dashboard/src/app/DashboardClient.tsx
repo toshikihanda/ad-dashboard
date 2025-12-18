@@ -3,7 +3,7 @@
 import { useState, useMemo } from 'react';
 import { ProcessedRow, safeDivide, PROJECT_SETTINGS, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives } from '@/lib/dataProcessor';
 import { KPICard, KPIGrid } from '@/components/KPICard';
-import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart } from '@/components/Charts';
+import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
 
 interface DashboardClientProps {
@@ -311,21 +311,68 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
 
             {/* Charts */}
             <div className="mt-8">
-                <div className="grid grid-cols-3 gap-4">
-                    <RevenueChart data={filteredData} title="売上" />
-                    <CostChart data={filteredData} title="出稿金額" />
-                    <CVChart data={filteredData} title="CV数" />
-                </div>
-                <div className="grid grid-cols-3 gap-4 mt-4">
-                    <RateChart
-                        data={filteredData}
-                        title="回収率"
-                        numeratorKey="Revenue"
-                        denominatorKey="Cost"
-                    />
-                    <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
-                    <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
-                </div>
+                {selectedTab === 'total' && (
+                    <>
+                        <div className="grid grid-cols-7 gap-2">
+                            <CostChart data={filteredData} title="出稿金額" />
+                            <RevenueChart data={filteredData} title="売上" />
+                            {/* Profit Chart to be added later if needed, reuse RevenueChart for now as placeholder or custom ProfitChart */}
+                            <GenericBarChart data={filteredData} title="粗利" dataKey="Revenue" />
+                            <GenericBarChart data={filteredData} title="Imp" dataKey="Impressions" />
+                            <GenericBarChart data={filteredData} title="Clicks" dataKey="Clicks" />
+                            <GenericBarChart data={filteredData} title="商品LPクリック" dataKey="Clicks" />
+                            <CVChart data={filteredData} title="CV数" />
+                        </div>
+                        <div className="h-4" />
+                        <div className="grid grid-cols-7 gap-2">
+                            <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
+                            <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
+                            <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
+                            <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
+                            <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                            <CostMetricChart data={filteredData} title="MCPA" costDivisorKey="Clicks" />
+                            <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
+                        </div>
+                    </>
+                )}
+
+                {selectedTab === 'meta' && (
+                    <>
+                        <div className="grid grid-cols-4 gap-4">
+                            <CostChart data={filteredData} title="出稿金額" />
+                            <GenericBarChart data={filteredData} title="Imp" dataKey="Impressions" />
+                            <GenericBarChart data={filteredData} title="Clicks" dataKey="Clicks" />
+                            <GenericBarChart data={filteredData} title="CV" dataKey="MCV" />
+                        </div>
+                        <div className="h-4" />
+                        <div className="grid grid-cols-4 gap-4">
+                            <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
+                            <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
+                            <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                            <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
+                        </div>
+                    </>
+                )}
+
+                {selectedTab === 'beyond' && (
+                    <>
+                        <div className="grid grid-cols-4 gap-4">
+                            <CostChart data={filteredData} title="出稿金額" />
+                            <GenericBarChart data={filteredData} title="PV" dataKey="PV" />
+                            <GenericBarChart data={filteredData} title="Clicks" dataKey="Clicks" />
+                            <CVChart data={filteredData} title="CV" />
+                        </div>
+                        <div className="h-4" />
+                        <div className="grid grid-cols-6 gap-2">
+                            <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
+                            <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
+                            <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                            <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
+                            <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
+                            <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
+                        </div>
+                    </>
+                )}
             </div>
         </div>
     );
