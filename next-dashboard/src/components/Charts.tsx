@@ -20,9 +20,9 @@ interface ChartProps {
 }
 
 const CAMPAIGN_COLORS: Record<string, string> = {
-    'SAC_成果': '#3B82F6',
-    'SAC_予算': '#DC3545',
-    'ルーチェ_予算': '#8B0000',
+    'SAC_成果': '#2563EB', // Blue 600: 信頼性と安定感
+    'SAC_予算': '#059669', // Emerald 600: 成長と調和（赤字からの脱却）
+    'ルーチェ_予算': '#7C3AED', // Violet 600: 高貴さとクリエイティビティ
 };
 
 function formatYAxis(value: number): string {
@@ -68,7 +68,7 @@ export function RevenueChart({ data, title }: ChartProps) {
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
             <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
