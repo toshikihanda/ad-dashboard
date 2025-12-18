@@ -20,9 +20,9 @@ interface ChartProps {
 }
 
 const CAMPAIGN_COLORS: Record<string, string> = {
-    'SAC_成果': '#2563EB', // Blue 600: 信頼性と安定感
-    'SAC_予算': '#059669', // Emerald 600: 成長と調和（赤字からの脱却）
-    'ルーチェ_予算': '#7C3AED', // Violet 600: 高貴さとクリエイティビティ
+    'SAC_成果': '#F5A623', // オレンジ: アクセントカラー
+    'SAC_予算': '#4A90D9', // 青: メインカラー
+    'ルーチェ_予算': '#7ED321', // 緑: サブカラー
 };
 
 function formatYAxis(value: number): string {
