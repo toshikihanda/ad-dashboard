@@ -101,7 +101,7 @@ export function CostChart({ data, title }: ChartProps) {
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
             <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
@@ -134,7 +134,7 @@ export function CVChart({ data, title }: ChartProps) {
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
             <ResponsiveContainer width="100%" height={220}>
                 <BarChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} />
                     <Tooltip
@@ -201,7 +201,7 @@ export function RateChart({ data, title, numeratorKey, denominatorKey, multiplie
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
             <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
                     <Tooltip
@@ -268,7 +268,7 @@ export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }:
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
             <ResponsiveContainer width="100%" height={220}>
                 <LineChart data={chartData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#f0f0f0" />
+                    <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
