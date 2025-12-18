@@ -3,8 +3,14 @@
 import { useActionState } from 'react';
 import { login } from '../actions/auth';
 
+interface AuthState {
+    error?: string;
+}
+
+const initialState: AuthState = {};
+
 export default function LoginPage() {
-    const [state, formAction, isPending] = useActionState(login, null);
+    const [state, formAction, isPending] = useActionState(login, initialState);
 
     return (
         <div className="min-h-screen flex items-center justify-center bg-gray-50">

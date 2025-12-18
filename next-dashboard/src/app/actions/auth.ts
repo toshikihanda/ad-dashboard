@@ -3,7 +3,11 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
-export async function login(formData: FormData) {
+interface AuthState {
+    error?: string;
+}
+
+export async function login(prevState: AuthState | null, formData: FormData): Promise<AuthState> {
     const password = formData.get('password');
     const envPassword = process.env.LOGIN_KEY;
 
