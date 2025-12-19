@@ -181,126 +181,133 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
     const sevenDayData = useMemo(() => filterByDateRange(filteredData, sevenDaysAgo, today), [filteredData]);
 
     return (
-        <div className="max-w-[1600px] mx-auto">
-            {/* Header */}
+    return (
+        <div className="max-w-[1600px] mx-auto pb-10">
+            {/* Header - Row 1: Title & Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
                 <h1 className="text-2xl font-bold text-gray-800">運用分析用ダッシュボード</h1>
 
-                {/* Tab Buttons */}
                 <div className="flex gap-2">
                     <button
                         onClick={() => setSelectedTab('total')}
-                        className={`tab-button ${selectedTab === 'total' ? 'active' : ''}`}
+                        className={`tab-button ${selectedTab === 'total' ? 'active' : ''} px-6`}
                     >
                         合計
                     </button>
                     <button
                         onClick={() => setSelectedTab('meta')}
-                        className={`tab-button ${selectedTab === 'meta' ? 'active' : ''}`}
+                        className={`tab-button ${selectedTab === 'meta' ? 'active' : ''} px-6`}
                     >
                         Meta
                     </button>
                     <button
                         onClick={() => setSelectedTab('beyond')}
-                        className={`tab-button ${selectedTab === 'beyond' ? 'active' : ''}`}
+                        className={`tab-button ${selectedTab === 'beyond' ? 'active' : ''} px-6`}
                     >
                         Beyond
                     </button>
                 </div>
+            </div>
 
-                {/* Filters */}
-                <div className="flex flex-col gap-4">
-                    <div className="flex flex-wrap items-end gap-3">
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">商品名</label>
-                            <select
-                                value={selectedCampaign}
-                                onChange={(e) => setSelectedCampaign(e.target.value)}
-                                className="filter-select min-w-[140px]"
-                            >
-                                <option value="All">All</option>
-                                {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
+            {/* Header - Row 2: Filters */}
+            <div className="flex flex-wrap items-end gap-3 mb-6">
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">商品名</label>
+                    <select
+                        value={selectedCampaign}
+                        onChange={(e) => setSelectedCampaign(e.target.value)}
+                        className="filter-select min-w-[180px]"
+                    >
+                        <option value="All">All</option>
+                        {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
 
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">記事</label>
-                            <select
-                                value={selectedArticle}
-                                onChange={(e) => setSelectedArticle(e.target.value)}
-                                className="filter-select min-w-[140px]"
-                                disabled={selectedTab === 'meta'}
-                            >
-                                <option value="All">All</option>
-                                {articles.slice(0, 20).map(a => <option key={a} value={a}>{a.substring(0, 30)}</option>)}
-                            </select>
-                        </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">記事</label>
+                    <select
+                        value={selectedArticle}
+                        onChange={(e) => setSelectedArticle(e.target.value)}
+                        className="filter-select min-w-[180px]"
+                        disabled={selectedTab === 'meta'}
+                    >
+                        <option value="All">All</option>
+                        {articles.slice(0, 20).map(a => <option key={a} value={a}>{a.substring(0, 30)}</option>)}
+                    </select>
+                </div>
 
-                        <div>
-                            <label className="block text-xs font-medium text-gray-500 mb-1">クリエイティブ</label>
-                            <select
-                                value={selectedCreative}
-                                onChange={(e) => setSelectedCreative(e.target.value)}
-                                className="filter-select min-w-[140px]"
-                                disabled={selectedTab === 'beyond'}
-                            >
-                                <option value="All">All</option>
-                                {creatives.slice(0, 20).map(c => <option key={c} value={c}>{c.substring(0, 30)}</option>)}
-                            </select>
-                        </div>
-                    </div>
+                <div>
+                    <label className="block text-xs font-medium text-gray-400 mb-1">クリエイティブ</label>
+                    <select
+                        value={selectedCreative}
+                        onChange={(e) => setSelectedCreative(e.target.value)}
+                        className="filter-select min-w-[180px]"
+                        disabled={selectedTab === 'beyond'}
+                    >
+                        <option value="All">All</option>
+                        {creatives.slice(0, 20).map(c => <option key={c} value={c}>{c.substring(0, 30)}</option>)}
+                    </select>
+                </div>
+            </div>
 
-                    <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100">
-                        <div className="flex flex-wrap items-center gap-4">
-                            <div className="flex items-center gap-2">
-                                <span className="text-xs font-bold text-gray-400 uppercase tracking-wider mr-2">期間:</span>
-                                <div className="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
-                                    {(['today', 'yesterday', '7days', '30days', 'custom'] as const).map((preset) => (
-                                        <button
-                                            key={preset}
-                                            onClick={() => handlePresetChange(preset)}
-                                            className={cn(
-                                                "px-4 py-1.5 text-xs font-medium rounded-md transition-all",
-                                                datePreset === preset
-                                                    ? "bg-blue-600 text-white shadow-sm"
-                                                    : "text-gray-500 hover:text-gray-700 hover:bg-gray-100"
-                                            )}
-                                        >
-                                            {preset === 'today' ? '今日' :
-                                                preset === 'yesterday' ? '昨日' :
-                                                    preset === '7days' ? '7日' :
-                                                        preset === '30days' ? '30日' : 'カスタム'}
-                                        </button>
-                                    ))}
-                                </div>
-                            </div>
-
-                            {datePreset === 'custom' && (
-                                <div className="flex gap-2 items-center animate-in fade-in slide-in-from-left-2 duration-300">
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="date-input"
-                                    />
-                                    <span className="text-gray-400">〜</span>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        className="date-input"
-                                    />
-                                </div>
-                            )}
-
-                            <div className="flex items-center gap-2 ml-auto text-xs text-gray-500 font-medium">
-                                <div className="w-2 h-2 rounded-full bg-blue-500" />
-                                選択中: <span className="text-gray-700">{startDate.replace(/-/g, '/')}</span>
-                                <span className="mx-0.5">〜</span>
-                                <span className="text-gray-700">{endDate.replace(/-/g, '/')}</span>
-                            </div>
+            {/* Header - Row 3: Date Filter Section */}
+            <div className="mb-8 relative">
+                <div className="bg-gray-50/50 p-4 rounded-xl border border-gray-100 flex flex-wrap items-center gap-6">
+                    <div className="flex items-center gap-3">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">期間:</span>
+                        <div className="flex bg-white p-1 rounded-lg border border-gray-200 shadow-sm">
+                            {(['today', 'yesterday', '7days', '30days', 'custom'] as const).map((preset) => (
+                                <button
+                                    key={preset}
+                                    onClick={() => handlePresetChange(preset)}
+                                    className={cn(
+                                        "w-[80px] py-1.5 text-xs font-bold rounded-md transition-all",
+                                        datePreset === preset
+                                            ? "bg-blue-600 text-white shadow-sm"
+                                            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                    )}
+                                >
+                                    {preset === 'today' ? '今日' :
+                                        preset === 'yesterday' ? '昨日' :
+                                            preset === '7days' ? '7日' :
+                                                preset === '30days' ? '30日' : 'カスタム'}
+                                </button>
+                            ))}
                         </div>
                     </div>
+
+                    <div className="flex items-center gap-2 text-sm font-bold">
+                        <span className="text-gray-400">●</span>
+                        <span className="text-gray-500 text-xs">選択中:</span>
+                        <span className="text-gray-800">{startDate.replace(/-/g, '/')}</span>
+                        <span className="text-gray-400 mx-1">〜</span>
+                        <span className="text-gray-800">{endDate.replace(/-/g, '/')}</span>
+                    </div>
+
+                    {/* Fixed positioning for custom date picker to avoid layout shift */}
+                    {datePreset === 'custom' && (
+                        <div className="absolute top-full left-14 mt-2 z-[100] bg-white p-4 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-3 items-center">
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">開始日</label>
+                                <input
+                                    type="date"
+                                    value={startDate}
+                                    onChange={(e) => setStartDate(e.target.value)}
+                                    className="date-input"
+                                />
+                            </div>
+                            <span className="text-gray-400 mt-5">〜</span>
+                            <div className="flex flex-col gap-1">
+                                <label className="text-[10px] font-bold text-gray-400 ml-1">終了日</label>
+                                <input
+                                    type="date"
+                                    value={endDate}
+                                    onChange={(e) => setEndDate(e.target.value)}
+                                    className="date-input"
+                                />
+                            </div>
+                        </div>
+                    )}
                 </div>
             </div>
 
@@ -404,7 +411,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                             <GenericBarChart data={filteredData} title="粗利" dataKey="Revenue" />
                             <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
                             <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
-                            <GenericBarChart data={filteredData} title="商品LPCLICK" dataKey="Clicks" />
+                            <GenericBarChart data={filteredData} title="商品LP CLICK" dataKey="Clicks" />
                             <CVChart data={filteredData} title="CV数" />
                         </div>
                         <div className="h-4" />
