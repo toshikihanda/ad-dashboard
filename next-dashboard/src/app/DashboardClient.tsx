@@ -181,34 +181,56 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
 
     return (
         <div className="max-w-[1920px] mx-auto pb-10">
-            {/* Single-Line Header */}
-            <div className="flex flex-wrap items-center gap-4 mb-6 bg-gray-50/50 p-3 rounded-xl border border-gray-100">
-                {/* Title & Tabs */}
-                <div className="flex items-center gap-3">
-                    <h1 className="text-lg font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
-                    <div className="flex gap-1">
-                        <button
-                            onClick={() => setSelectedTab('total')}
-                            className={`tab-button ${selectedTab === 'total' ? 'active' : ''} px-4 py-1 text-xs`}
-                        >
-                            合計
-                        </button>
-                        <button
-                            onClick={() => setSelectedTab('meta')}
-                            className={`tab-button ${selectedTab === 'meta' ? 'active' : ''} px-4 py-1 text-xs`}
-                        >
-                            Meta
-                        </button>
-                        <button
-                            onClick={() => setSelectedTab('beyond')}
-                            className={`tab-button ${selectedTab === 'beyond' ? 'active' : ''} px-4 py-1 text-xs`}
-                        >
-                            Beyond
-                        </button>
+            {/* Header - Row 1: Title & Tabs */}
+            <div className="flex items-center gap-4 mb-4">
+                <h1 className="text-lg font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
+                <div className="flex gap-1">
+                    <button
+                        onClick={() => setSelectedTab('total')}
+                        className={`tab-button ${selectedTab === 'total' ? 'active' : ''} px-4 py-1.5 text-xs`}
+                    >
+                        合計
+                    </button>
+                    <button
+                        onClick={() => setSelectedTab('meta')}
+                        className={`tab-button ${selectedTab === 'meta' ? 'active' : ''} px-4 py-1.5 text-xs`}
+                    >
+                        Meta
+                    </button>
+                    <button
+                        onClick={() => setSelectedTab('beyond')}
+                        className={`tab-button ${selectedTab === 'beyond' ? 'active' : ''} px-4 py-1.5 text-xs`}
+                    >
+                        Beyond
+                    </button>
+                </div>
+            </div>
+
+            {/* Header - Row 2: Date Presets + Filters + Selected Range */}
+            <div className="flex flex-wrap items-center gap-4 mb-6 relative">
+                {/* Date Presets */}
+                <div className="flex items-center gap-2">
+                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">期間:</span>
+                    <div className="flex bg-white p-0.5 rounded-lg border border-gray-200 shadow-sm">
+                        {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).map((preset) => (
+                            <button
+                                key={preset}
+                                onClick={() => handlePresetChange(preset)}
+                                className={cn(
+                                    "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                                    datePreset === preset
+                                        ? "bg-blue-600 text-white shadow-sm"
+                                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                )}
+                            >
+                                {preset === 'thisMonth' ? '今月' :
+                                    preset === 'today' ? '今日' :
+                                        preset === 'yesterday' ? '昨日' :
+                                            preset === '7days' ? '7日' : 'カスタム'}
+                            </button>
+                        ))}
                     </div>
                 </div>
-
-                <div className="h-6 w-px bg-gray-300" />
 
                 {/* Filters */}
                 <div className="flex items-center gap-2">
@@ -251,67 +273,40 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                     </div>
                 </div>
 
-                <div className="h-6 w-px bg-gray-300" />
-
-                {/* Date Filter Section */}
-                <div className="flex items-center gap-3 relative">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">期間:</span>
-                    <div className="flex bg-white p-0.5 rounded-lg border border-gray-200 shadow-sm">
-                        {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).map((preset) => (
-                            <button
-                                key={preset}
-                                onClick={() => handlePresetChange(preset)}
-                                className={cn(
-                                    "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
-                                    datePreset === preset
-                                        ? "bg-blue-600 text-white shadow-sm"
-                                        : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                                )}
-                            >
-                                {preset === 'thisMonth' ? '今月' :
-                                    preset === 'today' ? '今日' :
-                                        preset === 'yesterday' ? '昨日' :
-                                            preset === '7days' ? '7日' : 'カスタム'}
-                            </button>
-                        ))}
-                    </div>
-
-                    <div className="flex items-center gap-1.5 text-xs font-bold">
-                        <span className="text-blue-500">●</span>
-                        <span className="text-gray-500 text-[10px]">選択中:</span>
-                        <span className="text-gray-800">{startDate.replace(/-/g, '/').slice(5)}</span>
-                        <span className="text-gray-400">〜</span>
-                        <span className="text-gray-800">{endDate.replace(/-/g, '/').slice(5)}</span>
-                    </div>
-
-                    {/* Custom date picker popup */}
-                    {datePreset === 'custom' && (
-                        <div className="absolute top-full left-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
-                            <div className="flex flex-col gap-0.5">
-                                <label className="text-[9px] font-bold text-gray-400 ml-1">開始日</label>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="date-input text-xs py-1"
-                                />
-                            </div>
-                            <span className="text-gray-400 mt-4">〜</span>
-                            <div className="flex flex-col gap-0.5">
-                                <label className="text-[9px] font-bold text-gray-400 ml-1">終了日</label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="date-input text-xs py-1"
-                                />
-                            </div>
-                        </div>
-                    )}
+                {/* Selected Range */}
+                <div className="flex items-center gap-1.5 text-xs font-bold">
+                    <span className="text-blue-500">●</span>
+                    <span className="text-gray-500 text-[10px]">選択中:</span>
+                    <span className="text-gray-800">{startDate.replace(/-/g, '/').slice(5)}</span>
+                    <span className="text-gray-400">〜</span>
+                    <span className="text-gray-800">{endDate.replace(/-/g, '/').slice(5)}</span>
                 </div>
+
+                {/* Custom date picker popup */}
+                {datePreset === 'custom' && (
+                    <div className="absolute top-full left-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
+                        <div className="flex flex-col gap-0.5">
+                            <label className="text-[9px] font-bold text-gray-400 ml-1">開始日</label>
+                            <input
+                                type="date"
+                                value={startDate}
+                                onChange={(e) => setStartDate(e.target.value)}
+                                className="date-input text-xs py-1"
+                            />
+                        </div>
+                        <span className="text-gray-400 mt-4">〜</span>
+                        <div className="flex flex-col gap-0.5">
+                            <label className="text-[9px] font-bold text-gray-400 ml-1">終了日</label>
+                            <input
+                                type="date"
+                                value={endDate}
+                                onChange={(e) => setEndDate(e.target.value)}
+                                className="date-input text-xs py-1"
+                            />
+                        </div>
+                    </div>
+                )}
             </div>
-
-
             {/* KPI Cards */}
             {(selectedTab === 'total' || selectedTab === 'beyond') && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
