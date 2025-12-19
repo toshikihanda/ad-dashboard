@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { ProcessedRow, safeDivide, PROJECT_SETTINGS, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives } from '@/lib/dataProcessor';
 import { KPICard, KPIGrid } from '@/components/KPICard';
@@ -19,7 +19,10 @@ function getFirstDayOfMonth(): Date {
 }
 
 function formatDateForInput(date: Date): string {
-    return date.toISOString().split('T')[0];
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
 }
 
 export default function DashboardClient({ initialData }: DashboardClientProps) {
@@ -28,13 +31,22 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
     const [selectedArticle, setSelectedArticle] = useState('All');
     const [selectedCreative, setSelectedCreative] = useState('All');
 
-    // Date state
+    // Date state - use fixed initial values to avoid hydration mismatch
     const [datePreset, setDatePreset] = useState<'thisMonth' | 'today' | 'yesterday' | '7days' | 'custom'>('thisMonth');
-    const [startDate, setStartDate] = useState(() => {
-        const d = new Date();
-        return formatDateForInput(new Date(d.getFullYear(), d.getMonth(), 1)); // First day of month
-    });
-    const [endDate, setEndDate] = useState(formatDateForInput(new Date()));
+    const [startDate, setStartDate] = useState('');
+    const [endDate, setEndDate] = useState('');
+    const [isClient, setIsClient] = useState(false);
+
+    // Initialize dates on client-side only to avoid SSR/hydration mismatch
+    useEffect(() => {
+        if (!isClient) {
+            const now = new Date();
+            const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            setStartDate(formatDateForInput(firstOfMonth));
+            setEndDate(formatDateForInput(now));
+            setIsClient(true);
+        }
+    }, [isClient]);
 
     const handlePresetChange = (preset: 'thisMonth' | 'today' | 'yesterday' | '7days' | 'custom') => {
         setDatePreset(preset);
