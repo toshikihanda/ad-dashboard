@@ -181,7 +181,6 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
     const sevenDayData = useMemo(() => filterByDateRange(filteredData, sevenDaysAgo, today), [filteredData]);
 
     return (
-    return (
         <div className="max-w-[1600px] mx-auto pb-10">
             {/* Header - Row 1: Title & Tabs */}
             <div className="flex flex-wrap items-center justify-between gap-4 mb-6">
