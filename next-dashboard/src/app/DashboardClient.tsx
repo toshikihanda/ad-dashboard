@@ -182,8 +182,8 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
     return (
         <div className="max-w-[1920px] mx-auto pb-10">
             {/* Header - Row 1: Title & Tabs */}
-            <div className="flex items-center gap-4 mb-4">
-                <h1 className="text-lg font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
+            <div className="flex items-center gap-4 mb-5">
+                <h1 className="text-xl font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
                 <div className="flex gap-1">
                     <button
                         onClick={() => setSelectedTab('total')}
@@ -206,20 +206,70 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                 </div>
             </div>
 
-            {/* Header - Row 2: Date Presets + Filters + Selected Range */}
-            <div className="flex flex-wrap items-center gap-4 mb-6 relative">
-                {/* Date Presets */}
-                <div className="flex items-center gap-2">
-                    <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">期間:</span>
-                    <div className="flex bg-white p-0.5 rounded-lg border border-gray-200 shadow-sm">
+            {/* Filter Area: 4-column layout (商品名 / 記事 / クリエイティブ / 期間) */}
+            <div className="grid grid-cols-4 gap-4 mb-6 relative">
+                {/* 商品名 Column */}
+                <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">商品名</span>
+                    <select
+                        value={selectedCampaign}
+                        onChange={(e) => setSelectedCampaign(e.target.value)}
+                        className="filter-select text-xs h-8 px-2 w-full"
+                    >
+                        <option value="All">All</option>
+                        {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
+                    </select>
+                </div>
+
+                {/* 記事 Column */}
+                <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">記事</span>
+                    <select
+                        value={selectedArticle}
+                        onChange={(e) => setSelectedArticle(e.target.value)}
+                        className="filter-select text-xs h-8 px-2 w-full"
+                        disabled={selectedTab === 'meta'}
+                    >
+                        <option value="All">All</option>
+                        {articles.slice(0, 20).map(a => <option key={a} value={a}>{a.substring(0, 20)}</option>)}
+                    </select>
+                </div>
+
+                {/* クリエイティブ Column */}
+                <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">クリエイティブ</span>
+                    <select
+                        value={selectedCreative}
+                        onChange={(e) => setSelectedCreative(e.target.value)}
+                        className="filter-select text-xs h-8 px-2 w-full"
+                        disabled={selectedTab === 'beyond'}
+                    >
+                        <option value="All">All</option>
+                        {creatives.slice(0, 20).map(c => <option key={c} value={c}>{c.substring(0, 20)}</option>)}
+                    </select>
+                </div>
+
+                {/* 期間 Column */}
+                <div className="flex flex-col gap-1">
+                    <div className="flex items-center justify-between">
+                        <span className="text-[10px] font-bold text-gray-500 tracking-wide">期間</span>
+                        <div className="flex items-center gap-1 text-[10px]">
+                            <span className="text-blue-500 text-xs">●</span>
+                            <span className="text-gray-500">選択中:</span>
+                            <span className="font-bold text-gray-700">{startDate.replace(/-/g, '/').slice(5)}</span>
+                            <span className="text-gray-400">〜</span>
+                            <span className="font-bold text-gray-700">{endDate.replace(/-/g, '/').slice(5)}</span>
+                        </div>
+                    </div>
+                    <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-8">
                         {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).map((preset) => (
                             <button
                                 key={preset}
                                 onClick={() => handlePresetChange(preset)}
                                 className={cn(
-                                    "px-3 py-1 text-[10px] font-bold rounded-md transition-all",
+                                    "flex-1 text-[10px] font-bold transition-all first:rounded-l-md last:rounded-r-md",
                                     datePreset === preset
-                                        ? "bg-blue-600 text-white shadow-sm"
+                                        ? "bg-blue-600 text-white"
                                         : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
                                 )}
                             >
@@ -232,66 +282,16 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                     </div>
                 </div>
 
-                {/* Filters */}
-                <div className="flex items-center gap-2">
-                    <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-medium text-gray-400">商品名</span>
-                        <select
-                            value={selectedCampaign}
-                            onChange={(e) => setSelectedCampaign(e.target.value)}
-                            className="filter-select text-xs py-1 px-2 min-w-[100px]"
-                        >
-                            <option value="All">All</option>
-                            {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-medium text-gray-400">記事</span>
-                        <select
-                            value={selectedArticle}
-                            onChange={(e) => setSelectedArticle(e.target.value)}
-                            className="filter-select text-xs py-1 px-2 min-w-[100px]"
-                            disabled={selectedTab === 'meta'}
-                        >
-                            <option value="All">All</option>
-                            {articles.slice(0, 20).map(a => <option key={a} value={a}>{a.substring(0, 20)}</option>)}
-                        </select>
-                    </div>
-
-                    <div className="flex items-center gap-1">
-                        <span className="text-[10px] font-medium text-gray-400">クリエイティブ</span>
-                        <select
-                            value={selectedCreative}
-                            onChange={(e) => setSelectedCreative(e.target.value)}
-                            className="filter-select text-xs py-1 px-2 min-w-[100px]"
-                            disabled={selectedTab === 'beyond'}
-                        >
-                            <option value="All">All</option>
-                            {creatives.slice(0, 20).map(c => <option key={c} value={c}>{c.substring(0, 20)}</option>)}
-                        </select>
-                    </div>
-                </div>
-
-                {/* Selected Range */}
-                <div className="flex items-center gap-1.5 text-xs font-bold">
-                    <span className="text-blue-500">●</span>
-                    <span className="text-gray-500 text-[10px]">選択中:</span>
-                    <span className="text-gray-800">{startDate.replace(/-/g, '/').slice(5)}</span>
-                    <span className="text-gray-400">〜</span>
-                    <span className="text-gray-800">{endDate.replace(/-/g, '/').slice(5)}</span>
-                </div>
-
                 {/* Custom date picker popup */}
                 {datePreset === 'custom' && (
-                    <div className="absolute top-full left-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
+                    <div className="absolute top-full right-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
                         <div className="flex flex-col gap-0.5">
                             <label className="text-[9px] font-bold text-gray-400 ml-1">開始日</label>
                             <input
                                 type="date"
                                 value={startDate}
                                 onChange={(e) => setStartDate(e.target.value)}
-                                className="date-input text-xs py-1"
+                                className="date-input text-xs h-8"
                             />
                         </div>
                         <span className="text-gray-400 mt-4">〜</span>
@@ -301,7 +301,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                                 type="date"
                                 value={endDate}
                                 onChange={(e) => setEndDate(e.target.value)}
-                                className="date-input text-xs py-1"
+                                className="date-input text-xs h-8"
                             />
                         </div>
                     </div>
