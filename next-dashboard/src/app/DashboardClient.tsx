@@ -240,43 +240,74 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
             </div>
 
             {/* KPI Cards */}
-            {selectedTab === 'total' && (
-                <>
-                    <KPIGrid columns={7}>
-                        <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" source="Beyond" />
-                        <KPICard label="売上" value={Math.round(kpis.revenue)} unit="円" colorClass="text-blue" source="Beyond" />
-                        <KPICard label="粗利" value={Math.round(kpis.profit)} unit="円" colorClass="text-orange" source="Beyond" />
-                        <KPICard label="Imp" value={kpis.impressions} source="Meta" />
-                        <KPICard label="Clicks" value={kpis.metaClicks} source="Meta" />
-                        <KPICard label="商品LPクリック" value={kpis.beyondClicks} unit="件" source="Beyond" />
-                        <KPICard label="CV" value={kpis.cv} unit="件" source="Beyond" />
-                    </KPIGrid>
-                    <div className="h-3" />
-                    <KPIGrid columns={7}>
-                        <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" source="Meta" />
-                        <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" source="Beyond" />
-                        <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" source="Beyond" />
-                        <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" source="Meta" />
-                        <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" source="Meta" />
-                        <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" source="Beyond" />
-                        <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" source="Beyond" />
-                    </KPIGrid>
-                    <div className="h-3" />
-                    <KPIGrid columns={4}>
-                        <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" source="Beyond" />
-                        <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" source="Beyond" />
-                        <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" source="Beyond" colorClass="text-blue" />
-                        <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" source="Beyond" colorClass="text-blue" />
-                    </KPIGrid>
-                </>
+            {(selectedTab === 'total' || selectedTab === 'beyond') && (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    {/* Row 1 */}
+                    <KPICard
+                        label="出稿金額"
+                        value={Math.round(kpis.cost)}
+                        unit="円"
+                        colorClass="text-red"
+                        source={selectedTab === 'total' ? 'Beyond' : undefined}
+                    />
+                    <KPICard
+                        label="売上"
+                        value={Math.round(kpis.revenue)}
+                        unit="円"
+                        colorClass="text-blue"
+                    />
+                    <KPICard
+                        label="粗利"
+                        value={Math.round(kpis.profit)}
+                        unit="円"
+                        colorClass="text-orange"
+                    />
+                    <KPICard
+                        label="IMP"
+                        value={kpis.impressions}
+                        source={selectedTab === 'total' ? 'Meta' : undefined}
+                    />
+                    <KPICard
+                        label="CLICK"
+                        value={kpis.metaClicks}
+                        source={selectedTab === 'total' ? 'Meta' : undefined}
+                    />
+                    <KPICard
+                        label="商品LPCLICK"
+                        value={kpis.beyondClicks}
+                        unit="件"
+                        source={selectedTab === 'total' ? 'Beyond' : undefined}
+                    />
+
+                    {/* Row 2 */}
+                    <KPICard
+                        label="CV"
+                        value={kpis.cv}
+                        unit="件"
+                        source={selectedTab === 'total' ? 'Beyond' : undefined}
+                    />
+                    <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                    <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
+                    <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
+                    <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+
+                    {/* Row 3 */}
+                    <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
+                    <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
+                    <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
+                    <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
+                    <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
+                    <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
+                </div>
             )}
 
             {selectedTab === 'meta' && (
                 <>
                     <KPIGrid columns={4}>
                         <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
-                        <KPICard label="Imp" value={kpis.impressions} />
-                        <KPICard label="Clicks" value={kpis.metaClicks} />
+                        <KPICard label="IMP" value={kpis.impressions} />
+                        <KPICard label="CLICK" value={kpis.metaClicks} />
                         <KPICard label="CV" value={kpis.metaMCV} unit="件" />
                     </KPIGrid>
                     <div className="h-4" />
@@ -285,33 +316,6 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                         <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
                         <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
                         <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                    </KPIGrid>
-                </>
-            )}
-
-            {selectedTab === 'beyond' && (
-                <>
-                    <KPIGrid columns={4}>
-                        <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
-                        <KPICard label="売上" value={Math.round(kpis.revenue)} unit="円" colorClass="text-blue" />
-                        <KPICard label="粗利" value={Math.round(kpis.profit)} unit="円" colorClass="text-orange" />
-                        <KPICard label="CV" value={kpis.cv} unit="件" />
-                    </KPIGrid>
-                    <div className="h-4" />
-                    <KPIGrid columns={4}>
-                        <KPICard label="PV" value={kpis.pv} />
-                        <KPICard label="Clicks" value={kpis.beyondClicks} unit="件" />
-                        <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
-                        <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
-                    </KPIGrid>
-                    <div className="h-4" />
-                    <KPIGrid columns={6}>
-                        <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
-                        <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                        <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
-                        <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
-                        <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
-                        <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
                     </KPIGrid>
                 </>
             )}
@@ -333,9 +337,9 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                             <CostChart data={filteredData} title="出稿金額" />
                             <RevenueChart data={filteredData} title="売上" />
                             <GenericBarChart data={filteredData} title="粗利" dataKey="Revenue" />
-                            <GenericBarChart data={filteredData} title="Imp" dataKey="Impressions" />
-                            <GenericBarChart data={filteredData} title="Clicks" dataKey="Clicks" />
-                            <GenericBarChart data={filteredData} title="商品LPクリック" dataKey="Clicks" />
+                            <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
+                            <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
+                            <GenericBarChart data={filteredData} title="商品LPCLICK" dataKey="Clicks" />
                             <CVChart data={filteredData} title="CV数" />
                         </div>
                         <div className="h-4" />
@@ -359,8 +363,8 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                     <>
                         <div className="grid grid-cols-4 gap-4">
                             <CostChart data={filteredData} title="出稿金額" />
-                            <GenericBarChart data={filteredData} title="Imp" dataKey="Impressions" />
-                            <GenericBarChart data={filteredData} title="Clicks" dataKey="Clicks" />
+                            <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
+                            <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
                             <GenericBarChart data={filteredData} title="CV" dataKey="MCV" />
                         </div>
                         <div className="h-4" />
@@ -384,7 +388,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                         <div className="h-4" />
                         <div className="grid grid-cols-4 gap-4">
                             <GenericBarChart data={filteredData} title="PV" dataKey="PV" />
-                            <GenericBarChart data={filteredData} title="Clicks" dataKey="Clicks" />
+                            <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
                             <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
                             <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
                         </div>
