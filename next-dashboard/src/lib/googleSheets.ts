@@ -8,12 +8,13 @@ export interface SheetData {
   Meta_History: Record<string, string>[];
   Beyond_Live: Record<string, string>[];
   Beyond_History: Record<string, string>[];
+  Master_Setting: Record<string, string>[];
 }
 
 async function loadSheetData(sheetName: string): Promise<Record<string, string>[]> {
   const encodedName = encodeURIComponent(sheetName);
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}`;
-  
+
   try {
     const response = await fetch(url, { next: { revalidate: 600 } }); // Cache for 10 min
     if (!response.ok) {
@@ -56,7 +57,7 @@ function parseCSVLine(line: string): string[] {
 
   for (let i = 0; i < line.length; i++) {
     const char = line[i];
-    
+
     if (char === '"') {
       if (inQuotes && line[i + 1] === '"') {
         // Escaped quote
@@ -73,16 +74,17 @@ function parseCSVLine(line: string): string[] {
     }
   }
   result.push(current.trim());
-  
+
   return result;
 }
 
 export async function loadDataFromSheets(): Promise<SheetData> {
-  const [metaLive, metaHistory, beyondLive, beyondHistory] = await Promise.all([
+  const [metaLive, metaHistory, beyondLive, beyondHistory, masterSetting] = await Promise.all([
     loadSheetData("Meta_Live"),
     loadSheetData("Meta_History"),
     loadSheetData("Beyond_Live"),
     loadSheetData("Beyond_History"),
+    loadSheetData("Master_Setting"),
   ]);
 
   return {
@@ -90,5 +92,6 @@ export async function loadDataFromSheets(): Promise<SheetData> {
     Meta_History: metaHistory,
     Beyond_Live: beyondLive,
     Beyond_History: beyondHistory,
+    Master_Setting: masterSetting,
   };
 }

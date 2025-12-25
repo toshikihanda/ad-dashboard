@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ProcessedRow, safeDivide, PROJECT_SETTINGS, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, PROJECT_SETTINGS, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues } from '@/lib/dataProcessor';
 import { KPICard, KPIGrid } from '@/components/KPICard';
 import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
@@ -28,7 +28,8 @@ function formatDateForInput(date: Date): string {
 export default function DashboardClient({ initialData }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaign, setSelectedCampaign] = useState('All');
-    const [selectedArticle, setSelectedArticle] = useState('All');
+    const [selectedBeyondPageName, setSelectedBeyondPageName] = useState('All');
+    const [selectedVersionName, setSelectedVersionName] = useState('All');
     const [selectedCreative, setSelectedCreative] = useState('All');
 
     // Date state - use fixed initial values to avoid hydration mismatch
@@ -86,28 +87,34 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
             data = data.filter(row => row.Media === 'Beyond');
         }
 
-        // Campaign filter
+        // Campaign filter (商材)
         if (selectedCampaign !== 'All') {
             data = filterByCampaign(data, selectedCampaign);
         }
 
-        // Article filter (Beyond creative)
-        if (selectedArticle !== 'All') {
-            data = data.filter(row => row.Creative === selectedArticle);
+        // beyond_page_name filter
+        if (selectedBeyondPageName !== 'All') {
+            data = data.filter(row => row.beyond_page_name === selectedBeyondPageName);
         }
 
-        // Creative filter (Meta creative)
+        // version_name filter
+        if (selectedVersionName !== 'All') {
+            data = data.filter(row => row.version_name === selectedVersionName);
+        }
+
+        // Creative filter (utm_creative= value)
         if (selectedCreative !== 'All') {
-            data = data.filter(row => row.Creative === selectedCreative);
+            data = data.filter(row => row.creative_value === selectedCreative);
         }
 
         return data;
-    }, [initialData, selectedTab, selectedCampaign, selectedArticle, selectedCreative, startDate, endDate]);
+    }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageName, selectedVersionName, selectedCreative, startDate, endDate]);
 
     // Get filter options
     const campaigns = useMemo(() => getUniqueCampaigns(initialData), [initialData]);
-    const articles = useMemo(() => getUniqueCreatives(initialData, 'Beyond'), [initialData]);
-    const creatives = useMemo(() => getUniqueCreatives(initialData, 'Meta'), [initialData]);
+    const beyondPageNames = useMemo(() => getUniqueBeyondPageNames(initialData), [initialData]);
+    const versionNames = useMemo(() => getUniqueVersionNames(initialData), [initialData]);
+    const creativeValues = useMemo(() => getUniqueCreativeValues(initialData), [initialData]);
 
     // Calculate KPIs
     const kpis = useMemo(() => {
@@ -218,11 +225,11 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                 </div>
             </div>
 
-            {/* Filter Area: 4-column layout (商品名 / 記事 / クリエイティブ / 期間) */}
-            <div className="grid grid-cols-4 gap-4 mb-6 relative">
-                {/* 商品名 Column */}
+            {/* Filter Area: 5-column layout (商材 / beyond_page_name / version_name / クリエイティブ / 期間) */}
+            <div className="grid grid-cols-5 gap-4 mb-6 relative">
+                {/* 商材 Column */}
                 <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">商品名</span>
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">商材</span>
                     <select
                         value={selectedCampaign}
                         onChange={(e) => setSelectedCampaign(e.target.value)}
@@ -233,17 +240,29 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                     </select>
                 </div>
 
-                {/* 記事 Column */}
+                {/* beyond_page_name Column */}
                 <div className="flex flex-col gap-1">
-                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">記事</span>
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">beyond_page_name</span>
                     <select
-                        value={selectedArticle}
-                        onChange={(e) => setSelectedArticle(e.target.value)}
+                        value={selectedBeyondPageName}
+                        onChange={(e) => setSelectedBeyondPageName(e.target.value)}
                         className="filter-select text-xs h-8 px-2 w-full"
-                        disabled={selectedTab === 'meta'}
                     >
                         <option value="All">All</option>
-                        {articles.slice(0, 20).map(a => <option key={a} value={a}>{a.substring(0, 20)}</option>)}
+                        {beyondPageNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
+                    </select>
+                </div>
+
+                {/* version_name Column */}
+                <div className="flex flex-col gap-1">
+                    <span className="text-[10px] font-bold text-gray-500 tracking-wide">version_name</span>
+                    <select
+                        value={selectedVersionName}
+                        onChange={(e) => setSelectedVersionName(e.target.value)}
+                        className="filter-select text-xs h-8 px-2 w-full"
+                    >
+                        <option value="All">All</option>
+                        {versionNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
                     </select>
                 </div>
 
@@ -254,10 +273,9 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                         value={selectedCreative}
                         onChange={(e) => setSelectedCreative(e.target.value)}
                         className="filter-select text-xs h-8 px-2 w-full"
-                        disabled={selectedTab === 'beyond'}
                     >
                         <option value="All">All</option>
-                        {creatives.slice(0, 20).map(c => <option key={c} value={c}>{c.substring(0, 20)}</option>)}
+                        {creativeValues.map(c => <option key={c} value={c}>{c}</option>)}
                     </select>
                 </div>
 

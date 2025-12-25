@@ -36,6 +36,10 @@ export interface ProcessedRow {
     SV_Exit: number;
     Revenue: number;
     Gross_Profit: number;
+    // New fields for filters
+    beyond_page_name: string;
+    version_name: string;
+    creative_value: string; // utm_creative= value only
 }
 
 export function safeDivide(numerator: number, denominator: number): number {
@@ -144,6 +148,10 @@ function processMetaData(metaLive: Record<string, string>[], metaHistory: Record
             SV_Exit: 0,
             Revenue: revenue,
             Gross_Profit: profit,
+            // Meta doesn't have these fields
+            beyond_page_name: '',
+            version_name: '',
+            creative_value: '',
         });
     }
 
@@ -183,6 +191,11 @@ function processBeyondData(beyondLive: Record<string, string>[], beyondHistory: 
         const parameter = (row['parameter'] || '').trim();
         if (!parameter.startsWith('utm_creative=')) continue;
 
+        // Extract new fields
+        const beyondPageName = (row['beyond_page_name'] || '').trim();
+        const versionName = (row['version_name'] || '').trim();
+        const creativeValue = parameter.replace('utm_creative=', '');
+
         const cost = parseNumber(row['cost']);
         const cv = parseNumber(row['cv']);
         const config = PROJECT_SETTINGS[campaignName];
@@ -215,6 +228,10 @@ function processBeyondData(beyondLive: Record<string, string>[], beyondHistory: 
             SV_Exit: parseNumber(row['sv_exit']),
             Revenue: revenue,
             Gross_Profit: profit,
+            // New fields for filters
+            beyond_page_name: beyondPageName,
+            version_name: versionName,
+            creative_value: creativeValue,
         });
     }
 
@@ -280,4 +297,23 @@ export function getUniqueCreatives(data: ProcessedRow[], media?: 'Meta' | 'Beyon
     const filtered = media ? data.filter(row => row.Media === media) : data;
     const creatives = new Set(filtered.map(row => row.Creative).filter(c => c));
     return Array.from(creatives);
+}
+
+// New filter helpers
+export function getUniqueBeyondPageNames(data: ProcessedRow[]): string[] {
+    const beyondData = data.filter(row => row.Media === 'Beyond');
+    const pageNames = new Set(beyondData.map(row => row.beyond_page_name).filter(n => n));
+    return Array.from(pageNames);
+}
+
+export function getUniqueVersionNames(data: ProcessedRow[]): string[] {
+    const beyondData = data.filter(row => row.Media === 'Beyond');
+    const versionNames = new Set(beyondData.map(row => row.version_name).filter(n => n));
+    return Array.from(versionNames);
+}
+
+export function getUniqueCreativeValues(data: ProcessedRow[]): string[] {
+    const beyondData = data.filter(row => row.Media === 'Beyond');
+    const creativeValues = new Set(beyondData.map(row => row.creative_value).filter(v => v));
+    return Array.from(creativeValues);
 }
