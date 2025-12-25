@@ -1,6 +1,6 @@
 'use client';
 
-import { ProcessedRow, safeDivide, PROJECT_SETTINGS } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
 
 interface DataTableProps {
     data: ProcessedRow[];
@@ -58,19 +58,10 @@ function aggregateByCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 
         const fvExit = beyondCampaign.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondCampaign.reduce((sum, row) => sum + row.SV_Exit, 0);
 
-        // Revenue calculation based on project type
-        const settings = PROJECT_SETTINGS[campaign];
-        let revenue = 0;
-
-        if (settings) {
-            if (settings.type === '成果') {
-                revenue = cv * (settings.unitPrice || 0);
-            } else {
-                // 予算型: use Beyond cost, or Meta cost if Beyond is 0
-                const costForRevenue = beyondCost > 0 ? beyondCost : metaCost;
-                revenue = costForRevenue * (settings.feeRate || 0);
-            }
-        }
+        // Revenue is already calculated in ProcessedRow
+        const beyondRevenue = beyondCampaign.reduce((sum, row) => sum + row.Revenue, 0);
+        const metaRevenue = metaCampaign.reduce((sum, row) => sum + row.Revenue, 0);
+        const revenue = beyondRevenue + metaRevenue;
 
         const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
         const profit = revenue - displayCost;

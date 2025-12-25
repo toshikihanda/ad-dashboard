@@ -1,25 +1,16 @@
-// Data Processor - TypeScript port of Python processor.py
+// Data Processor - Dynamic mapping from Master_Setting
 
 import { SheetData } from './googleSheets';
 
-// --- Settings ---
-const ACCOUNT_MAPPING: Record<string, string> = {
-    'allattain01': 'SAC_成果',
-    'allattain05': 'SAC_予算',
-    'allattain04': 'ルーチェ_予算',
-};
-
-const BEYOND_NAME_MAPPING: Record<string, string> = {
-    '【運用】SAC_成果': 'SAC_成果',
-    '【運用】SAC_予算': 'SAC_予算',
-    '【運用】ルーチェ_予算': 'ルーチェ_予算',
-};
-
-export const PROJECT_SETTINGS: Record<string, { type: '成果' | '予算'; unitPrice?: number; feeRate?: number }> = {
-    'SAC_成果': { type: '成果', unitPrice: 90000 },
-    'SAC_予算': { type: '予算', feeRate: 0.2 },
-    'ルーチェ_予算': { type: '予算', feeRate: 0.2 },
-};
+// --- Master_Setting Types ---
+export interface ProjectConfig {
+    projectName: string;      // 管理用案件名
+    metaKeyword: string;      // Meta名（判定キーワード）
+    beyondKeyword: string;    // Beyond名（判定キーワード）
+    type: '成果' | '予算';    // 運用タイプ
+    unitPrice: number;        // 成果単価
+    feeRate: number;          // 手数料率
+}
 
 export interface ProcessedRow {
     Date: Date;
@@ -56,43 +47,85 @@ function parseNumber(value: string | undefined): number {
 }
 
 function parseDate(dateStr: string): Date {
-    // Handle YYYY-MM-DD format properly (avoid timezone issues)
     if (!dateStr) return new Date();
-
-    // If it's already in YYYY-MM-DD format, parse as local date
     const match = dateStr.match(/^(\d{4})-(\d{2})-(\d{2})/);
     if (match) {
         const [, year, month, day] = match;
         return new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
     }
-
-    // Fallback to Date parsing
     const date = new Date(dateStr);
     return isNaN(date.getTime()) ? new Date() : date;
 }
 
-function getProjectName(accountName: string): string | null {
-    if (!accountName) return null;
-    for (const [prefix, projectName] of Object.entries(ACCOUNT_MAPPING)) {
-        if (accountName.startsWith(prefix)) {
-            return projectName;
-        }
-    }
-    return null;
-}
-
 function formatDateStr(date: Date): string {
-    // Use local date format to avoid timezone issues
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
     return `${year}-${month}-${day}`;
 }
 
-function processMetaData(metaLive: Record<string, string>[], metaHistory: Record<string, string>[]): ProcessedRow[] {
+// Parse Master_Setting sheet into ProjectConfig array
+function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectConfig[] {
+    const configs: ProjectConfig[] = [];
+
+    for (const row of masterSetting) {
+        const projectName = (row['管理用案件名'] || '').trim();
+        const metaKeyword = (row['Meta名'] || '').trim();
+        const beyondKeyword = (row['Beyond名'] || '').trim();
+        const typeRaw = (row['運用タイプ'] || '').trim();
+        const unitPriceRaw = row['成果単価'] || '0';
+        const feeRateRaw = row['手数料率'] || '0';
+
+        // Skip rows without project name
+        if (!projectName) continue;
+
+        const type = typeRaw === '成果' ? '成果' : '予算';
+        const unitPrice = parseNumber(unitPriceRaw);
+        // Handle percentage format (e.g., "20%" -> 0.2)
+        let feeRate = parseNumber(feeRateRaw.replace('%', ''));
+        if (feeRate > 1) feeRate = feeRate / 100; // Convert percentage to decimal
+
+        configs.push({
+            projectName,
+            metaKeyword,
+            beyondKeyword,
+            type,
+            unitPrice,
+            feeRate,
+        });
+    }
+
+    return configs;
+}
+
+// Find matching project by keyword (partial match, first match wins)
+function findProjectByMetaKeyword(adName: string, configs: ProjectConfig[]): ProjectConfig | null {
+    if (!adName) return null;
+    for (const config of configs) {
+        if (config.metaKeyword && adName.includes(config.metaKeyword)) {
+            return config;
+        }
+    }
+    return null;
+}
+
+function findProjectByBeyondKeyword(beyondPageName: string, configs: ProjectConfig[]): ProjectConfig | null {
+    if (!beyondPageName) return null;
+    for (const config of configs) {
+        if (config.beyondKeyword && beyondPageName.includes(config.beyondKeyword)) {
+            return config;
+        }
+    }
+    return null;
+}
+
+function processMetaData(
+    metaLive: Record<string, string>[],
+    metaHistory: Record<string, string>[],
+    configs: ProjectConfig[]
+): ProcessedRow[] {
     const today = formatDateStr(new Date());
 
-    // Process dates and filter
     type MetaRowWithDate = Record<string, string> & { dayStr: string };
 
     const processRows = (rows: Record<string, string>[], isLive: boolean): MetaRowWithDate[] => {
@@ -114,30 +147,30 @@ function processMetaData(metaLive: Record<string, string>[], metaHistory: Record
     const results: ProcessedRow[] = [];
 
     for (const row of combined) {
-        const campaignName = getProjectName(row['Account Name'] || '');
-        if (!campaignName) continue;
+        const adName = row['Ad Name'] || '';
+        const config = findProjectByMetaKeyword(adName, configs);
+
+        // Skip if no matching project found
+        if (!config) continue;
 
         const cost = parseNumber(row['Amount Spent']);
-        const config = PROJECT_SETTINGS[campaignName];
 
         let revenue = 0;
         let profit = 0;
 
-        if (config) {
-            if (config.type === '成果') {
-                revenue = 0;
-                profit = -cost;
-            } else {
-                revenue = cost * (config.feeRate || 0);
-                profit = revenue;
-            }
+        if (config.type === '成果') {
+            revenue = 0;
+            profit = -cost;
+        } else {
+            revenue = cost * config.feeRate;
+            profit = revenue;
         }
 
         results.push({
             Date: parseDate(row['Day']),
-            Campaign_Name: campaignName,
+            Campaign_Name: config.projectName,
             Media: 'Meta',
-            Creative: row['Ad Name'] || '',
+            Creative: adName,
             Cost: cost,
             Impressions: parseNumber(row['Impressions']),
             Clicks: parseNumber(row['Link Clicks']),
@@ -148,7 +181,6 @@ function processMetaData(metaLive: Record<string, string>[], metaHistory: Record
             SV_Exit: 0,
             Revenue: revenue,
             Gross_Profit: profit,
-            // Meta doesn't have these fields
             beyond_page_name: '',
             version_name: '',
             creative_value: '',
@@ -158,17 +190,20 @@ function processMetaData(metaLive: Record<string, string>[], metaHistory: Record
     return results;
 }
 
-function processBeyondData(beyondLive: Record<string, string>[], beyondHistory: Record<string, string>[]): ProcessedRow[] {
+function processBeyondData(
+    beyondLive: Record<string, string>[],
+    beyondHistory: Record<string, string>[],
+    configs: ProjectConfig[]
+): ProcessedRow[] {
     const today = formatDateStr(new Date());
 
-    type BeyondRowWithDate = Record<string, string> & { dayStr: string; folderNormalized: string };
+    type BeyondRowWithDate = Record<string, string> & { dayStr: string };
 
     const processRows = (rows: Record<string, string>[], isLive: boolean): BeyondRowWithDate[] => {
         return rows
             .map((row): BeyondRowWithDate => ({
                 ...row,
                 dayStr: row['date_jst'] ? formatDateStr(parseDate(row['date_jst'])) : '',
-                folderNormalized: (row['folder_name'] || '').replace(/\u3000/g, ' ').trim(),
             }))
             .filter(row => {
                 if (isLive) return row.dayStr === today;
@@ -183,39 +218,36 @@ function processBeyondData(beyondLive: Record<string, string>[], beyondHistory: 
     const results: ProcessedRow[] = [];
 
     for (const row of combined) {
-        // Filter by folder_name
-        const campaignName = BEYOND_NAME_MAPPING[row.folderNormalized];
-        if (!campaignName) continue;
+        const beyondPageName = (row['beyond_page_name'] || '').trim();
+        const config = findProjectByBeyondKeyword(beyondPageName, configs);
+
+        // Skip if no matching project found
+        if (!config) continue;
 
         // Filter by utm_creative
         const parameter = (row['parameter'] || '').trim();
         if (!parameter.startsWith('utm_creative=')) continue;
 
-        // Extract new fields
-        const beyondPageName = (row['beyond_page_name'] || '').trim();
         const versionName = (row['version_name'] || '').trim();
         const creativeValue = parameter.replace('utm_creative=', '');
 
         const cost = parseNumber(row['cost']);
         const cv = parseNumber(row['cv']);
-        const config = PROJECT_SETTINGS[campaignName];
 
         let revenue = 0;
         let profit = 0;
 
-        if (config) {
-            if (config.type === '成果') {
-                revenue = cv * (config.unitPrice || 0);
-                profit = revenue - cost;
-            } else {
-                revenue = cost * (config.feeRate || 0);
-                profit = revenue;
-            }
+        if (config.type === '成果') {
+            revenue = cv * config.unitPrice;
+            profit = revenue - cost;
+        } else {
+            revenue = cost * config.feeRate;
+            profit = revenue;
         }
 
         results.push({
             Date: parseDate(row['date_jst']),
-            Campaign_Name: campaignName,
+            Campaign_Name: config.projectName,
             Media: 'Beyond',
             Creative: parameter,
             Cost: cost,
@@ -228,7 +260,6 @@ function processBeyondData(beyondLive: Record<string, string>[], beyondHistory: 
             SV_Exit: parseNumber(row['sv_exit']),
             Revenue: revenue,
             Gross_Profit: profit,
-            // New fields for filters
             beyond_page_name: beyondPageName,
             version_name: versionName,
             creative_value: creativeValue,
@@ -239,9 +270,17 @@ function processBeyondData(beyondLive: Record<string, string>[], beyondHistory: 
 }
 
 export function processData(data: SheetData): ProcessedRow[] {
-    const metaData = processMetaData(data.Meta_Live, data.Meta_History);
-    const beyondData = processBeyondData(data.Beyond_Live, data.Beyond_History);
+    // Parse Master_Setting first
+    const configs = parseMasterSetting(data.Master_Setting);
+
+    const metaData = processMetaData(data.Meta_Live, data.Meta_History, configs);
+    const beyondData = processBeyondData(data.Beyond_Live, data.Beyond_History, configs);
     return [...metaData, ...beyondData];
+}
+
+// Export configs for use in KPI calculations
+export function getProjectConfigs(data: SheetData): ProjectConfig[] {
+    return parseMasterSetting(data.Master_Setting);
 }
 
 // Aggregation helpers
@@ -273,7 +312,6 @@ export function aggregateByDate(data: ProcessedRow[], media?: 'Meta' | 'Beyond')
 }
 
 export function filterByDateRange(data: ProcessedRow[], startDate: Date, endDate: Date): ProcessedRow[] {
-    // Compare using date strings to avoid timezone/time component issues
     const startStr = formatDateStr(startDate);
     const endStr = formatDateStr(endDate);
 

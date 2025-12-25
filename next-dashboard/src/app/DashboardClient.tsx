@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ProcessedRow, safeDivide, PROJECT_SETTINGS, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues } from '@/lib/dataProcessor';
 import { KPICard, KPIGrid } from '@/components/KPICard';
 import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
@@ -137,22 +137,8 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
         // MCV from Meta
         const metaMCV = metaData.reduce((sum, row) => sum + row.MCV, 0);
 
-        // Calculate revenue based on project settings
-        let revenue = 0;
-        for (const [projectName, settings] of Object.entries(PROJECT_SETTINGS)) {
-            const projectBeyond = beyondData.filter(row => row.Campaign_Name === projectName);
-            const projectMeta = metaData.filter(row => row.Campaign_Name === projectName);
-            const projectCV = projectBeyond.reduce((sum, row) => sum + row.CV, 0);
-            const projectBeyondCost = projectBeyond.reduce((sum, row) => sum + row.Cost, 0);
-            const projectMetaCost = projectMeta.reduce((sum, row) => sum + row.Cost, 0);
-
-            if (settings.type === '成果') {
-                revenue += projectCV * (settings.unitPrice || 0);
-            } else {
-                const costForRevenue = projectBeyondCost > 0 ? projectBeyondCost : projectMetaCost;
-                revenue += costForRevenue * (settings.feeRate || 0);
-            }
-        }
+        // Revenue is already calculated in ProcessedRow (from Master_Setting)
+        const revenue = filteredData.reduce((sum, row) => sum + row.Revenue, 0);
 
         const displayCost = selectedTab === 'meta' ? metaCost : beyondCost;
         const profit = revenue - displayCost;
