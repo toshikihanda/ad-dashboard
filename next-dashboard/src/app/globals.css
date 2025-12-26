@@ -48,6 +48,8 @@ body {
 /* Filter select styles */
 .filter-select {
   @apply block w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  min-width: 0;
+  text-overflow: ellipsis;
 }
 
 /* Date input styles */
@@ -56,8 +58,22 @@ body {
 }
 
 /* Text color utilities */
-.text-red { color: #ef4444; }
-.text-blue { color: #3b82f6; }
-.text-orange { color: #f59e0b; }
-.text-green { color: #22c55e; }
-.text-purple { color: #8b5cf6; }
+.text-red {
+  color: #ef4444;
+}
+
+.text-blue {
+  color: #3b82f6;
+}
+
+.text-orange {
+  color: #f59e0b;
+}
+
+.text-green {
+  color: #22c55e;
+}
+
+.text-purple {
+  color: #8b5cf6;
+}

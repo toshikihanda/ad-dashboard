@@ -213,8 +213,8 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                     </div>
                 </div>
 
-                {/* Filter Area: 5-column layout (商材 / beyond_page_name / version_name / クリエイティブ / 期間) */}
-                <div className="grid grid-cols-5 gap-4 relative">
+                {/* Filter Area: Custom grid layout with wider beyond_page_name */}
+                <div className="grid gap-3 relative" style={{ gridTemplateColumns: '1fr 2fr 1fr 1.5fr 1.5fr' }}>
                     {/* 商材 Column */}
                     <div className="flex flex-col gap-1">
                         <span className="text-[10px] font-bold text-gray-500 tracking-wide">商材</span>
