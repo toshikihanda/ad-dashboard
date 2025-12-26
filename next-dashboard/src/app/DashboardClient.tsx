@@ -94,7 +94,14 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
 
         // beyond_page_name filter
         if (selectedBeyondPageName !== 'All') {
-            data = data.filter(row => row.beyond_page_name === selectedBeyondPageName);
+            data = data.filter(row => {
+                if (row.Media === 'Beyond') {
+                    return row.beyond_page_name === selectedBeyondPageName;
+                } else {
+                    // Meta Linking: Check if Ad Name (stored in Creative) includes selected beyond_page_name
+                    return row.Creative && row.Creative.includes(selectedBeyondPageName);
+                }
+            });
         }
 
         // version_name filter
@@ -104,7 +111,14 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
 
         // Creative filter (utm_creative= value)
         if (selectedCreative !== 'All') {
-            data = data.filter(row => row.creative_value === selectedCreative);
+            data = data.filter(row => {
+                if (row.Media === 'Beyond') {
+                    return row.creative_value === selectedCreative;
+                } else {
+                    // Meta Linking: Check if Ad Name (stored in Creative) includes selected creative value
+                    return row.Creative && row.Creative.includes(selectedCreative);
+                }
+            });
         }
 
         return data;

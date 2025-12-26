@@ -7,7 +7,7 @@ export interface ProjectConfig {
     projectName: string;      // 管理用案件名
     metaKeyword: string;      // Meta名（判定キーワード）
     beyondKeyword: string;    // Beyond名（判定キーワード）
-    type: '成果' | '予算';    // 運用タイプ
+    type: '成果' | '予算' | 'IH';    // 運用タイプ
     unitPrice: number;        // 成果単価
     feeRate: number;          // 手数料率
 }
@@ -79,7 +79,9 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
         // Skip rows without project name
         if (!projectName) continue;
 
-        const type = typeRaw === '成果' ? '成果' : '予算';
+        let type: '成果' | '予算' | 'IH' = '予算';
+        if (typeRaw === '成果') type = '成果';
+        else if (typeRaw === 'IH') type = 'IH';
         const unitPrice = parseNumber(unitPriceRaw);
         // Handle percentage format (e.g., "20%" -> 0.2)
         let feeRate = parseNumber(feeRateRaw.replace('%', ''));
@@ -162,6 +164,7 @@ function processMetaData(
             revenue = 0;
             profit = -cost;
         } else {
+            // '予算' or 'IH' -> Revenue = Cost * FeeRate
             revenue = cost * config.feeRate;
             profit = revenue;
         }
@@ -241,6 +244,7 @@ function processBeyondData(
             revenue = cv * config.unitPrice;
             profit = revenue - cost;
         } else {
+            // '予算' or 'IH' -> Revenue = Cost * FeeRate
             revenue = cost * config.feeRate;
             profit = revenue;
         }
