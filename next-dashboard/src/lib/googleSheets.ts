@@ -9,6 +9,7 @@ export interface SheetData {
   Beyond_Live: Record<string, string>[];
   Beyond_History: Record<string, string>[];
   Master_Setting: Record<string, string>[];
+  Baseline: Record<string, string>[];
 }
 
 async function loadSheetData(sheetName: string): Promise<Record<string, string>[]> {
@@ -79,12 +80,13 @@ function parseCSVLine(line: string): string[] {
 }
 
 export async function loadDataFromSheets(): Promise<SheetData> {
-  const [metaLive, metaHistory, beyondLive, beyondHistory, masterSetting] = await Promise.all([
+  const [metaLive, metaHistory, beyondLive, beyondHistory, masterSetting, baseline] = await Promise.all([
     loadSheetData("Meta_Live"),
     loadSheetData("Meta_History"),
     loadSheetData("Beyond_Live"),
     loadSheetData("Beyond_History"),
     loadSheetData("Master_Setting"),
+    loadSheetData("Baseline"),
   ]);
 
   return {
@@ -93,5 +95,6 @@ export async function loadDataFromSheets(): Promise<SheetData> {
     Beyond_Live: beyondLive,
     Beyond_History: beyondHistory,
     Master_Setting: masterSetting,
+    Baseline: baseline,
   };
 }

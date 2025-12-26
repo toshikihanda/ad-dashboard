@@ -3,12 +3,15 @@
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
 import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues } from '@/lib/dataProcessor';
+import { BaselineData } from '@/lib/aiAnalysis';
 import { KPICard, KPIGrid } from '@/components/KPICard';
 import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
+import AIAnalysisModal from '@/components/AIAnalysisModal';
 
 interface DashboardClientProps {
     initialData: ProcessedRow[];
+    baselineData: BaselineData;
 }
 
 type TabType = 'total' | 'meta' | 'beyond';
@@ -25,12 +28,13 @@ function formatDateForInput(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-export default function DashboardClient({ initialData }: DashboardClientProps) {
+export default function DashboardClient({ initialData, baselineData }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaign, setSelectedCampaign] = useState('All');
     const [selectedBeyondPageName, setSelectedBeyondPageName] = useState('All');
     const [selectedVersionName, setSelectedVersionName] = useState('All');
     const [selectedCreative, setSelectedCreative] = useState('All');
+    const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
 
     // Date state - use fixed initial values to avoid hydration mismatch
     const [datePreset, setDatePreset] = useState<'thisMonth' | 'today' | 'yesterday' | '7days' | 'custom'>('thisMonth');
@@ -199,317 +203,336 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
     const sevenDayData = useMemo(() => filterByDateRange(filteredData, sevenDaysAgo, today), [filteredData]);
 
     return (
-        <div className="max-w-[1920px] mx-auto pb-10">
-            {/* Sticky Header + Filters */}
-            <div className="sticky top-0 z-50 bg-gray-50 pt-4 pb-4 -mx-6 px-6">
-                {/* Header - Row 1: Title & Tabs */}
-                <div className="flex items-center gap-4 mb-5">
-                    <h1 className="text-xl font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
-                    <div className="flex gap-1">
+        <>
+            <div className="max-w-[1920px] mx-auto pb-10">
+                {/* Sticky Header + Filters */}
+                <div className="sticky top-0 z-50 bg-gray-50 pt-4 pb-4 -mx-6 px-6">
+                    {/* Header - Row 1: Title & Tabs */}
+                    <div className="flex items-center gap-4 mb-5">
+                        <h1 className="text-xl font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
+                        <div className="flex gap-1">
+                            <button
+                                onClick={() => setSelectedTab('total')}
+                                className={`tab-button ${selectedTab === 'total' ? 'active' : ''} px-4 py-1.5 text-xs`}
+                            >
+                                合計
+                            </button>
+                            <button
+                                onClick={() => setSelectedTab('meta')}
+                                className={`tab-button ${selectedTab === 'meta' ? 'active' : ''} px-4 py-1.5 text-xs`}
+                            >
+                                Meta
+                            </button>
+                            <button
+                                onClick={() => setSelectedTab('beyond')}
+                                className={`tab-button ${selectedTab === 'beyond' ? 'active' : ''} px-4 py-1.5 text-xs`}
+                            >
+                                Beyond
+                            </button>
+                        </div>
+                        {/* AI Analysis Button */}
                         <button
-                            onClick={() => setSelectedTab('total')}
-                            className={`tab-button ${selectedTab === 'total' ? 'active' : ''} px-4 py-1.5 text-xs`}
+                            onClick={() => setIsAnalysisModalOpen(true)}
+                            className="ml-auto px-4 py-1.5 text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md flex items-center gap-1.5"
                         >
-                            合計
+                            <span>✨</span>
+                            <span>AI分析</span>
                         </button>
-                        <button
-                            onClick={() => setSelectedTab('meta')}
-                            className={`tab-button ${selectedTab === 'meta' ? 'active' : ''} px-4 py-1.5 text-xs`}
-                        >
-                            Meta
-                        </button>
-                        <button
-                            onClick={() => setSelectedTab('beyond')}
-                            className={`tab-button ${selectedTab === 'beyond' ? 'active' : ''} px-4 py-1.5 text-xs`}
-                        >
-                            Beyond
-                        </button>
+                    </div>
+
+                    {/* Filter Area: Custom grid layout with wider beyond_page_name */}
+                    <div className="grid gap-3 relative" style={{ gridTemplateColumns: '1fr 2fr 1fr 1.5fr 1.5fr' }}>
+                        {/* 商材 Column */}
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">商材</span>
+                            <select
+                                value={selectedCampaign}
+                                onChange={(e) => setSelectedCampaign(e.target.value)}
+                                className="filter-select text-xs px-2 w-full truncate"
+                                title={selectedCampaign}
+                            >
+                                <option value="All">All</option>
+                                {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+
+                        {/* beyond_page_name Column */}
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">beyond_page_name</span>
+                            <select
+                                value={selectedBeyondPageName}
+                                onChange={(e) => setSelectedBeyondPageName(e.target.value)}
+                                className="filter-select text-xs px-2 w-full truncate"
+                                title={selectedBeyondPageName}
+                            >
+                                <option value="All">All</option>
+                                {beyondPageNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
+                            </select>
+                        </div>
+
+                        {/* version_name Column */}
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">version_name</span>
+                            <select
+                                value={selectedVersionName}
+                                onChange={(e) => setSelectedVersionName(e.target.value)}
+                                className="filter-select text-xs px-2 w-full truncate"
+                                title={selectedVersionName}
+                            >
+                                <option value="All">All</option>
+                                {versionNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
+                            </select>
+                        </div>
+
+                        {/* クリエイティブ Column */}
+                        <div className="flex flex-col gap-1">
+                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">クリエイティブ</span>
+                            <select
+                                value={selectedCreative}
+                                onChange={(e) => setSelectedCreative(e.target.value)}
+                                className="filter-select text-xs h-8 px-2 w-full truncate"
+                                title={selectedCreative}
+                            >
+                                <option value="All">All</option>
+                                {creativeValues.map(c => <option key={c} value={c}>{c}</option>)}
+                            </select>
+                        </div>
+
+                        {/* 期間 Column */}
+                        <div className="flex flex-col gap-1">
+                            <div className="flex items-center justify-between">
+                                <span className="text-[10px] font-bold text-gray-500 tracking-wide">期間</span>
+                                <div className="flex items-center gap-1 text-[10px]">
+                                    <span className="text-blue-500 text-xs">●</span>
+                                    <span className="text-gray-500">選択中:</span>
+                                    <span className="font-bold text-gray-700">{startDate.replace(/-/g, '/').slice(5)}</span>
+                                    <span className="text-gray-400">〜</span>
+                                    <span className="font-bold text-gray-700">{endDate.replace(/-/g, '/').slice(5)}</span>
+                                </div>
+                            </div>
+                            <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-8">
+                                {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).map((preset) => (
+                                    <button
+                                        key={preset}
+                                        onClick={() => handlePresetChange(preset)}
+                                        className={cn(
+                                            "flex-1 text-[10px] font-bold transition-all first:rounded-l-md last:rounded-r-md",
+                                            datePreset === preset
+                                                ? "bg-blue-600 text-white"
+                                                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
+                                        )}
+                                    >
+                                        {preset === 'thisMonth' ? '今月' :
+                                            preset === 'today' ? '今日' :
+                                                preset === 'yesterday' ? '昨日' :
+                                                    preset === '7days' ? '7日' : 'カスタム'}
+                                    </button>
+                                ))}
+                            </div>
+                        </div>
+
+                        {/* Custom date picker popup */}
+                        {datePreset === 'custom' && (
+                            <div className="absolute top-full right-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
+                                <div className="flex flex-col gap-0.5">
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">開始日</label>
+                                    <input
+                                        type="date"
+                                        value={startDate}
+                                        onChange={(e) => setStartDate(e.target.value)}
+                                        className="date-input text-xs h-8"
+                                    />
+                                </div>
+                                <span className="text-gray-400 mt-4">〜</span>
+                                <div className="flex flex-col gap-0.5">
+                                    <label className="text-[9px] font-bold text-gray-400 ml-1">終了日</label>
+                                    <input
+                                        type="date"
+                                        value={endDate}
+                                        onChange={(e) => setEndDate(e.target.value)}
+                                        className="date-input text-xs h-8"
+                                    />
+                                </div>
+                            </div>
+                        )}
                     </div>
                 </div>
 
-                {/* Filter Area: Custom grid layout with wider beyond_page_name */}
-                <div className="grid gap-3 relative" style={{ gridTemplateColumns: '1fr 2fr 1fr 1.5fr 1.5fr' }}>
-                    {/* 商材 Column */}
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-gray-500 tracking-wide">商材</span>
-                        <select
-                            value={selectedCampaign}
-                            onChange={(e) => setSelectedCampaign(e.target.value)}
-                            className="filter-select text-xs px-2 w-full truncate"
-                            title={selectedCampaign}
-                        >
-                            <option value="All">All</option>
-                            {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                    </div>
+                {/* KPI Cards */}
+                {(selectedTab === 'total' || selectedTab === 'beyond') && (
+                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                        {/* Row 1 */}
+                        <KPICard
+                            label="出稿金額"
+                            value={Math.round(kpis.cost)}
+                            unit="円"
+                            colorClass="text-red"
+                            source={selectedTab === 'total' ? 'Beyond' : undefined}
+                        />
+                        <KPICard
+                            label="売上"
+                            value={Math.round(kpis.revenue)}
+                            unit="円"
+                            colorClass="text-blue"
+                        />
+                        <KPICard
+                            label="粗利"
+                            value={Math.round(kpis.profit)}
+                            unit="円"
+                            colorClass="text-orange"
+                        />
+                        <KPICard
+                            label="IMP"
+                            value={kpis.impressions}
+                            source={selectedTab === 'total' ? 'Meta' : undefined}
+                        />
+                        <KPICard
+                            label="CLICK"
+                            value={kpis.metaClicks}
+                            source={selectedTab === 'total' ? 'Meta' : undefined}
+                        />
+                        <KPICard
+                            label="商品LP CLICK"
+                            value={kpis.beyondClicks}
+                            unit="件"
+                            source={selectedTab === 'total' ? 'Beyond' : undefined}
+                        />
 
-                    {/* beyond_page_name Column */}
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-gray-500 tracking-wide">beyond_page_name</span>
-                        <select
-                            value={selectedBeyondPageName}
-                            onChange={(e) => setSelectedBeyondPageName(e.target.value)}
-                            className="filter-select text-xs px-2 w-full truncate"
-                            title={selectedBeyondPageName}
-                        >
-                            <option value="All">All</option>
-                            {beyondPageNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
-                        </select>
-                    </div>
-
-                    {/* version_name Column */}
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-gray-500 tracking-wide">version_name</span>
-                        <select
-                            value={selectedVersionName}
-                            onChange={(e) => setSelectedVersionName(e.target.value)}
-                            className="filter-select text-xs px-2 w-full truncate"
-                            title={selectedVersionName}
-                        >
-                            <option value="All">All</option>
-                            {versionNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
-                        </select>
-                    </div>
-
-                    {/* クリエイティブ Column */}
-                    <div className="flex flex-col gap-1">
-                        <span className="text-[10px] font-bold text-gray-500 tracking-wide">クリエイティブ</span>
-                        <select
-                            value={selectedCreative}
-                            onChange={(e) => setSelectedCreative(e.target.value)}
-                            className="filter-select text-xs h-8 px-2 w-full truncate"
-                            title={selectedCreative}
-                        >
-                            <option value="All">All</option>
-                            {creativeValues.map(c => <option key={c} value={c}>{c}</option>)}
-                        </select>
-                    </div>
-
-                    {/* 期間 Column */}
-                    <div className="flex flex-col gap-1">
-                        <div className="flex items-center justify-between">
-                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">期間</span>
-                            <div className="flex items-center gap-1 text-[10px]">
-                                <span className="text-blue-500 text-xs">●</span>
-                                <span className="text-gray-500">選択中:</span>
-                                <span className="font-bold text-gray-700">{startDate.replace(/-/g, '/').slice(5)}</span>
-                                <span className="text-gray-400">〜</span>
-                                <span className="font-bold text-gray-700">{endDate.replace(/-/g, '/').slice(5)}</span>
-                            </div>
-                        </div>
-                        <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-8">
-                            {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).map((preset) => (
-                                <button
-                                    key={preset}
-                                    onClick={() => handlePresetChange(preset)}
-                                    className={cn(
-                                        "flex-1 text-[10px] font-bold transition-all first:rounded-l-md last:rounded-r-md",
-                                        datePreset === preset
-                                            ? "bg-blue-600 text-white"
-                                            : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                                    )}
-                                >
-                                    {preset === 'thisMonth' ? '今月' :
-                                        preset === 'today' ? '今日' :
-                                            preset === 'yesterday' ? '昨日' :
-                                                preset === '7days' ? '7日' : 'カスタム'}
-                                </button>
-                            ))}
-                        </div>
-                    </div>
-
-                    {/* Custom date picker popup */}
-                    {datePreset === 'custom' && (
-                        <div className="absolute top-full right-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
-                            <div className="flex flex-col gap-0.5">
-                                <label className="text-[9px] font-bold text-gray-400 ml-1">開始日</label>
-                                <input
-                                    type="date"
-                                    value={startDate}
-                                    onChange={(e) => setStartDate(e.target.value)}
-                                    className="date-input text-xs h-8"
-                                />
-                            </div>
-                            <span className="text-gray-400 mt-4">〜</span>
-                            <div className="flex flex-col gap-0.5">
-                                <label className="text-[9px] font-bold text-gray-400 ml-1">終了日</label>
-                                <input
-                                    type="date"
-                                    value={endDate}
-                                    onChange={(e) => setEndDate(e.target.value)}
-                                    className="date-input text-xs h-8"
-                                />
-                            </div>
-                        </div>
-                    )}
-                </div>
-            </div>
-
-            {/* KPI Cards */}
-            {(selectedTab === 'total' || selectedTab === 'beyond') && (
-                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                    {/* Row 1 */}
-                    <KPICard
-                        label="出稿金額"
-                        value={Math.round(kpis.cost)}
-                        unit="円"
-                        colorClass="text-red"
-                        source={selectedTab === 'total' ? 'Beyond' : undefined}
-                    />
-                    <KPICard
-                        label="売上"
-                        value={Math.round(kpis.revenue)}
-                        unit="円"
-                        colorClass="text-blue"
-                    />
-                    <KPICard
-                        label="粗利"
-                        value={Math.round(kpis.profit)}
-                        unit="円"
-                        colorClass="text-orange"
-                    />
-                    <KPICard
-                        label="IMP"
-                        value={kpis.impressions}
-                        source={selectedTab === 'total' ? 'Meta' : undefined}
-                    />
-                    <KPICard
-                        label="CLICK"
-                        value={kpis.metaClicks}
-                        source={selectedTab === 'total' ? 'Meta' : undefined}
-                    />
-                    <KPICard
-                        label="商品LP CLICK"
-                        value={kpis.beyondClicks}
-                        unit="件"
-                        source={selectedTab === 'total' ? 'Beyond' : undefined}
-                    />
-
-                    {/* Row 2 */}
-                    <KPICard
-                        label="CV"
-                        value={kpis.cv}
-                        unit="件"
-                        source={selectedTab === 'total' ? 'Beyond' : undefined}
-                    />
-                    <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                    <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
-                    <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
-                    <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
-
-                    {/* Row 3 */}
-                    <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
-                    <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                    <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
-                    <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
-                    <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
-                    <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
-                </div>
-            )}
-
-            {selectedTab === 'meta' && (
-                <>
-                    <KPIGrid columns={4}>
-                        <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
-                        <KPICard label="IMP" value={kpis.impressions} />
-                        <KPICard label="CLICK" value={kpis.metaClicks} />
-                        <KPICard label="CV" value={kpis.metaMCV} unit="件" />
-                    </KPIGrid>
-                    <div className="h-4" />
-                    <KPIGrid columns={4}>
+                        {/* Row 2 */}
+                        <KPICard
+                            label="CV"
+                            value={kpis.cv}
+                            unit="件"
+                            source={selectedTab === 'total' ? 'Beyond' : undefined}
+                        />
                         <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                        <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
+                        <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
                         <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
                         <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+
+                        {/* Row 3 */}
+                        <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
                         <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                    </KPIGrid>
-                </>
-            )}
-
-            {/* Data Tables */}
-            <div className="mt-8 space-y-4">
-                <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} />
-                <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} />
-                <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} />
-                <DataTable data={sevenDayData} title="■案件別数値（直近7日間）" viewMode={selectedTab} />
-                <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} />
-            </div>
-
-            {/* Charts */}
-            <div className="mt-8">
-                {selectedTab === 'total' && (
-                    <>
-                        <div className="grid grid-cols-4 gap-4">
-                            <CostChart data={filteredData} title="出稿金額" />
-                            <RevenueChart data={filteredData} title="売上" />
-                            <GenericBarChart data={filteredData} title="粗利" dataKey="Revenue" />
-                            <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
-                            <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
-                            <GenericBarChart data={filteredData} title="商品LP CLICK" dataKey="Clicks" />
-                            <CVChart data={filteredData} title="CV数" />
-                        </div>
-                        <div className="h-4" />
-                        <div className="grid grid-cols-4 gap-4">
-                            <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
-                            <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
-                            <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
-                            <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
-                            <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
-                            <CostMetricChart data={filteredData} title="MCPA" costDivisorKey="Clicks" />
-                            <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
-                            <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
-                            <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
-                            <GenericRateChart data={filteredData} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
-                            <GenericRateChart data={filteredData} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={1} />
-                        </div>
-                    </>
+                        <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
+                        <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
+                        <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
+                        <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
+                    </div>
                 )}
 
                 {selectedTab === 'meta' && (
                     <>
-                        <div className="grid grid-cols-4 gap-4">
-                            <CostChart data={filteredData} title="出稿金額" />
-                            <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
-                            <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
-                            <GenericBarChart data={filteredData} title="CV" dataKey="MCV" />
-                        </div>
+                        <KPIGrid columns={4}>
+                            <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
+                            <KPICard label="IMP" value={kpis.impressions} />
+                            <KPICard label="CLICK" value={kpis.metaClicks} />
+                            <KPICard label="CV" value={kpis.metaMCV} unit="件" />
+                        </KPIGrid>
                         <div className="h-4" />
-                        <div className="grid grid-cols-4 gap-4">
-                            <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
-                            <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
-                            <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
-                            <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
-                        </div>
+                        <KPIGrid columns={4}>
+                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                            <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                            <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
+                        </KPIGrid>
                     </>
                 )}
 
-                {selectedTab === 'beyond' && (
-                    <>
-                        <div className="grid grid-cols-4 gap-4">
-                            <CostChart data={filteredData} title="出稿金額" />
-                            <RevenueChart data={filteredData} title="売上" />
-                            <GenericBarChart data={filteredData} title="粗利" dataKey="Revenue" />
-                            <CVChart data={filteredData} title="CV" />
-                        </div>
-                        <div className="h-4" />
-                        <div className="grid grid-cols-4 gap-4">
-                            <GenericBarChart data={filteredData} title="PV" dataKey="PV" />
-                            <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
-                            <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
-                            <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
-                        </div>
-                        <div className="h-4" />
-                        <div className="grid grid-cols-4 gap-4">
-                            <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
-                            <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
-                            <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
-                            <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
-                            <GenericRateChart data={filteredData} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
-                            <GenericRateChart data={filteredData} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={1} />
-                        </div>
-                    </>
-                )}
+                {/* Data Tables */}
+                <div className="mt-8 space-y-4">
+                    <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} />
+                    <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} />
+                    <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} />
+                    <DataTable data={sevenDayData} title="■案件別数値（直近7日間）" viewMode={selectedTab} />
+                    <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} />
+                </div>
+
+                {/* Charts */}
+                <div className="mt-8">
+                    {selectedTab === 'total' && (
+                        <>
+                            <div className="grid grid-cols-4 gap-4">
+                                <CostChart data={filteredData} title="出稿金額" />
+                                <RevenueChart data={filteredData} title="売上" />
+                                <GenericBarChart data={filteredData} title="粗利" dataKey="Revenue" />
+                                <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
+                                <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
+                                <GenericBarChart data={filteredData} title="商品LP CLICK" dataKey="Clicks" />
+                                <CVChart data={filteredData} title="CV数" />
+                            </div>
+                            <div className="h-4" />
+                            <div className="grid grid-cols-4 gap-4">
+                                <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
+                                <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
+                                <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
+                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData} title="MCPA" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
+                                <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
+                                <GenericRateChart data={filteredData} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={1} />
+                            </div>
+                        </>
+                    )}
+
+                    {selectedTab === 'meta' && (
+                        <>
+                            <div className="grid grid-cols-4 gap-4">
+                                <CostChart data={filteredData} title="出稿金額" />
+                                <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
+                                <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
+                                <GenericBarChart data={filteredData} title="CV" dataKey="MCV" />
+                            </div>
+                            <div className="h-4" />
+                            <div className="grid grid-cols-4 gap-4">
+                                <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
+                                <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
+                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
+                            </div>
+                        </>
+                    )}
+
+                    {selectedTab === 'beyond' && (
+                        <>
+                            <div className="grid grid-cols-4 gap-4">
+                                <CostChart data={filteredData} title="出稿金額" />
+                                <RevenueChart data={filteredData} title="売上" />
+                                <GenericBarChart data={filteredData} title="粗利" dataKey="Revenue" />
+                                <CVChart data={filteredData} title="CV" />
+                            </div>
+                            <div className="h-4" />
+                            <div className="grid grid-cols-4 gap-4">
+                                <GenericBarChart data={filteredData} title="PV" dataKey="PV" />
+                                <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
+                                <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
+                            </div>
+                            <div className="h-4" />
+                            <div className="grid grid-cols-4 gap-4">
+                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
+                                <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
+                                <GenericRateChart data={filteredData} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={1} />
+                            </div>
+                        </>
+                    )}
+                </div>
             </div>
-        </div>
+
+            {/* AI Analysis Modal */}
+            <AIAnalysisModal
+                isOpen={isAnalysisModalOpen}
+                onClose={() => setIsAnalysisModalOpen(false)}
+                data={initialData}
+                campaigns={campaigns}
+                baselineData={baselineData}
+            />
+        </>
     );
 }
