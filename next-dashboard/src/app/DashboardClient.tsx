@@ -221,7 +221,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                         <select
                             value={selectedCampaign}
                             onChange={(e) => setSelectedCampaign(e.target.value)}
-                            className="filter-select text-xs h-10 px-2 w-full truncate"
+                            className="filter-select text-xs px-2 w-full truncate"
                             title={selectedCampaign}
                         >
                             <option value="All">All</option>
@@ -235,7 +235,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                         <select
                             value={selectedBeyondPageName}
                             onChange={(e) => setSelectedBeyondPageName(e.target.value)}
-                            className="filter-select text-xs h-10 px-2 w-full truncate"
+                            className="filter-select text-xs px-2 w-full truncate"
                             title={selectedBeyondPageName}
                         >
                             <option value="All">All</option>
@@ -249,7 +249,7 @@ export default function DashboardClient({ initialData }: DashboardClientProps) {
                         <select
                             value={selectedVersionName}
                             onChange={(e) => setSelectedVersionName(e.target.value)}
-                            className="filter-select text-xs h-10 px-2 w-full truncate"
+                            className="filter-select text-xs px-2 w-full truncate"
                             title={selectedVersionName}
                         >
                             <option value="All">All</option>
