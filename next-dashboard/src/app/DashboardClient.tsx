@@ -423,19 +423,28 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
 
                 {selectedTab === 'meta' && (
                     <>
-                        <KPIGrid columns={4}>
-                            <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
-                            <KPICard label="IMP" value={kpis.impressions} />
-                            <KPICard label="CLICK" value={kpis.metaClicks} />
-                            <KPICard label="CV" value={kpis.metaMCV} unit="件" />
-                        </KPIGrid>
-                        <div className="h-4" />
-                        <KPIGrid columns={4}>
-                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                            <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
-                            <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                        </KPIGrid>
+                        {filteredData.length === 0 ? (
+                            <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-6 text-center">
+                                <p className="text-yellow-700 font-medium">この商材は Meta 広告を配信していません</p>
+                                <p className="text-yellow-600 text-sm mt-1">Beyond タブまたは合計タブでデータを確認してください</p>
+                            </div>
+                        ) : (
+                            <>
+                                <KPIGrid columns={4}>
+                                    <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
+                                    <KPICard label="IMP" value={kpis.impressions} />
+                                    <KPICard label="CLICK" value={kpis.metaClicks} />
+                                    <KPICard label="CV" value={kpis.metaMCV} unit="件" />
+                                </KPIGrid>
+                                <div className="h-4" />
+                                <KPIGrid columns={4}>
+                                    <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                                    <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                                    <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
+                                </KPIGrid>
+                            </>
+                        )}
                     </>
                 )}
 

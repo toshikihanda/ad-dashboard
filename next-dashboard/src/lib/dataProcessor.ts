@@ -10,6 +10,7 @@ export interface ProjectConfig {
     type: '成果' | '予算' | 'IH';    // 運用タイプ
     unitPrice: number;        // 成果単価
     feeRate: number;          // 手数料率
+    metaCvName: string;       // Meta CV名（CVとしてカウントする列名）
 }
 
 export interface ProcessedRow {
@@ -75,6 +76,7 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
         const typeRaw = (row['運用タイプ'] || '').trim();
         const unitPriceRaw = row['成果単価'] || '0';
         const feeRateRaw = row['手数料率'] || '0';
+        const metaCvName = (row['Meta CV名'] || '').trim();
 
         // Skip rows without project name
         if (!projectName) continue;
@@ -94,6 +96,7 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
             type,
             unitPrice,
             feeRate,
+            metaCvName,
         });
     }
 
@@ -223,6 +226,10 @@ function processMetaData(
             profit = revenue;
         }
 
+        // 商材ごとに異なる CV 列を参照（未設定の場合は Results をフォールバック）
+        const cvColumnName = config.metaCvName || 'Results';
+        const cvValue = parseNumber(row[cvColumnName]);
+
         results.push({
             Date: parseDate(row['Day']),
             Campaign_Name: config.projectName,
@@ -231,8 +238,8 @@ function processMetaData(
             Cost: cost,
             Impressions: parseNumber(row['Impressions']),
             Clicks: parseNumber(row['Link Clicks']),
-            CV: parseNumber(row['Results']),
-            MCV: parseNumber(row['Results']),
+            CV: cvValue,
+            MCV: cvValue,
             PV: 0,
             FV_Exit: 0,
             SV_Exit: 0,
