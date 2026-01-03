@@ -41,6 +41,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
     const [startDate, setStartDate] = useState('');
     const [endDate, setEndDate] = useState('');
     const [isClient, setIsClient] = useState(false);
+    const [isCustomDatePickerOpen, setIsCustomDatePickerOpen] = useState(false);
 
     // Initialize dates on client-side only to avoid SSR/hydration mismatch
     useEffect(() => {
@@ -60,15 +61,21 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
 
         if (preset === 'thisMonth') {
             start = new Date(end.getFullYear(), end.getMonth(), 1);
+            setIsCustomDatePickerOpen(false);
         } else if (preset === 'today') {
             start = new Date(end);
+            setIsCustomDatePickerOpen(false);
         } else if (preset === 'yesterday') {
             start.setDate(end.getDate() - 1);
             end.setDate(end.getDate() - 1);
+            setIsCustomDatePickerOpen(false);
         } else if (preset === '7days') {
             start.setDate(end.getDate() - 6);
+            setIsCustomDatePickerOpen(false);
         } else {
-            return; // custom handles its own
+            // custom - open the date picker
+            setIsCustomDatePickerOpen(true);
+            return;
         }
 
         setStartDate(formatDateForInput(start));
@@ -332,7 +339,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                         </div>
 
                         {/* Custom date picker popup */}
-                        {datePreset === 'custom' && (
+                        {isCustomDatePickerOpen && (
                             <div className="absolute top-full right-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
                                 <div className="flex flex-col gap-0.5">
                                     <label className="text-[9px] font-bold text-gray-400 ml-1">開始日</label>
@@ -353,6 +360,12 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                         className="date-input text-xs h-8"
                                     />
                                 </div>
+                                <button
+                                    onClick={() => setIsCustomDatePickerOpen(false)}
+                                    className="ml-2 mt-4 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                >
+                                    決定
+                                </button>
                             </div>
                         )}
                     </div>
