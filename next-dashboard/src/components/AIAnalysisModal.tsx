@@ -124,12 +124,12 @@ export default function AIAnalysisModal({
             {/* Modal */}
             <div className="relative bg-white rounded-2xl shadow-2xl max-w-3xl w-full mx-4 max-h-[90vh] overflow-hidden flex flex-col">
                 {/* Header */}
-                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-gradient-to-r from-purple-600 to-indigo-600">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-200 bg-blue-600">
                     <h2 className="text-lg font-bold text-white flex items-center gap-2">
-                        <span>🔍</span>
+                        <span>📊</span>
                         <span>AI 分析</span>
                         {analysisResult && (
-                            <span className="text-purple-200 font-normal">: {selectedCampaign}</span>
+                            <span className="text-blue-200 font-normal">: {selectedCampaign}</span>
                         )}
                     </h2>
                     <button
@@ -150,7 +150,7 @@ export default function AIAnalysisModal({
                                 <select
                                     value={selectedCampaign}
                                     onChange={(e) => setSelectedCampaign(e.target.value)}
-                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 focus:border-transparent text-sm"
+                                    className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-sm"
                                 >
                                     {campaigns.map(c => (
                                         <option key={c} value={c}>{c}</option>
@@ -166,7 +166,7 @@ export default function AIAnalysisModal({
                                             key={period}
                                             onClick={() => setSelectedPeriod(period)}
                                             className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${selectedPeriod === period
-                                                ? 'bg-purple-600 text-white shadow-md'
+                                                ? 'bg-blue-600 text-white shadow-md'
                                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                 }`}
                                         >
@@ -179,7 +179,7 @@ export default function AIAnalysisModal({
                             <button
                                 onClick={handleAnalyze}
                                 disabled={!selectedCampaign}
-                                className="w-full py-4 bg-gradient-to-r from-purple-600 to-indigo-600 text-white font-bold rounded-xl hover:from-purple-700 hover:to-indigo-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
+                                className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                             >
                                 分析開始
                             </button>
@@ -187,8 +187,8 @@ export default function AIAnalysisModal({
                     ) : isAnalyzing ? (
                         // Loading State
                         <div className="flex flex-col items-center justify-center py-16">
-                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-purple-200 border-t-purple-600 mb-4"></div>
-                            <p className="text-gray-600 text-lg">🔄 AI が分析中です...</p>
+                            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-200 border-t-blue-600 mb-4"></div>
+                            <p className="text-gray-600 text-lg">分析中...</p>
                             <p className="text-gray-400 text-sm mt-2">（10〜20秒ほどお待ちください）</p>
                         </div>
                     ) : error ? (
@@ -209,7 +209,7 @@ export default function AIAnalysisModal({
                             {/* Back Button */}
                             <button
                                 onClick={() => { setAnalysisResult(null); setError(null); }}
-                                className="text-purple-600 hover:text-purple-800 text-sm font-medium flex items-center gap-1"
+                                className="text-blue-600 hover:text-blue-800 text-sm font-medium flex items-center gap-1"
                             >
                                 ← 条件を変更
                             </button>

@@ -240,9 +240,9 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                         {/* AI Analysis Button */}
                         <button
                             onClick={() => setIsAnalysisModalOpen(true)}
-                            className="ml-auto px-4 py-1.5 text-xs font-bold bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg hover:from-purple-700 hover:to-indigo-700 transition-all shadow-md flex items-center gap-1.5"
+                            className="ml-auto px-4 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md flex items-center gap-1.5"
                         >
-                            <span>✨</span>
+                            <span>📊</span>
                             <span>AI分析</span>
                         </button>
                     </div>
