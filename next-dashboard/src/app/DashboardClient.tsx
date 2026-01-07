@@ -8,6 +8,7 @@ import { KPICard, KPIGrid } from '@/components/KPICard';
 import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
 import AIAnalysisModal from '@/components/AIAnalysisModal';
+import PeriodComparisonModal from '@/components/PeriodComparisonModal';
 
 interface DashboardClientProps {
     initialData: ProcessedRow[];
@@ -35,6 +36,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
     const [selectedVersionName, setSelectedVersionName] = useState('All');
     const [selectedCreative, setSelectedCreative] = useState('All');
     const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
+    const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
 
     // Date state - use fixed initial values to avoid hydration mismatch
     const [datePreset, setDatePreset] = useState<'thisMonth' | 'today' | 'yesterday' | '7days' | 'custom'>('thisMonth');
@@ -303,6 +305,14 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                         >
                             <span>📊</span>
                             <span>AI分析</span>
+                        </button>
+                        {/* Period Comparison Button */}
+                        <button
+                            onClick={() => setIsComparisonModalOpen(true)}
+                            className="px-4 py-1.5 text-xs font-bold bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all shadow-md flex items-center gap-1.5"
+                        >
+                            <span>📈</span>
+                            <span>期間比較</span>
                         </button>
                     </div>
 
@@ -613,6 +623,14 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                 data={initialData}
                 campaigns={campaigns}
                 baselineData={baselineData}
+            />
+
+            {/* Period Comparison Modal */}
+            <PeriodComparisonModal
+                isOpen={isComparisonModalOpen}
+                onClose={() => setIsComparisonModalOpen(false)}
+                data={initialData}
+                campaigns={campaigns}
             />
         </>
     );
