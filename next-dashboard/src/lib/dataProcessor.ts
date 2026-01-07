@@ -177,6 +177,15 @@ function findProjectByBeyondKeyword(
     return null;
 }
 
+// Extract creative value from Meta's Ad Name
+// Matches patterns like "bt054_004_004" in "campaign_SAC_成果_bt054_004_004_v1"
+function extractCreativeFromAdName(adName: string): string {
+    if (!adName) return '';
+    // Look for bt + digits pattern with underscores (e.g., bt054_004_004)
+    const match = adName.match(/bt\d{3}(?:_\d{3})+/);
+    return match ? match[0] : '';
+}
+
 function processMetaData(
     metaLive: Record<string, string>[],
     metaHistory: Record<string, string>[],
@@ -220,8 +229,12 @@ function processMetaData(
         if (config.type === '成果') {
             revenue = 0;
             profit = -cost;
+        } else if (config.type === 'IH') {
+            // IH -> 売上 = 出稿金額 × 手数料率, 粗利 = 売上と同じ
+            revenue = cost * config.feeRate;
+            profit = revenue;
         } else {
-            // '予算' or 'IH' -> Revenue = Cost * (1 + FeeRate), Profit = Revenue - Cost
+            // '予算' -> Revenue = Cost * (1 + FeeRate), Profit = Revenue - Cost
             revenue = cost * (1 + config.feeRate);
             profit = revenue - cost;
         }
@@ -229,6 +242,9 @@ function processMetaData(
         // 商材ごとに異なる CV 列を参照（未設定の場合は Results をフォールバック）
         const cvColumnName = config.metaCvName || 'Results';
         const cvValue = parseNumber(row[cvColumnName]);
+
+        // Meta側のcreative_valueはAd Nameから抽出
+        const metaCreativeValue = extractCreativeFromAdName(adName);
 
         results.push({
             Date: parseDate(row['Day']),
@@ -247,7 +263,7 @@ function processMetaData(
             Gross_Profit: profit,
             beyond_page_name: '',
             version_name: '',
-            creative_value: '',
+            creative_value: metaCreativeValue,
         });
     }
 
@@ -305,8 +321,12 @@ function processBeyondData(
         if (config.type === '成果') {
             revenue = cv * config.unitPrice;
             profit = revenue - cost;
+        } else if (config.type === 'IH') {
+            // IH -> 売上 = 出稿金額 × 手数料率, 粗利 = 売上と同じ
+            revenue = cost * config.feeRate;
+            profit = revenue;
         } else {
-            // '予算' or 'IH' -> Revenue = Cost * (1 + FeeRate), Profit = Revenue - Cost
+            // '予算' -> Revenue = Cost * (1 + FeeRate), Profit = Revenue - Cost
             revenue = cost * (1 + config.feeRate);
             profit = revenue - cost;
         }

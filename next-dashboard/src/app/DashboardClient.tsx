@@ -9,6 +9,7 @@ import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBa
 import { DataTable } from '@/components/DataTable';
 import AIAnalysisModal from '@/components/AIAnalysisModal';
 import PeriodComparisonModal from '@/components/PeriodComparisonModal';
+import { MultiSelect } from '@/components/MultiSelect';
 
 interface DashboardClientProps {
     initialData: ProcessedRow[];
@@ -32,9 +33,10 @@ function formatDateForInput(date: Date): string {
 export default function DashboardClient({ initialData, baselineData }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaign, setSelectedCampaign] = useState('All');
-    const [selectedBeyondPageName, setSelectedBeyondPageName] = useState('All');
-    const [selectedVersionName, setSelectedVersionName] = useState('All');
-    const [selectedCreative, setSelectedCreative] = useState('All');
+    // 複数選択対応（配列で管理）
+    const [selectedBeyondPageNames, setSelectedBeyondPageNames] = useState<string[]>([]);
+    const [selectedVersionNames, setSelectedVersionNames] = useState<string[]>([]);
+    const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
     const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
     const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
 
@@ -105,37 +107,37 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
             data = filterByCampaign(data, selectedCampaign);
         }
 
-        // beyond_page_name filter
-        if (selectedBeyondPageName !== 'All') {
+        // beyond_page_name filter (複数選択対応)
+        if (selectedBeyondPageNames.length > 0) {
             data = data.filter(row => {
                 if (row.Media === 'Beyond') {
-                    return row.beyond_page_name === selectedBeyondPageName;
+                    return selectedBeyondPageNames.includes(row.beyond_page_name);
                 } else {
-                    // Meta Linking: Check if Ad Name (stored in Creative) includes selected beyond_page_name
-                    return row.Creative && row.Creative.includes(selectedBeyondPageName);
+                    // Meta Linking: Check if Ad Name (stored in Creative) includes any selected beyond_page_name
+                    return selectedBeyondPageNames.some(name => row.Creative && row.Creative.includes(name));
                 }
             });
         }
 
-        // version_name filter
-        if (selectedVersionName !== 'All') {
-            data = data.filter(row => row.version_name === selectedVersionName);
+        // version_name filter (複数選択対応)
+        if (selectedVersionNames.length > 0) {
+            data = data.filter(row => selectedVersionNames.includes(row.version_name));
         }
 
-        // Creative filter (utm_creative= value)
-        if (selectedCreative !== 'All') {
+        // Creative filter (複数選択対応)
+        if (selectedCreatives.length > 0) {
             data = data.filter(row => {
                 if (row.Media === 'Beyond') {
-                    return row.creative_value === selectedCreative;
+                    return selectedCreatives.includes(row.creative_value);
                 } else {
-                    // Meta Linking: Check if Ad Name (stored in Creative) includes selected creative value
-                    return row.Creative && row.Creative.includes(selectedCreative);
+                    // Meta Linking: Check if Ad Name (stored in Creative) includes any selected creative value
+                    return selectedCreatives.some(creative => row.Creative && row.Creative.includes(creative));
                 }
             });
         }
 
         return data;
-    }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageName, selectedVersionName, selectedCreative, startDate, endDate]);
+    }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageNames, selectedVersionNames, selectedCreatives, startDate, endDate]);
 
     // --- Cascading Filter Logic ---
     // Step 1: Filter by campaign (商材)
@@ -146,21 +148,21 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         return initialData.filter(row => row.Media === 'Beyond' && row.Campaign_Name === selectedCampaign);
     }, [initialData, selectedCampaign]);
 
-    // Step 2: Filter by beyond_page_name
+    // Step 2: Filter by beyond_page_name (複数選択対応)
     const pageNameFilteredData = useMemo(() => {
-        if (selectedBeyondPageName === 'All') {
+        if (selectedBeyondPageNames.length === 0) {
             return campaignFilteredData;
         }
-        return campaignFilteredData.filter(row => row.beyond_page_name === selectedBeyondPageName);
-    }, [campaignFilteredData, selectedBeyondPageName]);
+        return campaignFilteredData.filter(row => selectedBeyondPageNames.includes(row.beyond_page_name));
+    }, [campaignFilteredData, selectedBeyondPageNames]);
 
-    // Step 3: Filter by version_name
+    // Step 3: Filter by version_name (複数選択対応)
     const versionFilteredData = useMemo(() => {
-        if (selectedVersionName === 'All') {
+        if (selectedVersionNames.length === 0) {
             return pageNameFilteredData;
         }
-        return pageNameFilteredData.filter(row => row.version_name === selectedVersionName);
-    }, [pageNameFilteredData, selectedVersionName]);
+        return pageNameFilteredData.filter(row => selectedVersionNames.includes(row.version_name));
+    }, [pageNameFilteredData, selectedVersionNames]);
 
     // Generate filter options (cascading)
     const campaigns = useMemo(() => getUniqueCampaigns(initialData), [initialData]);
@@ -186,20 +188,20 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
     // Reset downstream filters when upstream filter changes
     const handleCampaignChange = (value: string) => {
         setSelectedCampaign(value);
-        setSelectedBeyondPageName('All');
-        setSelectedVersionName('All');
-        setSelectedCreative('All');
+        setSelectedBeyondPageNames([]);
+        setSelectedVersionNames([]);
+        setSelectedCreatives([]);
     };
 
-    const handleBeyondPageNameChange = (value: string) => {
-        setSelectedBeyondPageName(value);
-        setSelectedVersionName('All');
-        setSelectedCreative('All');
+    const handleBeyondPageNamesChange = (values: string[]) => {
+        setSelectedBeyondPageNames(values);
+        setSelectedVersionNames([]);
+        setSelectedCreatives([]);
     };
 
-    const handleVersionNameChange = (value: string) => {
-        setSelectedVersionName(value);
-        setSelectedCreative('All');
+    const handleVersionNamesChange = (values: string[]) => {
+        setSelectedVersionNames(values);
+        setSelectedCreatives([]);
     };
 
     // Calculate KPIs
@@ -333,46 +335,28 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                         </div>
 
                         {/* beyond_page_name Column */}
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">beyond_page_name</span>
-                            <select
-                                value={selectedBeyondPageName}
-                                onChange={(e) => handleBeyondPageNameChange(e.target.value)}
-                                className="filter-select text-xs px-2 w-full truncate"
-                                title={selectedBeyondPageName}
-                            >
-                                <option value="All">All</option>
-                                {beyondPageNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
-                            </select>
-                        </div>
+                        <MultiSelect
+                            label="beyond_page_name"
+                            options={beyondPageNames}
+                            selectedValues={selectedBeyondPageNames}
+                            onChange={handleBeyondPageNamesChange}
+                        />
 
                         {/* version_name Column */}
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">version_name</span>
-                            <select
-                                value={selectedVersionName}
-                                onChange={(e) => handleVersionNameChange(e.target.value)}
-                                className="filter-select text-xs px-2 w-full truncate"
-                                title={selectedVersionName}
-                            >
-                                <option value="All">All</option>
-                                {versionNames.map(n => <option key={n} value={n}>{n.substring(0, 25)}</option>)}
-                            </select>
-                        </div>
+                        <MultiSelect
+                            label="version_name"
+                            options={versionNames}
+                            selectedValues={selectedVersionNames}
+                            onChange={handleVersionNamesChange}
+                        />
 
                         {/* クリエイティブ Column */}
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">クリエイティブ</span>
-                            <select
-                                value={selectedCreative}
-                                onChange={(e) => setSelectedCreative(e.target.value)}
-                                className="filter-select text-xs h-8 px-2 w-full truncate"
-                                title={selectedCreative}
-                            >
-                                <option value="All">All</option>
-                                {creativeValues.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
+                        <MultiSelect
+                            label="クリエイティブ"
+                            options={creativeValues}
+                            selectedValues={selectedCreatives}
+                            onChange={setSelectedCreatives}
+                        />
 
                         {/* 期間 Column */}
                         <div className="flex flex-col gap-1">
@@ -532,11 +516,11 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
 
                 {/* Data Tables */}
                 <div className="mt-8 space-y-4">
-                    <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} />
-                    <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} />
-                    <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} />
-                    <DataTable data={sevenDayData} title="■案件別数値（直近7日間）" viewMode={selectedTab} />
-                    <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} />
+                    <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={sevenDayData} title="■案件別数値（直近7日間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
                 </div>
 
                 {/* Charts */}

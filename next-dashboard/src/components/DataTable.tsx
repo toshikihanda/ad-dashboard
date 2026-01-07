@@ -2,14 +2,21 @@
 
 import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
 
+interface FilterSelection {
+    beyondPageNames: string[];
+    versionNames: string[];
+    creatives: string[];
+}
+
 interface DataTableProps {
     data: ProcessedRow[];
     title: string;
     viewMode: 'total' | 'meta' | 'beyond';
+    filters?: FilterSelection;
 }
 
 interface TableRow {
-    campaign: string;
+    label: string; // 組み合わせラベル or キャンペーン名
     cost: number;
     revenue: number;
     profit: number;
@@ -34,64 +41,143 @@ interface TableRow {
     totalExitRate: number;
 }
 
-function aggregateByCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): TableRow[] {
+// 組み合わせを生成
+function generateCombinations(filters: FilterSelection): Array<{
+    beyondPageName: string | null;
+    versionName: string | null;
+    creative: string | null;
+    label: string;
+}> {
+    const { beyondPageNames, versionNames, creatives } = filters;
+
+    // 何も選択されていない場合は空（キャンペーン別表示を使用）
+    if (beyondPageNames.length === 0 && versionNames.length === 0 && creatives.length === 0) {
+        return [];
+    }
+
+    const pages = beyondPageNames.length > 0 ? beyondPageNames : [null];
+    const versions = versionNames.length > 0 ? versionNames : [null];
+    const creativesArr = creatives.length > 0 ? creatives : [null];
+
+    const combinations: Array<{
+        beyondPageName: string | null;
+        versionName: string | null;
+        creative: string | null;
+        label: string;
+    }> = [];
+
+    for (const page of pages) {
+        for (const version of versions) {
+            for (const creative of creativesArr) {
+                const parts = [page, version, creative].filter(Boolean);
+                combinations.push({
+                    beyondPageName: page,
+                    versionName: version,
+                    creative: creative,
+                    label: parts.join(' × ') || '合計'
+                });
+            }
+        }
+    }
+
+    return combinations;
+}
+
+// 組み合わせでデータをフィルタリング
+function filterByCombination(
+    data: ProcessedRow[],
+    combination: { beyondPageName: string | null; versionName: string | null; creative: string | null }
+): ProcessedRow[] {
+    return data.filter(row => {
+        if (combination.beyondPageName) {
+            if (row.Media === 'Beyond' && row.beyond_page_name !== combination.beyondPageName) return false;
+            if (row.Media === 'Meta' && !row.Creative.includes(combination.beyondPageName)) return false;
+        }
+        if (combination.versionName && row.version_name !== combination.versionName) return false;
+        if (combination.creative) {
+            if (row.Media === 'Beyond' && row.creative_value !== combination.creative) return false;
+            if (row.Media === 'Meta' && !row.Creative.includes(combination.creative)) return false;
+        }
+        return true;
+    });
+}
+
+// 組み合わせごとの集計
+function aggregateByCombination(data: ProcessedRow[], filters: FilterSelection, viewMode: 'total' | 'meta' | 'beyond'): TableRow[] {
+    const combinations = generateCombinations(filters);
+
+    // フィルターがない場合はキャンペーン別表示
+    if (combinations.length === 0) {
+        return aggregateByCampaign(data, viewMode);
+    }
+
+    return combinations.map(combination => {
+        const filteredData = filterByCombination(data, combination);
+        return aggregateData(filteredData, combination.label, viewMode);
+    });
+}
+
+// データの集計
+function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 'meta' | 'beyond'): TableRow {
     const metaData = data.filter(row => row.Media === 'Meta');
     const beyondData = data.filter(row => row.Media === 'Beyond');
 
+    // Meta aggregations
+    const metaCost = metaData.reduce((sum, row) => sum + row.Cost, 0);
+    const impressions = metaData.reduce((sum, row) => sum + row.Impressions, 0);
+    const metaClicks = metaData.reduce((sum, row) => sum + row.Clicks, 0);
+    const mcv = metaData.reduce((sum, row) => sum + row.MCV, 0);
+
+    // Beyond aggregations
+    const beyondCost = beyondData.reduce((sum, row) => sum + row.Cost, 0);
+    const pv = beyondData.reduce((sum, row) => sum + row.PV, 0);
+    const beyondClicks = beyondData.reduce((sum, row) => sum + row.Clicks, 0);
+    const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
+    const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
+    const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+
+    // Revenue is already calculated in ProcessedRow
+    const beyondRevenue = beyondData.reduce((sum, row) => sum + row.Revenue, 0);
+    const metaRevenue = metaData.reduce((sum, row) => sum + row.Revenue, 0);
+    const revenue = beyondRevenue + metaRevenue;
+
+    const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
+    const profit = revenue - displayCost;
+
+    return {
+        label,
+        cost: displayCost,
+        revenue,
+        profit,
+        recoveryRate: safeDivide(revenue, displayCost) * 100,
+        roas: safeDivide(profit, revenue) * 100,
+        impressions,
+        clicks: viewMode === 'beyond' ? beyondClicks : metaClicks,
+        mcv: beyondClicks,
+        cv,
+        ctr: safeDivide(metaClicks, impressions) * 100,
+        mcvr: safeDivide(beyondClicks, pv) * 100,
+        cvr: safeDivide(cv, beyondClicks) * 100,
+        cpm: safeDivide(metaCost, impressions) * 1000,
+        cpc: safeDivide(metaCost, metaClicks),
+        mcpa: safeDivide(beyondCost, beyondClicks),
+        cpa: safeDivide(beyondCost, cv),
+        pv,
+        fvExit,
+        svExit,
+        fvExitRate: safeDivide(fvExit, pv) * 100,
+        svExitRate: safeDivide(svExit, pv - fvExit) * 100,
+        totalExitRate: safeDivide(fvExit + svExit, pv) * 100,
+    };
+}
+
+function aggregateByCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): TableRow[] {
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
 
     return campaigns.map(campaign => {
-        const metaCampaign = metaData.filter(row => row.Campaign_Name === campaign);
-        const beyondCampaign = beyondData.filter(row => row.Campaign_Name === campaign);
-
-        // Meta aggregations
-        const metaCost = metaCampaign.reduce((sum, row) => sum + row.Cost, 0);
-        const impressions = metaCampaign.reduce((sum, row) => sum + row.Impressions, 0);
-        const metaClicks = metaCampaign.reduce((sum, row) => sum + row.Clicks, 0);
-        const mcv = metaCampaign.reduce((sum, row) => sum + row.MCV, 0);
-
-        // Beyond aggregations
-        const beyondCost = beyondCampaign.reduce((sum, row) => sum + row.Cost, 0);
-        const pv = beyondCampaign.reduce((sum, row) => sum + row.PV, 0);
-        const beyondClicks = beyondCampaign.reduce((sum, row) => sum + row.Clicks, 0);
-        const cv = beyondCampaign.reduce((sum, row) => sum + row.CV, 0);
-        const fvExit = beyondCampaign.reduce((sum, row) => sum + row.FV_Exit, 0);
-        const svExit = beyondCampaign.reduce((sum, row) => sum + row.SV_Exit, 0);
-
-        // Revenue is already calculated in ProcessedRow
-        const beyondRevenue = beyondCampaign.reduce((sum, row) => sum + row.Revenue, 0);
-        const metaRevenue = metaCampaign.reduce((sum, row) => sum + row.Revenue, 0);
-        const revenue = beyondRevenue + metaRevenue;
-
-        const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
-        const profit = revenue - displayCost;
-
-        return {
-            campaign,
-            cost: displayCost,
-            revenue,
-            profit,
-            recoveryRate: safeDivide(revenue, displayCost) * 100,
-            roas: safeDivide(profit, revenue) * 100,
-            impressions,
-            clicks: viewMode === 'beyond' ? beyondClicks : metaClicks,
-            mcv: beyondClicks,
-            cv,
-            ctr: safeDivide(metaClicks, impressions) * 100,
-            mcvr: safeDivide(beyondClicks, pv) * 100,
-            cvr: safeDivide(cv, beyondClicks) * 100,
-            cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: safeDivide(metaCost, metaClicks),
-            mcpa: safeDivide(beyondCost, beyondClicks),
-            cpa: safeDivide(beyondCost, cv),
-            pv,
-            fvExit,
-            svExit,
-            fvExitRate: safeDivide(fvExit, pv) * 100,
-            svExitRate: safeDivide(svExit, pv - fvExit) * 100,
-            totalExitRate: safeDivide(fvExit + svExit, pv) * 100,
-        };
-    }).sort((a, b) => a.campaign.localeCompare(b.campaign));
+        const campaignData = data.filter(row => row.Campaign_Name === campaign);
+        return aggregateData(campaignData, campaign, viewMode);
+    }).sort((a, b) => a.label.localeCompare(b.label));
 }
 
 function formatNumber(value: number, decimals = 0): string {
@@ -104,8 +190,9 @@ function formatPercent(value: number): string {
     return `${value.toFixed(1)}%`;
 }
 
-export function DataTable({ data, title, viewMode }: DataTableProps) {
-    const rows = aggregateByCampaign(data, viewMode);
+export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
+    const defaultFilters: FilterSelection = { beyondPageNames: [], versionNames: [], creatives: [] };
+    const rows = aggregateByCombination(data, filters || defaultFilters, viewMode);
 
     if (rows.length === 0) {
         return (
@@ -119,6 +206,10 @@ export function DataTable({ data, title, viewMode }: DataTableProps) {
     const thClass = "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap";
     const tdClass = "px-3 py-2 text-sm text-gray-700 whitespace-nowrap";
 
+    // ラベル列のヘッダーを動的に設定
+    const hasCombinationFilter = filters && (filters.beyondPageNames.length > 0 || filters.versionNames.length > 0 || filters.creatives.length > 0);
+    const labelHeader = hasCombinationFilter ? '組み合わせ' : '案件名';
+
     if (viewMode === 'meta') {
         return (
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto">
@@ -126,7 +217,7 @@ export function DataTable({ data, title, viewMode }: DataTableProps) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className={thClass}>案件名</th>
+                            <th className={thClass}>{labelHeader}</th>
                             <th className={thClass}>出稿金額</th>
                             <th className={thClass}>Imp</th>
                             <th className={thClass}>Clicks</th>
@@ -138,9 +229,9 @@ export function DataTable({ data, title, viewMode }: DataTableProps) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {rows.map((row) => (
-                            <tr key={row.campaign} className="hover:bg-gray-50">
-                                <td className={tdClass}>{row.campaign}</td>
+                        {rows.map((row, idx) => (
+                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50">
+                                <td className={tdClass}>{row.label}</td>
                                 <td className={tdClass}>{formatNumber(row.cost)}</td>
                                 <td className={tdClass}>{formatNumber(row.impressions)}</td>
                                 <td className={tdClass}>{formatNumber(row.clicks)}</td>
@@ -164,7 +255,7 @@ export function DataTable({ data, title, viewMode }: DataTableProps) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className={thClass}>案件名</th>
+                            <th className={thClass}>{labelHeader}</th>
                             <th className={thClass}>出稿金額</th>
                             <th className={thClass}>PV</th>
                             <th className={thClass}>Clicks</th>
@@ -179,9 +270,9 @@ export function DataTable({ data, title, viewMode }: DataTableProps) {
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
-                        {rows.map((row) => (
-                            <tr key={row.campaign} className="hover:bg-gray-50">
-                                <td className={tdClass}>{row.campaign}</td>
+                        {rows.map((row, idx) => (
+                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50">
+                                <td className={tdClass}>{row.label}</td>
                                 <td className={tdClass}>{formatNumber(row.cost)}</td>
                                 <td className={tdClass}>{formatNumber(row.pv)}</td>
                                 <td className={tdClass}>{formatNumber(row.clicks)}</td>
@@ -208,7 +299,7 @@ export function DataTable({ data, title, viewMode }: DataTableProps) {
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
-                        <th className={thClass}>案件名</th>
+                        <th className={thClass}>{labelHeader}</th>
                         <th className={thClass}>出稿金額</th>
                         <th className={thClass}>売上</th>
                         <th className={thClass}>粗利</th>
@@ -228,9 +319,9 @@ export function DataTable({ data, title, viewMode }: DataTableProps) {
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
-                    {rows.map((row) => (
-                        <tr key={row.campaign} className="hover:bg-gray-50">
-                            <td className={tdClass}>{row.campaign}</td>
+                    {rows.map((row, idx) => (
+                        <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50">
+                            <td className={tdClass}>{row.label}</td>
                             <td className={tdClass}>{formatNumber(row.cost)}</td>
                             <td className={tdClass}>{formatNumber(row.revenue)}</td>
                             <td className={tdClass}>{formatNumber(row.profit)}</td>
