@@ -398,63 +398,58 @@ export default function PeriodComparisonModal({ isOpen, onClose, data, campaigns
                                     </table>
                                 </div>
                             ) : (
-                                /* Vertical layout */
-                                <div className="grid md:grid-cols-2 gap-6">
+                                /* Vertical layout - stacked */
+                                <div className="space-y-4">
                                     {/* Period A */}
                                     <div className="bg-blue-50 rounded-lg p-4">
                                         <h3 className="font-bold text-blue-700 mb-3">【期間A】{formatDateDisplay(periodAStart)} 〜 {formatDateDisplay(periodAEnd)}</h3>
-                                        <table className="w-full text-sm">
-                                            <tbody>
-                                                {comparisonData.map((metric, idx) => (
-                                                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white/50' : ''}>
-                                                        <td className="px-2 py-1 font-medium text-gray-700">{metric.label}</td>
-                                                        <td className="px-2 py-1 text-right text-blue-600">
-                                                            {formatNumber(metric.valueA, metric.unit === '%' ? 1 : 0)}{metric.unit}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {comparisonData.map((metric, idx) => (
+                                                <div key={idx} className="bg-white/70 rounded px-3 py-2">
+                                                    <div className="text-xs text-gray-500">{metric.label}</div>
+                                                    <div className="text-sm font-bold text-blue-600">
+                                                        {formatNumber(metric.valueA, metric.unit === '%' ? 1 : 0)}{metric.unit}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     {/* Period B */}
                                     <div className="bg-orange-50 rounded-lg p-4">
                                         <h3 className="font-bold text-orange-700 mb-3">【期間B】{formatDateDisplay(periodBStart)} 〜 {formatDateDisplay(periodBEnd)}</h3>
-                                        <table className="w-full text-sm">
-                                            <tbody>
-                                                {comparisonData.map((metric, idx) => (
-                                                    <tr key={idx} className={idx % 2 === 0 ? 'bg-white/50' : ''}>
-                                                        <td className="px-2 py-1 font-medium text-gray-700">{metric.label}</td>
-                                                        <td className="px-2 py-1 text-right text-orange-600">
-                                                            {formatNumber(metric.valueB, metric.unit === '%' ? 1 : 0)}{metric.unit}
-                                                        </td>
-                                                    </tr>
-                                                ))}
-                                            </tbody>
-                                        </table>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {comparisonData.map((metric, idx) => (
+                                                <div key={idx} className="bg-white/70 rounded px-3 py-2">
+                                                    <div className="text-xs text-gray-500">{metric.label}</div>
+                                                    <div className="text-sm font-bold text-orange-600">
+                                                        {formatNumber(metric.valueB, metric.unit === '%' ? 1 : 0)}{metric.unit}
+                                                    </div>
+                                                </div>
+                                            ))}
+                                        </div>
                                     </div>
 
                                     {/* Diff summary */}
-                                    <div className="md:col-span-2 bg-gray-50 rounded-lg p-4">
-                                        <h3 className="font-bold text-gray-700 mb-3">【差分】</h3>
-                                        <table className="w-full text-sm">
-                                            <tbody>
-                                                {comparisonData.filter(m => Math.abs(m.changeRate) > 5).map((metric, idx) => {
-                                                    const colorClass = getChangeColor(metric.goodIfLower, metric.changeRate);
-                                                    return (
-                                                        <tr key={idx} className={idx % 2 === 0 ? 'bg-white/50' : ''}>
-                                                            <td className="px-2 py-1 font-medium text-gray-700">{metric.label}</td>
-                                                            <td className={`px-2 py-1 text-right ${colorClass}`}>
-                                                                {metric.diff >= 0 ? '+' : ''}{formatNumber(metric.diff, metric.unit === '%' ? 1 : 0)}{metric.unit}
-                                                            </td>
-                                                            <td className={`px-2 py-1 text-right ${colorClass} font-bold`}>
-                                                                {metric.changeRate >= 0 ? '+' : ''}{metric.changeRate.toFixed(1)}%
-                                                            </td>
-                                                        </tr>
-                                                    );
-                                                })}
-                                            </tbody>
-                                        </table>
+                                    <div className="bg-gray-100 rounded-lg p-4">
+                                        <h3 className="font-bold text-gray-700 mb-3">【差分・変化率】</h3>
+                                        <div className="grid grid-cols-4 gap-2">
+                                            {comparisonData.map((metric, idx) => {
+                                                const colorClass = getChangeColor(metric.goodIfLower, metric.changeRate);
+                                                const isBold = Math.abs(metric.changeRate) > 20;
+                                                return (
+                                                    <div key={idx} className="bg-white rounded px-3 py-2">
+                                                        <div className="text-xs text-gray-500">{metric.label}</div>
+                                                        <div className={`text-sm ${colorClass} ${isBold ? 'font-bold' : ''}`}>
+                                                            {metric.diff >= 0 ? '+' : ''}{formatNumber(metric.diff, metric.unit === '%' ? 1 : 0)}{metric.unit}
+                                                        </div>
+                                                        <div className={`text-xs ${colorClass} ${isBold ? 'font-bold' : ''}`}>
+                                                            ({metric.changeRate >= 0 ? '+' : ''}{metric.changeRate.toFixed(1)}%)
+                                                        </div>
+                                                    </div>
+                                                );
+                                            })}
+                                        </div>
                                     </div>
                                 </div>
                             )}

@@ -309,7 +309,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                         {/* Period Comparison Button */}
                         <button
                             onClick={() => setIsComparisonModalOpen(true)}
-                            className="px-4 py-1.5 text-xs font-bold bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-all shadow-md flex items-center gap-1.5"
+                            className="px-4 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all shadow-md flex items-center gap-1.5"
                         >
                             <span>📈</span>
                             <span>期間比較</span>
