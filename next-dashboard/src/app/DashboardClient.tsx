@@ -225,11 +225,12 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         // MCV from Meta
         const metaMCV = metaData.reduce((sum, row) => sum + row.MCV, 0);
 
-        // Revenue is already calculated in ProcessedRow (from Master_Setting)
+        // Revenue and Profit are already calculated in ProcessedRow (from Master_Setting)
         const revenue = filteredData.reduce((sum, row) => sum + row.Revenue, 0);
+        // IHの場合は粗利=売上となるため、ProcessedRowのGross_Profitを使用
+        const profit = filteredData.reduce((sum, row) => sum + row.Gross_Profit, 0);
 
         const displayCost = selectedTab === 'meta' ? metaCost : beyondCost;
-        const profit = revenue - displayCost;
 
         return {
             cost: displayCost,

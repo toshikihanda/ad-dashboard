@@ -136,13 +136,16 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
     const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
 
-    // Revenue is already calculated in ProcessedRow
+    // Revenue and Profit are already calculated in ProcessedRow
     const beyondRevenue = beyondData.reduce((sum, row) => sum + row.Revenue, 0);
     const metaRevenue = metaData.reduce((sum, row) => sum + row.Revenue, 0);
     const revenue = beyondRevenue + metaRevenue;
+    // IHの場合は粗利=売上となるため、ProcessedRowのGross_Profitを使用
+    const beyondProfit = beyondData.reduce((sum, row) => sum + row.Gross_Profit, 0);
+    const metaProfit = metaData.reduce((sum, row) => sum + row.Gross_Profit, 0);
+    const profit = beyondProfit + metaProfit;
 
     const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
-    const profit = revenue - displayCost;
 
     return {
         label,

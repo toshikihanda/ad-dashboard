@@ -80,7 +80,8 @@ export default function PeriodComparisonModal({ isOpen, onClose, data, campaigns
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
         const revenue = periodData.reduce((sum, row) => sum + row.Revenue, 0);
-        const profit = revenue - beyondCost;
+        // IHの場合は粗利=売上となるため、ProcessedRowのGross_Profitを使用
+        const profit = periodData.reduce((sum, row) => sum + row.Gross_Profit, 0);
 
         return {
             cost: beyondCost,
