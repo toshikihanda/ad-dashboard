@@ -135,11 +135,70 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         return data;
     }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageName, selectedVersionName, selectedCreative, startDate, endDate]);
 
-    // Get filter options
+    // --- Cascading Filter Logic ---
+    // Step 1: Filter by campaign (商材)
+    const campaignFilteredData = useMemo(() => {
+        if (selectedCampaign === 'All') {
+            return initialData.filter(row => row.Media === 'Beyond');
+        }
+        return initialData.filter(row => row.Media === 'Beyond' && row.Campaign_Name === selectedCampaign);
+    }, [initialData, selectedCampaign]);
+
+    // Step 2: Filter by beyond_page_name
+    const pageNameFilteredData = useMemo(() => {
+        if (selectedBeyondPageName === 'All') {
+            return campaignFilteredData;
+        }
+        return campaignFilteredData.filter(row => row.beyond_page_name === selectedBeyondPageName);
+    }, [campaignFilteredData, selectedBeyondPageName]);
+
+    // Step 3: Filter by version_name
+    const versionFilteredData = useMemo(() => {
+        if (selectedVersionName === 'All') {
+            return pageNameFilteredData;
+        }
+        return pageNameFilteredData.filter(row => row.version_name === selectedVersionName);
+    }, [pageNameFilteredData, selectedVersionName]);
+
+    // Generate filter options (cascading)
     const campaigns = useMemo(() => getUniqueCampaigns(initialData), [initialData]);
-    const beyondPageNames = useMemo(() => getUniqueBeyondPageNames(initialData), [initialData]);
-    const versionNames = useMemo(() => getUniqueVersionNames(initialData), [initialData]);
-    const creativeValues = useMemo(() => getUniqueCreativeValues(initialData), [initialData]);
+
+    // beyond_page_name options: filtered by campaign
+    const beyondPageNames = useMemo(() => {
+        const uniqueNames = [...new Set(campaignFilteredData.map(row => row.beyond_page_name).filter(n => n))];
+        return uniqueNames.sort();
+    }, [campaignFilteredData]);
+
+    // version_name options: filtered by campaign + beyond_page_name
+    const versionNames = useMemo(() => {
+        const uniqueVersions = [...new Set(pageNameFilteredData.map(row => row.version_name).filter(n => n))];
+        return uniqueVersions.sort();
+    }, [pageNameFilteredData]);
+
+    // creative options: filtered by campaign + beyond_page_name + version_name
+    const creativeValues = useMemo(() => {
+        const uniqueCreatives = [...new Set(versionFilteredData.map(row => row.creative_value).filter(v => v))];
+        return uniqueCreatives.sort();
+    }, [versionFilteredData]);
+
+    // Reset downstream filters when upstream filter changes
+    const handleCampaignChange = (value: string) => {
+        setSelectedCampaign(value);
+        setSelectedBeyondPageName('All');
+        setSelectedVersionName('All');
+        setSelectedCreative('All');
+    };
+
+    const handleBeyondPageNameChange = (value: string) => {
+        setSelectedBeyondPageName(value);
+        setSelectedVersionName('All');
+        setSelectedCreative('All');
+    };
+
+    const handleVersionNameChange = (value: string) => {
+        setSelectedVersionName(value);
+        setSelectedCreative('All');
+    };
 
     // Calculate KPIs
     const kpis = useMemo(() => {
@@ -254,7 +313,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             <span className="text-[10px] font-bold text-gray-500 tracking-wide">商材</span>
                             <select
                                 value={selectedCampaign}
-                                onChange={(e) => setSelectedCampaign(e.target.value)}
+                                onChange={(e) => handleCampaignChange(e.target.value)}
                                 className="filter-select text-xs px-2 w-full truncate"
                                 title={selectedCampaign}
                             >
@@ -268,7 +327,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             <span className="text-[10px] font-bold text-gray-500 tracking-wide">beyond_page_name</span>
                             <select
                                 value={selectedBeyondPageName}
-                                onChange={(e) => setSelectedBeyondPageName(e.target.value)}
+                                onChange={(e) => handleBeyondPageNameChange(e.target.value)}
                                 className="filter-select text-xs px-2 w-full truncate"
                                 title={selectedBeyondPageName}
                             >
@@ -282,7 +341,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             <span className="text-[10px] font-bold text-gray-500 tracking-wide">version_name</span>
                             <select
                                 value={selectedVersionName}
-                                onChange={(e) => setSelectedVersionName(e.target.value)}
+                                onChange={(e) => handleVersionNameChange(e.target.value)}
                                 className="filter-select text-xs px-2 w-full truncate"
                                 title={selectedVersionName}
                             >

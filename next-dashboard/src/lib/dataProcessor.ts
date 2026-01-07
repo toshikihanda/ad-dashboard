@@ -221,9 +221,9 @@ function processMetaData(
             revenue = 0;
             profit = -cost;
         } else {
-            // '予算' or 'IH' -> Revenue = Cost * FeeRate
-            revenue = cost * config.feeRate;
-            profit = revenue;
+            // '予算' or 'IH' -> Revenue = Cost * (1 + FeeRate), Profit = Revenue - Cost
+            revenue = cost * (1 + config.feeRate);
+            profit = revenue - cost;
         }
 
         // 商材ごとに異なる CV 列を参照（未設定の場合は Results をフォールバック）
@@ -306,9 +306,9 @@ function processBeyondData(
             revenue = cv * config.unitPrice;
             profit = revenue - cost;
         } else {
-            // '予算' or 'IH' -> Revenue = Cost * FeeRate
-            revenue = cost * config.feeRate;
-            profit = revenue;
+            // '予算' or 'IH' -> Revenue = Cost * (1 + FeeRate), Profit = Revenue - Cost
+            revenue = cost * (1 + config.feeRate);
+            profit = revenue - cost;
         }
 
         results.push({
