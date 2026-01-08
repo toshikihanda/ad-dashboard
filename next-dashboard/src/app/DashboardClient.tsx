@@ -517,7 +517,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                 )}
 
                 {/* CPA Ranking */}
-                <RankingPanel data={filteredData} />
+                <RankingPanel data={filteredData} selectedCampaign={selectedCampaign} />
 
                 {/* Data Tables */}
                 <div className="mt-8 space-y-4">
