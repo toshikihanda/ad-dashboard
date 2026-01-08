@@ -295,7 +295,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         <>
             <div className="max-w-[1920px] mx-auto pb-10">
                 {/* Sticky Header + Filters */}
-                <div className="sticky top-0 z-50 bg-gray-50 pt-4 pb-4 -mx-6 px-6">
+                <div className="sticky top-0 z-50 bg-[#e2e8f0] pt-4 pb-4 -mx-6 px-6">
                     {/* Header - Row 1: Title & Tabs */}
                     <div className="flex items-center gap-4 mb-5">
                         <h1 className="text-xl font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
