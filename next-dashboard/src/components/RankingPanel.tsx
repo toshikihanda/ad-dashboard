@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ProcessedRow } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
 
 interface RankingPanelProps {
     data: ProcessedRow[];
@@ -13,7 +13,11 @@ interface RankingItem {
     versionName: string;
     creative: string;
     cost: number;
+    pv: number;
+    clicks: number;
     cv: number;
+    cvr: number;
+    cpc: number;
     cpa: number;
     date?: string;
 }
@@ -110,16 +114,21 @@ function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: Sort
     const aggregated: RankingItem[] = Object.entries(grouped).map(([key, rows]) => {
         const [campaignName, versionName, creative] = key.split('|||');
         const totalCost = rows.reduce((sum, row) => sum + row.Cost, 0);
+        const totalPV = rows.reduce((sum, row) => sum + row.PV, 0);
+        const totalClicks = rows.reduce((sum, row) => sum + row.Clicks, 0);
         const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
-        const cpa = totalCV > 0 ? totalCost / totalCV : Infinity;
 
         return {
             campaignName: campaignName || '(未設定)',
             versionName: versionName || '(未設定)',
             creative: creative || '(未設定)',
             cost: totalCost,
+            pv: totalPV,
+            clicks: totalClicks,
             cv: totalCV,
-            cpa: cpa
+            cvr: safeDivide(totalCV, totalClicks) * 100,
+            cpc: safeDivide(totalCost, totalClicks),
+            cpa: totalCV > 0 ? totalCost / totalCV : Infinity
         };
     });
 
@@ -153,12 +162,13 @@ function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): 
         grouped[key].push(row);
     }
 
-    // 各組み合わせの CPA を計算
+    // 各組み合わせの指標を計算
     const allRecords: RankingItem[] = Object.entries(grouped).map(([key, rows]) => {
         const [date, campaignName, versionName, creative] = key.split('|||');
         const totalCost = rows.reduce((sum, row) => sum + row.Cost, 0);
+        const totalPV = rows.reduce((sum, row) => sum + row.PV, 0);
+        const totalClicks = rows.reduce((sum, row) => sum + row.Clicks, 0);
         const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
-        const cpa = totalCV > 0 ? totalCost / totalCV : Infinity;
 
         return {
             date,
@@ -166,8 +176,12 @@ function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): 
             versionName: versionName || '(未設定)',
             creative: creative || '(未設定)',
             cost: totalCost,
+            pv: totalPV,
+            clicks: totalClicks,
             cv: totalCV,
-            cpa: cpa
+            cvr: safeDivide(totalCV, totalClicks) * 100,
+            cpc: safeDivide(totalCost, totalClicks),
+            cpa: totalCV > 0 ? totalCost / totalCV : Infinity
         };
     });
 
@@ -189,6 +203,11 @@ function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): 
 function formatNumber(value: number): string {
     if (!isFinite(value) || isNaN(value)) return '-';
     return Math.round(value).toLocaleString('ja-JP');
+}
+
+function formatPercent(value: number): string {
+    if (!isFinite(value) || isNaN(value)) return '-';
+    return value.toFixed(1) + '%';
 }
 
 function getRankIcon(rank: number): string {
@@ -219,41 +238,49 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
             <table className="w-full text-sm">
                 <thead>
                     <tr className="bg-gray-50">
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-12">順位</th>
-                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">商材/記事×クリエイティブ</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-10">順位</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">商材/記事×クリエイティブ</th>
                         {showDate && (
-                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-24">日付</th>
+                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-20">日付</th>
                         )}
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 w-24">出稿金額</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 w-16">CV</th>
-                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 w-24">CPA</th>
+                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-20">出稿金額</th>
+                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-14">PV</th>
+                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-14">CLICK</th>
+                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-12">CV</th>
+                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-14">CVR</th>
+                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-16">CPC</th>
+                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-20">CPA</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {ranking.map((item, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-3 py-2 text-center">
+                            <td className="px-2 py-2 text-center">
                                 <span className={idx < 3 ? 'text-base' : 'text-sm text-gray-500'}>
                                     {getRankIcon(idx + 1)}
                                 </span>
                             </td>
-                            <td className="px-3 py-2">
-                                <div className="truncate max-w-[300px]" title={`${item.campaignName} / ${item.versionName} × ${item.creative}`}>
+                            <td className="px-2 py-2">
+                                <div className="truncate max-w-[220px]" title={`${item.campaignName} / ${item.versionName} × ${item.creative}`}>
                                     <span className="text-blue-600 font-medium">{item.campaignName}</span>
                                     <span className="text-gray-400"> / </span>
                                     <span className="text-gray-700">{item.versionName}</span>
-                                    <span className="text-gray-400 mx-1">×</span>
-                                    <span className="text-gray-500">{item.creative}</span>
+                                    <span className="text-gray-400 mx-0.5">×</span>
+                                    <span className="text-gray-500 text-xs">{item.creative}</span>
                                 </div>
                             </td>
                             {showDate && (
-                                <td className="px-3 py-2 text-gray-600">
+                                <td className="px-2 py-2 text-gray-600 text-xs">
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}
-                            <td className="px-3 py-2 text-right text-gray-700">{formatNumber(item.cost)}円</td>
-                            <td className="px-3 py-2 text-right text-gray-700 font-medium">{item.cv}</td>
-                            <td className="px-3 py-2 text-right font-bold text-blue-600">{formatNumber(item.cpa)}円</td>
+                            <td className="px-2 py-2 text-right text-gray-700 text-xs">{formatNumber(item.cost)}円</td>
+                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatNumber(item.pv)}</td>
+                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatNumber(item.clicks)}</td>
+                            <td className="px-2 py-2 text-right text-gray-700 font-medium">{item.cv}</td>
+                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatPercent(item.cvr)}</td>
+                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatNumber(item.cpc)}円</td>
+                            <td className="px-2 py-2 text-right font-bold text-blue-600">{formatNumber(item.cpa)}円</td>
                         </tr>
                     ))}
                 </tbody>
@@ -303,8 +330,8 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
                                 key={option.key}
                                 onClick={() => setSortBy(option.key)}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${sortBy === option.key
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
                                 {option.label}
@@ -322,8 +349,8 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
                                 key={p.key}
                                 onClick={() => setPeriod(p.key)}
                                 className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${period === p.key
-                                        ? 'bg-blue-600 text-white'
-                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                    ? 'bg-blue-600 text-white'
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
                                 {p.label}
