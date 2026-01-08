@@ -315,49 +315,49 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mt-6">
-            <div className="flex items-center gap-2 mb-4">
-                <span className="text-lg">🏆</span>
-                <h3 className="text-sm font-bold text-gray-800">ランキング（記事 × クリエイティブ）</h3>
-                {selectedCampaign !== 'All' && (
-                    <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{selectedCampaign}</span>
-                )}
-            </div>
-
-            <div className="space-y-3 mb-4">
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 w-12">ソート:</span>
-                    <div className="flex gap-1">
-                        {SORT_OPTIONS.map(option => (
-                            <button
-                                key={option.key}
-                                onClick={() => setSortBy(option.key)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${sortBy === option.key
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                            >
-                                {option.label}
-                            </button>
-                        ))}
-                    </div>
+            {/* Header with controls */}
+            <div className="flex flex-wrap items-center gap-3 mb-4">
+                {/* Title */}
+                <div className="flex items-center gap-2 mr-auto">
+                    <span className="text-lg">🏆</span>
+                    <h3 className="text-sm font-bold text-gray-800">ランキング（記事 × クリエイティブ）</h3>
+                    {selectedCampaign !== 'All' && (
+                        <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{selectedCampaign}</span>
+                    )}
                 </div>
 
-                <div className="flex items-center gap-2">
-                    <span className="text-xs font-medium text-gray-500 w-12">期間:</span>
-                    <div className="flex gap-1 flex-wrap">
-                        {PERIODS.map(p => (
-                            <button
-                                key={p.key}
-                                onClick={() => setPeriod(p.key)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${period === p.key
-                                    ? 'bg-blue-600 text-white'
-                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
-                                    }`}
-                            >
-                                {p.label}
-                            </button>
-                        ))}
-                    </div>
+                {/* Sort */}
+                <div className="flex items-center gap-1">
+                    <span className="text-xs font-medium text-gray-500 mr-1">ソート:</span>
+                    {SORT_OPTIONS.map(option => (
+                        <button
+                            key={option.key}
+                            onClick={() => setSortBy(option.key)}
+                            className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${sortBy === option.key
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                        >
+                            {option.label}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Period */}
+                <div className="flex items-center gap-1">
+                    <span className="text-xs font-medium text-gray-500 mr-1">期間:</span>
+                    {PERIODS.map(p => (
+                        <button
+                            key={p.key}
+                            onClick={() => setPeriod(p.key)}
+                            className={`px-2 py-1 text-xs font-medium rounded-md transition-colors ${period === p.key
+                                ? 'bg-blue-600 text-white'
+                                : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
+                                }`}
+                        >
+                            {p.label}
+                        </button>
+                    ))}
                 </div>
             </div>
 
