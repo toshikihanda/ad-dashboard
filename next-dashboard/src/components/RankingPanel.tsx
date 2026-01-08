@@ -18,18 +18,20 @@ interface RankingItem {
     date?: string;
 }
 
-type LeftPeriodType = 'today' | '7days';
-type RightPeriodType = '3days' | '30days' | 'bestday';
+type PeriodType = 'today' | '3days' | '7days' | '30days' | 'bestday';
+type SortType = 'cpa' | 'cv';
 
-const LEFT_PERIODS: { key: LeftPeriodType; label: string }[] = [
+const PERIODS: { key: PeriodType; label: string }[] = [
     { key: 'today', label: '当日' },
-    { key: '7days', label: '直近7日' },
-];
-
-const RIGHT_PERIODS: { key: RightPeriodType; label: string }[] = [
     { key: '3days', label: '直近3日' },
+    { key: '7days', label: '直近7日' },
     { key: '30days', label: '直近30日' },
     { key: 'bestday', label: 'ベストデイ' },
+];
+
+const SORT_OPTIONS: { key: SortType; label: string }[] = [
+    { key: 'cpa', label: 'CPA順' },
+    { key: 'cv', label: 'CV数順' },
 ];
 
 function formatDateStr(date: Date): string {
@@ -43,7 +45,7 @@ function formatDisplayDate(dateStr: string): string {
     return dateStr.replace(/-/g, '/');
 }
 
-function filterByPeriod(data: ProcessedRow[], period: LeftPeriodType | RightPeriodType): ProcessedRow[] {
+function filterByPeriod(data: ProcessedRow[], period: PeriodType): ProcessedRow[] {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     const todayStr = formatDateStr(today);
@@ -82,12 +84,12 @@ function filterByPeriod(data: ProcessedRow[], period: LeftPeriodType | RightPeri
     });
 }
 
-function calculateRanking(data: ProcessedRow[], period: LeftPeriodType | RightPeriodType): RankingItem[] {
+function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: SortType): RankingItem[] {
     // Beyondデータのみ使用
     const beyondData = data.filter(row => row.Media === 'Beyond');
 
     if (period === 'bestday') {
-        return calculateBestDayRanking(beyondData);
+        return calculateBestDayRanking(beyondData, sortBy);
     }
 
     // 期間でフィルタリング
@@ -124,14 +126,21 @@ function calculateRanking(data: ProcessedRow[], period: LeftPeriodType | RightPe
     // CV >= 1 のみフィルタリング
     const filtered = aggregated.filter(item => item.cv >= 1);
 
-    // CPA が低い順にソート
-    const sorted = filtered.sort((a, b) => a.cpa - b.cpa);
+    // ソート
+    let sorted;
+    if (sortBy === 'cpa') {
+        // CPA が低い順（良い順）
+        sorted = filtered.sort((a, b) => a.cpa - b.cpa);
+    } else {
+        // CV が多い順
+        sorted = filtered.sort((a, b) => b.cv - a.cv);
+    }
 
-    // 上位5件を返す
-    return sorted.slice(0, 5);
+    // 上位10件を返す
+    return sorted.slice(0, 10);
 }
 
-function calculateBestDayRanking(beyondData: ProcessedRow[]): RankingItem[] {
+function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): RankingItem[] {
     // 日付 × Campaign_Name × version_name × creative_value でグループ化
     const grouped: Record<string, ProcessedRow[]> = {};
 
@@ -165,11 +174,16 @@ function calculateBestDayRanking(beyondData: ProcessedRow[]): RankingItem[] {
     // CV >= 1 のみフィルタリング
     const filtered = allRecords.filter(item => item.cv >= 1);
 
-    // CPA が低い順にソート
-    const sorted = filtered.sort((a, b) => a.cpa - b.cpa);
+    // ソート
+    let sorted;
+    if (sortBy === 'cpa') {
+        sorted = filtered.sort((a, b) => a.cpa - b.cpa);
+    } else {
+        sorted = filtered.sort((a, b) => b.cv - a.cv);
+    }
 
-    // 上位5件を返す
-    return sorted.slice(0, 5);
+    // 上位10件を返す
+    return sorted.slice(0, 10);
 }
 
 function formatNumber(value: number): string {
@@ -194,7 +208,7 @@ interface RankingTableProps {
 function RankingTable({ ranking, showDate }: RankingTableProps) {
     if (ranking.length === 0) {
         return (
-            <div className="text-center py-6 text-gray-400 text-sm">
+            <div className="text-center py-8 text-gray-400 text-sm">
                 データがありません
             </div>
         );
@@ -205,41 +219,41 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
             <table className="w-full text-sm">
                 <thead>
                     <tr className="bg-gray-50">
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-10">順位</th>
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">商材/記事×クリエイティブ</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-12">順位</th>
+                        <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">商材/記事×クリエイティブ</th>
                         {showDate && (
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-20">日付</th>
+                            <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 w-24">日付</th>
                         )}
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-20">出稿金額</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-12">CV</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-20">CPA</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 w-24">出稿金額</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 w-16">CV</th>
+                        <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 w-24">CPA</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {ranking.map((item, idx) => (
                         <tr key={idx} className="hover:bg-gray-50">
-                            <td className="px-2 py-2 text-center">
+                            <td className="px-3 py-2 text-center">
                                 <span className={idx < 3 ? 'text-base' : 'text-sm text-gray-500'}>
                                     {getRankIcon(idx + 1)}
                                 </span>
                             </td>
-                            <td className="px-2 py-2">
-                                <div className="truncate max-w-[180px]" title={`${item.campaignName} / ${item.versionName} × ${item.creative}`}>
+                            <td className="px-3 py-2">
+                                <div className="truncate max-w-[300px]" title={`${item.campaignName} / ${item.versionName} × ${item.creative}`}>
                                     <span className="text-blue-600 font-medium">{item.campaignName}</span>
                                     <span className="text-gray-400"> / </span>
                                     <span className="text-gray-700">{item.versionName}</span>
-                                    <span className="text-gray-400 mx-0.5">×</span>
-                                    <span className="text-gray-500 text-xs">{item.creative}</span>
+                                    <span className="text-gray-400 mx-1">×</span>
+                                    <span className="text-gray-500">{item.creative}</span>
                                 </div>
                             </td>
                             {showDate && (
-                                <td className="px-2 py-2 text-gray-600 text-xs">
+                                <td className="px-3 py-2 text-gray-600">
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}
-                            <td className="px-2 py-2 text-right text-gray-700 text-xs">{formatNumber(item.cost)}円</td>
-                            <td className="px-2 py-2 text-right text-gray-700">{item.cv}</td>
-                            <td className="px-2 py-2 text-right font-bold text-blue-600">{formatNumber(item.cpa)}円</td>
+                            <td className="px-3 py-2 text-right text-gray-700">{formatNumber(item.cost)}円</td>
+                            <td className="px-3 py-2 text-right text-gray-700 font-medium">{item.cv}</td>
+                            <td className="px-3 py-2 text-right font-bold text-blue-600">{formatNumber(item.cpa)}円</td>
                         </tr>
                     ))}
                 </tbody>
@@ -249,8 +263,8 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
 }
 
 export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
-    const [leftPeriod, setLeftPeriod] = useState<LeftPeriodType>('today');
-    const [rightPeriod, setRightPeriod] = useState<RightPeriodType>('3days');
+    const [sortBy, setSortBy] = useState<SortType>('cpa');
+    const [period, setPeriod] = useState<PeriodType>('today');
 
     // 商材でフィルタリング
     const filteredData = useMemo(() => {
@@ -260,67 +274,67 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
         return data.filter(row => row.Campaign_Name === selectedCampaign);
     }, [data, selectedCampaign]);
 
-    // 左側ランキング計算
-    const leftRanking = useMemo(() => {
-        return calculateRanking(filteredData, leftPeriod);
-    }, [filteredData, leftPeriod]);
+    // ランキング計算
+    const ranking = useMemo(() => {
+        return calculateRanking(filteredData, period, sortBy);
+    }, [filteredData, period, sortBy]);
 
-    // 右側ランキング計算
-    const rightRanking = useMemo(() => {
-        return calculateRanking(filteredData, rightPeriod);
-    }, [filteredData, rightPeriod]);
+    const isBestDay = period === 'bestday';
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mt-6">
             {/* Header */}
             <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">🏆</span>
-                <h3 className="text-sm font-bold text-gray-800">CPAランキング（記事 × クリエイティブ）</h3>
+                <h3 className="text-sm font-bold text-gray-800">ランキング（記事 × クリエイティブ）</h3>
                 {selectedCampaign !== 'All' && (
                     <span className="text-xs bg-blue-100 text-blue-700 px-2 py-0.5 rounded-full">{selectedCampaign}</span>
                 )}
             </div>
 
-            {/* 2 Column Layout */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* 左側 */}
-                <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex gap-1 mb-3">
-                        {LEFT_PERIODS.map(period => (
+            {/* Controls */}
+            <div className="space-y-3 mb-4">
+                {/* Sort */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 w-12">ソート:</span>
+                    <div className="flex gap-1">
+                        {SORT_OPTIONS.map(option => (
                             <button
-                                key={period.key}
-                                onClick={() => setLeftPeriod(period.key)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${leftPeriod === period.key
+                                key={option.key}
+                                onClick={() => setSortBy(option.key)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${sortBy === option.key
                                         ? 'bg-blue-600 text-white'
-                                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
-                                {period.label}
+                                {option.label}
                             </button>
                         ))}
                     </div>
-                    <RankingTable ranking={leftRanking} showDate={false} />
                 </div>
 
-                {/* 右側 */}
-                <div className="bg-gray-50 rounded-lg p-3">
-                    <div className="flex gap-1 mb-3">
-                        {RIGHT_PERIODS.map(period => (
+                {/* Period */}
+                <div className="flex items-center gap-2">
+                    <span className="text-xs font-medium text-gray-500 w-12">期間:</span>
+                    <div className="flex gap-1 flex-wrap">
+                        {PERIODS.map(p => (
                             <button
-                                key={period.key}
-                                onClick={() => setRightPeriod(period.key)}
-                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${rightPeriod === period.key
+                                key={p.key}
+                                onClick={() => setPeriod(p.key)}
+                                className={`px-3 py-1.5 text-xs font-medium rounded-lg transition-colors ${period === p.key
                                         ? 'bg-blue-600 text-white'
-                                        : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200'
+                                        : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
                                     }`}
                             >
-                                {period.label}
+                                {p.label}
                             </button>
                         ))}
                     </div>
-                    <RankingTable ranking={rightRanking} showDate={rightPeriod === 'bestday'} />
                 </div>
             </div>
+
+            {/* Table */}
+            <RankingTable ranking={ranking} showDate={isBestDay} />
         </div>
     );
 }
