@@ -13,12 +13,21 @@ interface RankingItem {
     versionName: string;
     creative: string;
     cost: number;
+    revenue: number;
+    profit: number;
+    recoveryRate: number;
+    roas: number;
     pv: number;
     clicks: number;
     cv: number;
+    mcvr: number;
     cvr: number;
     cpc: number;
     cpa: number;
+    fvExit: number;
+    svExit: number;
+    fvExitRate: number;
+    svExitRate: number;
     date?: string;
 }
 
@@ -73,7 +82,7 @@ function filterByPeriod(data: ProcessedRow[], period: PeriodType): ProcessedRow[
             startDate.setDate(startDate.getDate() - 29);
             break;
         case 'bestday':
-            return data; // 全期間
+            return data;
         default:
             startDate = today;
     }
@@ -88,18 +97,47 @@ function filterByPeriod(data: ProcessedRow[], period: PeriodType): ProcessedRow[
     });
 }
 
+function aggregateRows(rows: ProcessedRow[]): RankingItem {
+    const totalCost = rows.reduce((sum, row) => sum + row.Cost, 0);
+    const totalRevenue = rows.reduce((sum, row) => sum + row.Revenue, 0);
+    const totalProfit = rows.reduce((sum, row) => sum + row.Gross_Profit, 0);
+    const totalPV = rows.reduce((sum, row) => sum + row.PV, 0);
+    const totalClicks = rows.reduce((sum, row) => sum + row.Clicks, 0);
+    const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
+    const totalFvExit = rows.reduce((sum, row) => sum + row.FV_Exit, 0);
+    const totalSvExit = rows.reduce((sum, row) => sum + row.SV_Exit, 0);
+
+    return {
+        campaignName: rows[0]?.Campaign_Name || '(未設定)',
+        versionName: rows[0]?.version_name || '(未設定)',
+        creative: rows[0]?.creative_value || '(未設定)',
+        cost: totalCost,
+        revenue: totalRevenue,
+        profit: totalProfit,
+        recoveryRate: safeDivide(totalRevenue, totalCost) * 100,
+        roas: safeDivide(totalProfit, totalRevenue) * 100,
+        pv: totalPV,
+        clicks: totalClicks,
+        cv: totalCV,
+        mcvr: safeDivide(totalClicks, totalPV) * 100,
+        cvr: safeDivide(totalCV, totalClicks) * 100,
+        cpc: safeDivide(totalCost, totalClicks),
+        cpa: totalCV > 0 ? totalCost / totalCV : Infinity,
+        fvExit: totalFvExit,
+        svExit: totalSvExit,
+        fvExitRate: safeDivide(totalFvExit, totalPV) * 100,
+        svExitRate: safeDivide(totalSvExit, totalPV - totalFvExit) * 100,
+    };
+}
+
 function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: SortType): RankingItem[] {
-    // Beyondデータのみ使用
     const beyondData = data.filter(row => row.Media === 'Beyond');
 
     if (period === 'bestday') {
         return calculateBestDayRanking(beyondData, sortBy);
     }
 
-    // 期間でフィルタリング
     const filteredData = filterByPeriod(beyondData, period);
-
-    // Campaign_Name × version_name × creative_value でグループ化
     const grouped: Record<string, ProcessedRow[]> = {};
 
     for (const row of filteredData) {
@@ -110,47 +148,20 @@ function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: Sort
         grouped[key].push(row);
     }
 
-    // 各組み合わせの合計を計算
-    const aggregated: RankingItem[] = Object.entries(grouped).map(([key, rows]) => {
-        const [campaignName, versionName, creative] = key.split('|||');
-        const totalCost = rows.reduce((sum, row) => sum + row.Cost, 0);
-        const totalPV = rows.reduce((sum, row) => sum + row.PV, 0);
-        const totalClicks = rows.reduce((sum, row) => sum + row.Clicks, 0);
-        const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
-
-        return {
-            campaignName: campaignName || '(未設定)',
-            versionName: versionName || '(未設定)',
-            creative: creative || '(未設定)',
-            cost: totalCost,
-            pv: totalPV,
-            clicks: totalClicks,
-            cv: totalCV,
-            cvr: safeDivide(totalCV, totalClicks) * 100,
-            cpc: safeDivide(totalCost, totalClicks),
-            cpa: totalCV > 0 ? totalCost / totalCV : Infinity
-        };
-    });
-
-    // CV >= 1 のみフィルタリング
+    const aggregated: RankingItem[] = Object.values(grouped).map(rows => aggregateRows(rows));
     const filtered = aggregated.filter(item => item.cv >= 1);
 
-    // ソート
     let sorted;
     if (sortBy === 'cpa') {
-        // CPA が低い順（良い順）
         sorted = filtered.sort((a, b) => a.cpa - b.cpa);
     } else {
-        // CV が多い順
         sorted = filtered.sort((a, b) => b.cv - a.cv);
     }
 
-    // 上位10件を返す
     return sorted.slice(0, 10);
 }
 
 function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): RankingItem[] {
-    // 日付 × Campaign_Name × version_name × creative_value でグループ化
     const grouped: Record<string, ProcessedRow[]> = {};
 
     for (const row of beyondData) {
@@ -162,33 +173,15 @@ function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): 
         grouped[key].push(row);
     }
 
-    // 各組み合わせの指標を計算
     const allRecords: RankingItem[] = Object.entries(grouped).map(([key, rows]) => {
-        const [date, campaignName, versionName, creative] = key.split('|||');
-        const totalCost = rows.reduce((sum, row) => sum + row.Cost, 0);
-        const totalPV = rows.reduce((sum, row) => sum + row.PV, 0);
-        const totalClicks = rows.reduce((sum, row) => sum + row.Clicks, 0);
-        const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
-
-        return {
-            date,
-            campaignName: campaignName || '(未設定)',
-            versionName: versionName || '(未設定)',
-            creative: creative || '(未設定)',
-            cost: totalCost,
-            pv: totalPV,
-            clicks: totalClicks,
-            cv: totalCV,
-            cvr: safeDivide(totalCV, totalClicks) * 100,
-            cpc: safeDivide(totalCost, totalClicks),
-            cpa: totalCV > 0 ? totalCost / totalCV : Infinity
-        };
+        const [date] = key.split('|||');
+        const item = aggregateRows(rows);
+        item.date = date;
+        return item;
     });
 
-    // CV >= 1 のみフィルタリング
     const filtered = allRecords.filter(item => item.cv >= 1);
 
-    // ソート
     let sorted;
     if (sortBy === 'cpa') {
         sorted = filtered.sort((a, b) => a.cpa - b.cpa);
@@ -196,7 +189,6 @@ function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): 
         sorted = filtered.sort((a, b) => b.cv - a.cv);
     }
 
-    // 上位10件を返す
     return sorted.slice(0, 10);
 }
 
@@ -233,23 +225,31 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
         );
     }
 
+    const thClass = "px-2 py-2 text-right text-xs font-medium text-gray-500 whitespace-nowrap";
+    const tdClass = "px-2 py-2 text-right text-xs text-gray-700 whitespace-nowrap";
+
     return (
         <div className="overflow-x-auto">
             <table className="w-full text-sm">
                 <thead>
                     <tr className="bg-gray-50">
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-10">順位</th>
+                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-8">順位</th>
                         <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">商材/記事×クリエイティブ</th>
-                        {showDate && (
-                            <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-20">日付</th>
-                        )}
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-20">出稿金額</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-14">PV</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-14">CLICK</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-12">CV</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-14">CVR</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-16">CPC</th>
-                        <th className="px-2 py-2 text-right text-xs font-medium text-gray-500 w-20">CPA</th>
+                        {showDate && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500">日付</th>}
+                        <th className={thClass}>出稿金額</th>
+                        <th className={thClass}>売上</th>
+                        <th className={thClass}>粗利</th>
+                        <th className={thClass}>回収率</th>
+                        <th className={thClass}>ROAS</th>
+                        <th className={thClass}>PV</th>
+                        <th className={thClass}>商品LPクリック</th>
+                        <th className={thClass}>CV</th>
+                        <th className={thClass}>MCVR</th>
+                        <th className={thClass}>CVR</th>
+                        <th className={thClass}>CPC</th>
+                        <th className={thClass}>CPA</th>
+                        <th className={thClass}>FV離脱</th>
+                        <th className={thClass}>SV離脱</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -261,7 +261,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                                 </span>
                             </td>
                             <td className="px-2 py-2">
-                                <div className="truncate max-w-[220px]" title={`${item.campaignName} / ${item.versionName} × ${item.creative}`}>
+                                <div className="truncate max-w-[180px]" title={`${item.campaignName} / ${item.versionName} × ${item.creative}`}>
                                     <span className="text-blue-600 font-medium">{item.campaignName}</span>
                                     <span className="text-gray-400"> / </span>
                                     <span className="text-gray-700">{item.versionName}</span>
@@ -274,13 +274,20 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}
-                            <td className="px-2 py-2 text-right text-gray-700 text-xs">{formatNumber(item.cost)}円</td>
-                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatNumber(item.pv)}</td>
-                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatNumber(item.clicks)}</td>
-                            <td className="px-2 py-2 text-right text-gray-700 font-medium">{item.cv}</td>
-                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatPercent(item.cvr)}</td>
-                            <td className="px-2 py-2 text-right text-gray-600 text-xs">{formatNumber(item.cpc)}円</td>
-                            <td className="px-2 py-2 text-right font-bold text-blue-600">{formatNumber(item.cpa)}円</td>
+                            <td className={tdClass}>{formatNumber(item.cost)}円</td>
+                            <td className={tdClass}>{formatNumber(item.revenue)}円</td>
+                            <td className={tdClass}>{formatNumber(item.profit)}円</td>
+                            <td className={tdClass}>{formatPercent(item.recoveryRate)}</td>
+                            <td className={tdClass}>{formatPercent(item.roas)}</td>
+                            <td className={tdClass}>{formatNumber(item.pv)}</td>
+                            <td className={tdClass}>{formatNumber(item.clicks)}</td>
+                            <td className={`${tdClass} font-medium`}>{item.cv}</td>
+                            <td className={tdClass}>{formatPercent(item.mcvr)}</td>
+                            <td className={tdClass}>{formatPercent(item.cvr)}</td>
+                            <td className={tdClass}>{formatNumber(item.cpc)}円</td>
+                            <td className={`${tdClass} font-bold text-blue-600`}>{formatNumber(item.cpa)}円</td>
+                            <td className={tdClass}>{formatPercent(item.fvExitRate)}</td>
+                            <td className={tdClass}>{formatPercent(item.svExitRate)}</td>
                         </tr>
                     ))}
                 </tbody>
@@ -293,7 +300,6 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
     const [sortBy, setSortBy] = useState<SortType>('cpa');
     const [period, setPeriod] = useState<PeriodType>('today');
 
-    // 商材でフィルタリング
     const filteredData = useMemo(() => {
         if (selectedCampaign === 'All') {
             return data;
@@ -301,7 +307,6 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
         return data.filter(row => row.Campaign_Name === selectedCampaign);
     }, [data, selectedCampaign]);
 
-    // ランキング計算
     const ranking = useMemo(() => {
         return calculateRanking(filteredData, period, sortBy);
     }, [filteredData, period, sortBy]);
@@ -310,7 +315,6 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 mt-6">
-            {/* Header */}
             <div className="flex items-center gap-2 mb-4">
                 <span className="text-lg">🏆</span>
                 <h3 className="text-sm font-bold text-gray-800">ランキング（記事 × クリエイティブ）</h3>
@@ -319,9 +323,7 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
                 )}
             </div>
 
-            {/* Controls */}
             <div className="space-y-3 mb-4">
-                {/* Sort */}
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-gray-500 w-12">ソート:</span>
                     <div className="flex gap-1">
@@ -340,7 +342,6 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
                     </div>
                 </div>
 
-                {/* Period */}
                 <div className="flex items-center gap-2">
                     <span className="text-xs font-medium text-gray-500 w-12">期間:</span>
                     <div className="flex gap-1 flex-wrap">
@@ -360,7 +361,6 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
                 </div>
             </div>
 
-            {/* Table */}
             <RankingTable ranking={ranking} showDate={isBestDay} />
         </div>
     );
