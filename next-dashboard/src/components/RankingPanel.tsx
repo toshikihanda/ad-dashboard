@@ -261,7 +261,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                                 </span>
                             </td>
                             <td className="px-2 py-2">
-                                <div className="truncate max-w-[180px]" title={`${item.campaignName} / ${item.versionName} × ${item.creative}`}>
+                                <div className="whitespace-nowrap">
                                     <span className="text-blue-600 font-medium">{item.campaignName}</span>
                                     <span className="text-gray-400"> / </span>
                                     <span className="text-gray-700">{item.versionName}</span>
