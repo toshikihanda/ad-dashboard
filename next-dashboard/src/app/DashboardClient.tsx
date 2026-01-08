@@ -7,6 +7,7 @@ import { BaselineData } from '@/lib/aiAnalysis';
 import { KPICard, KPIGrid } from '@/components/KPICard';
 import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
+import { RankingPanel } from '@/components/RankingPanel';
 import AIAnalysisModal from '@/components/AIAnalysisModal';
 import PeriodComparisonModal from '@/components/PeriodComparisonModal';
 import { MultiSelect } from '@/components/MultiSelect';
@@ -514,6 +515,9 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                         )}
                     </>
                 )}
+
+                {/* CPA Ranking */}
+                <RankingPanel data={filteredData} />
 
                 {/* Data Tables */}
                 <div className="mt-8 space-y-4">
