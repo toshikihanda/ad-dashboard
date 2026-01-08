@@ -85,6 +85,11 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
 
         setStartDate(formatDateForInput(start));
         setEndDate(formatDateForInput(end));
+        // Reset filters when date changes
+        setSelectedCampaign('All');
+        setSelectedBeyondPageNames([]);
+        setSelectedVersionNames([]);
+        setSelectedCreatives([]);
     };
 
     // Filter data based on selections
@@ -141,13 +146,22 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
     }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageNames, selectedVersionNames, selectedCreatives, startDate, endDate]);
 
     // --- Cascading Filter Logic ---
+    // Step 0: Filter by date range first
+    const dateFilteredData = useMemo(() => {
+        if (!startDate || !endDate) {
+            return initialData;
+        }
+        return filterByDateRange(initialData, new Date(startDate), new Date(endDate));
+    }, [initialData, startDate, endDate]);
+
     // Step 1: Filter by campaign (商材)
     const campaignFilteredData = useMemo(() => {
+        const beyondData = dateFilteredData.filter(row => row.Media === 'Beyond');
         if (selectedCampaign === 'All') {
-            return initialData.filter(row => row.Media === 'Beyond');
+            return beyondData;
         }
-        return initialData.filter(row => row.Media === 'Beyond' && row.Campaign_Name === selectedCampaign);
-    }, [initialData, selectedCampaign]);
+        return beyondData.filter(row => row.Campaign_Name === selectedCampaign);
+    }, [dateFilteredData, selectedCampaign]);
 
     // Step 2: Filter by beyond_page_name (複数選択対応)
     const pageNameFilteredData = useMemo(() => {
@@ -165,22 +179,25 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         return pageNameFilteredData.filter(row => selectedVersionNames.includes(row.version_name));
     }, [pageNameFilteredData, selectedVersionNames]);
 
-    // Generate filter options (cascading)
-    const campaigns = useMemo(() => getUniqueCampaigns(initialData), [initialData]);
+    // Generate filter options (cascading, based on date-filtered data)
+    const campaigns = useMemo(() => {
+        const uniqueCampaigns = [...new Set(dateFilteredData.map(row => row.Campaign_Name).filter(c => c))];
+        return uniqueCampaigns.sort();
+    }, [dateFilteredData]);
 
-    // beyond_page_name options: filtered by campaign
+    // beyond_page_name options: filtered by date + campaign
     const beyondPageNames = useMemo(() => {
         const uniqueNames = [...new Set(campaignFilteredData.map(row => row.beyond_page_name).filter(n => n))];
         return uniqueNames.sort();
     }, [campaignFilteredData]);
 
-    // version_name options: filtered by campaign + beyond_page_name
+    // version_name options: filtered by date + campaign + beyond_page_name
     const versionNames = useMemo(() => {
         const uniqueVersions = [...new Set(pageNameFilteredData.map(row => row.version_name).filter(n => n))];
         return uniqueVersions.sort();
     }, [pageNameFilteredData]);
 
-    // creative options: filtered by campaign + beyond_page_name + version_name
+    // creative options: filtered by date + campaign + beyond_page_name + version_name
     const creativeValues = useMemo(() => {
         const uniqueCreatives = [...new Set(versionFilteredData.map(row => row.creative_value).filter(v => v))];
         return uniqueCreatives.sort();
