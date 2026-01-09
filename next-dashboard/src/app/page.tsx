@@ -3,7 +3,7 @@ import { processData } from '@/lib/dataProcessor';
 import { parseBaselineData } from '@/lib/aiAnalysis';
 import DashboardClient from './DashboardClient';
 
-export const revalidate = 600; // Revalidate every 10 minutes
+export const revalidate = 300; // Revalidate every 5 minutes
 
 export default async function Home() {
   const rawData = await loadDataFromSheets();

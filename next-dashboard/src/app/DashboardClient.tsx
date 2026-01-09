@@ -47,6 +47,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
     const [endDate, setEndDate] = useState('');
     const [isClient, setIsClient] = useState(false);
     const [isCustomDatePickerOpen, setIsCustomDatePickerOpen] = useState(false);
+    const [isRefreshing, setIsRefreshing] = useState(false);
 
     // Initialize dates on client-side only to avoid SSR/hydration mismatch
     useEffect(() => {
@@ -222,6 +223,22 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         setSelectedCreatives([]);
     };
 
+    // Data refresh handler
+    const handleRefreshData = async () => {
+        setIsRefreshing(true);
+        try {
+            const response = await fetch('/api/revalidate', { method: 'POST' });
+            if (response.ok) {
+                // Reload the page to get fresh data
+                window.location.reload();
+            }
+        } catch (error) {
+            console.error('Refresh failed:', error);
+        } finally {
+            setIsRefreshing(false);
+        }
+    };
+
     // Calculate KPIs
     const kpis = useMemo(() => {
         const metaData = filteredData.filter(row => row.Media === 'Meta');
@@ -319,10 +336,19 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                 Beyond
                             </button>
                         </div>
+                        {/* Refresh Button */}
+                        <button
+                            onClick={handleRefreshData}
+                            disabled={isRefreshing}
+                            className="ml-auto px-4 py-1.5 text-xs font-bold bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                            <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
+                            <span>{isRefreshing ? '更新中...' : 'データ更新'}</span>
+                        </button>
                         {/* AI Analysis Button */}
                         <button
                             onClick={() => setIsAnalysisModalOpen(true)}
-                            className="ml-auto px-4 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md flex items-center gap-1.5"
+                            className="px-4 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md flex items-center gap-1.5"
                         >
                             <span>📊</span>
                             <span>AI分析</span>
