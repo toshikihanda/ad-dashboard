@@ -48,6 +48,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
     const [isClient, setIsClient] = useState(false);
     const [isCustomDatePickerOpen, setIsCustomDatePickerOpen] = useState(false);
     const [isRefreshing, setIsRefreshing] = useState(false);
+    const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
 
     // Initialize dates on client-side only to avoid SSR/hydration mismatch
     useEffect(() => {
@@ -57,6 +58,16 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
             setStartDate(formatDateForInput(firstOfMonth));
             setEndDate(formatDateForInput(now));
             setIsClient(true);
+
+            // Check if this is a refresh callback
+            const urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get('refreshed') === 'true') {
+                setShowRefreshSuccess(true);
+                // Remove the query param from URL
+                window.history.replaceState({}, '', window.location.pathname);
+                // Hide the message after 3 seconds
+                setTimeout(() => setShowRefreshSuccess(false), 3000);
+            }
         }
     }, [isClient]);
 
@@ -229,12 +240,11 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         try {
             const response = await fetch('/api/revalidate', { method: 'POST' });
             if (response.ok) {
-                // Reload the page to get fresh data
-                window.location.reload();
+                // Reload the page with a query param to show success message
+                window.location.href = window.location.pathname + '?refreshed=true';
             }
         } catch (error) {
             console.error('Refresh failed:', error);
-        } finally {
             setIsRefreshing(false);
         }
     };
@@ -310,6 +320,13 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
 
     return (
         <>
+            {/* Success Toast */}
+            {showRefreshSuccess && (
+                <div className="fixed top-4 left-1/2 transform -translate-x-1/2 z-[100] bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg flex items-center gap-2 animate-pulse">
+                    <span>✅</span>
+                    <span className="font-bold">データを更新しました</span>
+                </div>
+            )}
             <div className="max-w-[1920px] mx-auto pb-10">
                 {/* Sticky Header + Filters */}
                 <div className="sticky top-0 z-50 bg-[#e2e8f0] pt-4 pb-4 -mx-6 px-6">
