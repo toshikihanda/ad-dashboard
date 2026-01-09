@@ -319,6 +319,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                         <th className={thClass}>CPC</th>
                         <th className={thClass}>MCPA</th>
                         <th className={thClass}>CPA</th>
+                        <th className={thClass}>FV離脱</th>
+                        <th className={thClass}>SV離脱</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -341,6 +343,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                             <td className={tdClass}>{formatNumber(row.cpc)}</td>
                             <td className={tdClass}>{formatNumber(row.mcpa)}</td>
                             <td className={tdClass}>{formatNumber(row.cpa)}</td>
+                            <td className={tdClass}>{formatPercent(row.fvExitRate)}</td>
+                            <td className={tdClass}>{formatPercent(row.svExitRate)}</td>
                         </tr>
                     ))}
                 </tbody>
