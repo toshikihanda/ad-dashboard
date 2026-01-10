@@ -19,13 +19,13 @@ async function loadSheetData(sheetName: string): Promise<Record<string, string>[
   try {
     const response = await fetch(url, { next: { revalidate: 600 } }); // Cache for 10 min
     if (!response.ok) {
-      console.error(`Failed to load ${sheetName}: ${response.status}`);
+      console.error(`Sheet fetch failed: ${response.status}`);
       return [];
     }
     const csvText = await response.text();
     return parseCSV(csvText);
   } catch (error) {
-    console.error(`Failed to load ${sheetName}:`, error);
+    console.error(`Sheet fetch error reported`);
     return [];
   }
 }

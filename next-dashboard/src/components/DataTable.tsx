@@ -206,8 +206,9 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
         );
     }
 
-    const thClass = "px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap";
-    const tdClass = "px-3 py-2 text-sm text-gray-700 whitespace-nowrap";
+    const thClass = "px-3 py-2 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50";
+    const tdClass = "px-3 py-2 text-xs md:text-sm text-gray-700 whitespace-nowrap";
+    const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     // ラベル列のヘッダーを動的に設定
     const hasCombinationFilter = filters && (filters.beyondPageNames.length > 0 || filters.versionNames.length > 0 || filters.creatives.length > 0);
@@ -220,7 +221,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className={thClass}>{labelHeader}</th>
+                            <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
                             <th className={thClass}>出稿金額</th>
                             <th className={thClass}>Imp</th>
                             <th className={thClass}>Clicks</th>
@@ -233,8 +234,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {rows.map((row, idx) => (
-                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50">
-                                <td className={tdClass}>{row.label}</td>
+                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit">
+                                <td className={`${tdClass} ${stickyColClass}`}>{row.label}</td>
                                 <td className={tdClass}>{formatNumber(row.cost)}</td>
                                 <td className={tdClass}>{formatNumber(row.impressions)}</td>
                                 <td className={tdClass}>{formatNumber(row.clicks)}</td>
@@ -258,7 +259,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                 <table className="min-w-full divide-y divide-gray-200">
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className={thClass}>{labelHeader}</th>
+                            <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
                             <th className={thClass}>出稿金額</th>
                             <th className={thClass}>PV</th>
                             <th className={thClass}>Clicks</th>
@@ -274,8 +275,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                     </thead>
                     <tbody className="divide-y divide-gray-100">
                         {rows.map((row, idx) => (
-                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50">
-                                <td className={tdClass}>{row.label}</td>
+                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit">
+                                <td className={`${tdClass} ${stickyColClass}`}>{row.label}</td>
                                 <td className={tdClass}>{formatNumber(row.cost)}</td>
                                 <td className={tdClass}>{formatNumber(row.pv)}</td>
                                 <td className={tdClass}>{formatNumber(row.clicks)}</td>
@@ -302,7 +303,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
             <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                     <tr>
-                        <th className={thClass}>{labelHeader}</th>
+                        <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
                         <th className={thClass}>出稿金額</th>
                         <th className={thClass}>売上</th>
                         <th className={thClass}>粗利</th>
@@ -325,8 +326,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {rows.map((row, idx) => (
-                        <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50">
-                            <td className={tdClass}>{row.label}</td>
+                        <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit">
+                            <td className={`${tdClass} ${stickyColClass}`}>{row.label}</td>
                             <td className={tdClass}>{formatNumber(row.cost)}</td>
                             <td className={tdClass}>{formatNumber(row.revenue)}</td>
                             <td className={tdClass}>{formatNumber(row.profit)}</td>

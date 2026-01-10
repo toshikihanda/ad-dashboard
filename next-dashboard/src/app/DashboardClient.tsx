@@ -329,223 +329,329 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
             )}
             <div className="max-w-[1920px] mx-auto pb-10">
                 {/* Sticky Header + Filters */}
-                <div className="sticky top-0 z-50 bg-[#e2e8f0] pt-4 pb-4 -mx-6 px-6">
-                    {/* Header - Row 1: Title & Tabs */}
-                    <div className="flex items-center gap-4 mb-5">
-                        <h1 className="text-xl font-bold text-gray-800 whitespace-nowrap">allattain Dashboard</h1>
-                        <div className="flex gap-1">
-                            <button
-                                onClick={() => setSelectedTab('total')}
-                                className={`tab-button ${selectedTab === 'total' ? 'active' : ''} px-4 py-1.5 text-xs`}
-                            >
-                                合計
-                            </button>
-                            <button
-                                onClick={() => setSelectedTab('meta')}
-                                className={`tab-button ${selectedTab === 'meta' ? 'active' : ''} px-4 py-1.5 text-xs`}
-                            >
-                                Meta
-                            </button>
-                            <button
-                                onClick={() => setSelectedTab('beyond')}
-                                className={`tab-button ${selectedTab === 'beyond' ? 'active' : ''} px-4 py-1.5 text-xs`}
-                            >
-                                Beyond
-                            </button>
-                        </div>
-                        {/* Refresh Button */}
-                        <button
-                            onClick={handleRefreshData}
-                            disabled={isRefreshing}
-                            className="ml-auto px-4 py-1.5 text-xs font-bold bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all shadow-md flex items-center gap-1.5 disabled:opacity-50 disabled:cursor-not-allowed"
-                        >
-                            <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
-                            <span>{isRefreshing ? '更新中...' : 'データ更新'}</span>
-                        </button>
-                        {/* AI Analysis Button */}
-                        <button
-                            onClick={() => setIsAnalysisModalOpen(true)}
-                            className="px-4 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-md flex items-center gap-1.5"
-                        >
-                            <span>📊</span>
-                            <span>AI分析</span>
-                        </button>
-                        {/* Period Comparison Button */}
-                        <button
-                            onClick={() => setIsComparisonModalOpen(true)}
-                            className="px-4 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all shadow-md flex items-center gap-1.5"
-                        >
-                            <span>📈</span>
-                            <span>期間比較</span>
-                        </button>
-                    </div>
+                <div className="sticky top-0 z-50 bg-[#e2e8f0] pt-2 md:pt-4 pb-2 md:pb-4 -mx-4 md:-mx-6 px-4 md:px-6 shadow-sm">
+                    {/* Header Row: Title, Tabs, Actions */}
+                    <div className="flex flex-col md:flex-row md:items-center gap-2 md:gap-3 mb-2 md:mb-4">
+                        {/* Mobile Top Row: Title + Action Menu */}
+                        <div className="flex items-center justify-between md:mr-auto w-full md:w-auto">
+                            <h1 className="text-base md:text-xl font-bold text-gray-800 whitespace-nowrap truncate">allattain Dashboard</h1>
 
-                    {/* Filter Area: Custom grid layout with wider beyond_page_name */}
-                    <div className="grid gap-3 relative" style={{ gridTemplateColumns: '1fr 2fr 1fr 1.5fr 1.5fr' }}>
-                        {/* 商材 Column */}
-                        <div className="flex flex-col gap-1">
-                            <span className="text-[10px] font-bold text-gray-500 tracking-wide">商材</span>
-                            <select
-                                value={selectedCampaign}
-                                onChange={(e) => handleCampaignChange(e.target.value)}
-                                className="filter-select text-xs px-2 w-full truncate"
-                                title={selectedCampaign}
-                            >
-                                <option value="All">All</option>
-                                {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                        </div>
-
-                        {/* beyond_page_name Column */}
-                        <MultiSelect
-                            label="beyond_page_name"
-                            options={beyondPageNames}
-                            selectedValues={selectedBeyondPageNames}
-                            onChange={handleBeyondPageNamesChange}
-                        />
-
-                        {/* version_name Column */}
-                        <MultiSelect
-                            label="version_name"
-                            options={versionNames}
-                            selectedValues={selectedVersionNames}
-                            onChange={handleVersionNamesChange}
-                        />
-
-                        {/* クリエイティブ Column */}
-                        <MultiSelect
-                            label="クリエイティブ"
-                            options={creativeValues}
-                            selectedValues={selectedCreatives}
-                            onChange={setSelectedCreatives}
-                        />
-
-                        {/* 期間 Column */}
-                        <div className="flex flex-col gap-1">
-                            <div className="flex items-center justify-between">
-                                <span className="text-[10px] font-bold text-gray-500 tracking-wide">期間</span>
-                                <div className="flex items-center gap-1 text-[10px]">
-                                    <span className="text-blue-500 text-xs">●</span>
-                                    <span className="text-gray-500">選択中:</span>
-                                    <span className="font-bold text-gray-700">{startDate.replace(/-/g, '/').slice(5)}</span>
-                                    <span className="text-gray-400">〜</span>
-                                    <span className="font-bold text-gray-700">{endDate.replace(/-/g, '/').slice(5)}</span>
-                                </div>
-                            </div>
-                            <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-8">
-                                {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).map((preset) => (
-                                    <button
-                                        key={preset}
-                                        onClick={() => handlePresetChange(preset)}
-                                        className={cn(
-                                            "flex-1 text-[10px] font-bold transition-all first:rounded-l-md last:rounded-r-md",
-                                            datePreset === preset
-                                                ? "bg-blue-600 text-white"
-                                                : "text-gray-500 hover:text-gray-700 hover:bg-gray-50"
-                                        )}
-                                    >
-                                        {preset === 'thisMonth' ? '今月' :
-                                            preset === 'today' ? '今日' :
-                                                preset === 'yesterday' ? '昨日' :
-                                                    preset === '7days' ? '7日' : 'カスタム'}
-                                    </button>
-                                ))}
-                            </div>
-                        </div>
-
-                        {/* Custom date picker popup */}
-                        {isCustomDatePickerOpen && (
-                            <div className="absolute top-full right-0 mt-2 z-[100] bg-white p-3 rounded-xl border border-gray-200 shadow-xl animate-in fade-in slide-in-from-top-2 duration-200 flex gap-2 items-center">
-                                <div className="flex flex-col gap-0.5">
-                                    <label className="text-[9px] font-bold text-gray-400 ml-1">開始日</label>
-                                    <input
-                                        type="date"
-                                        value={startDate}
-                                        onChange={(e) => setStartDate(e.target.value)}
-                                        className="date-input text-xs h-8"
-                                    />
-                                </div>
-                                <span className="text-gray-400 mt-4">〜</span>
-                                <div className="flex flex-col gap-0.5">
-                                    <label className="text-[9px] font-bold text-gray-400 ml-1">終了日</label>
-                                    <input
-                                        type="date"
-                                        value={endDate}
-                                        onChange={(e) => setEndDate(e.target.value)}
-                                        className="date-input text-xs h-8"
-                                    />
-                                </div>
+                            {/* Mobile Action Menu (Hamburger/More) */}
+                            <div className="flex md:hidden gap-2">
                                 <button
-                                    onClick={() => setIsCustomDatePickerOpen(false)}
-                                    className="ml-2 mt-4 px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                                    onClick={handleRefreshData}
+                                    disabled={isRefreshing}
+                                    className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                    title="更新"
                                 >
-                                    決定
+                                    <span className={isRefreshing ? 'animate-spin block' : ''}>🔄</span>
+                                </button>
+                                {/* Mobile Operations Menu Toggle - Simple Popover implementation could go here, 
+                                    for now keeping direct buttons but compact */}
+                                <button
+                                    onClick={() => setIsAnalysisModalOpen(true)}
+                                    className="p-2 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
+                                    title="AI分析"
+                                >
+                                    📊
+                                </button>
+                                <button
+                                    onClick={() => setIsComparisonModalOpen(true)}
+                                    className="p-2 text-teal-600 hover:text-teal-800 rounded-full hover:bg-teal-50"
+                                    title="比較"
+                                >
+                                    📈
                                 </button>
                             </div>
-                        )}
+                        </div>
+
+                        {/* Tabs: Segmented Control on Mobile, Buttons on Desktop */}
+                        <div className="w-full md:w-auto overflow-x-auto no-scrollbar">
+                            <div className="flex p-1 bg-gray-200/50 rounded-lg md:bg-transparent md:p-0 w-full md:w-auto gap-1 md:gap-1">
+                                <button
+                                    onClick={() => setSelectedTab('total')}
+                                    className={cn(
+                                        "flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[11px] md:text-xs font-medium rounded-md transition-all whitespace-nowrap text-center",
+                                        selectedTab === 'total'
+                                            ? 'bg-white text-blue-600 shadow-sm md:bg-blue-600 md:text-white md:shadow-none'
+                                            : 'text-gray-600 hover:bg-gray-200/50 md:text-gray-600 md:hover:bg-gray-200'
+                                    )}
+                                >
+                                    合計
+                                </button>
+                                <button
+                                    onClick={() => setSelectedTab('meta')}
+                                    className={cn(
+                                        "flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[11px] md:text-xs font-medium rounded-md transition-all whitespace-nowrap text-center",
+                                        selectedTab === 'meta'
+                                            ? 'bg-white text-blue-600 shadow-sm md:bg-blue-600 md:text-white md:shadow-none'
+                                            : 'text-gray-600 hover:bg-gray-200/50 md:text-gray-600 md:hover:bg-gray-200'
+                                    )}
+                                >
+                                    Meta
+                                </button>
+                                <button
+                                    onClick={() => setSelectedTab('beyond')}
+                                    className={cn(
+                                        "flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[11px] md:text-xs font-medium rounded-md transition-all whitespace-nowrap text-center",
+                                        selectedTab === 'beyond'
+                                            ? 'bg-white text-blue-600 shadow-sm md:bg-blue-600 md:text-white md:shadow-none'
+                                            : 'text-gray-600 hover:bg-gray-200/50 md:text-gray-600 md:hover:bg-gray-200'
+                                    )}
+                                >
+                                    Beyond
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Desktop Actions (Hidden on Mobile) */}
+                        <div className="hidden md:flex gap-2 ml-auto">
+                            <button
+                                onClick={handleRefreshData}
+                                disabled={isRefreshing}
+                                className="px-3 py-1.5 text-xs font-bold bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                            >
+                                <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
+                                <span>{isRefreshing ? '更新中...' : '更新'}</span>
+                            </button>
+                            <button
+                                onClick={() => setIsAnalysisModalOpen(true)}
+                                className="px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1.5"
+                            >
+                                <span>📊</span>
+                                <span>AI分析</span>
+                            </button>
+                            <button
+                                onClick={() => setIsComparisonModalOpen(true)}
+                                className="px-3 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all shadow-sm flex items-center gap-1.5"
+                            >
+                                <span>📈</span>
+                                <span>比較</span>
+                            </button>
+                        </div>
                     </div>
+
+                    {/* Filter Area: Collapsible on Mobile */}
+                    <details className="group md:block" open>
+                        <summary className="flex md:hidden items-center justify-between p-2 mb-2 bg-white rounded-lg border border-gray-200 shadow-sm text-xs font-medium list-none cursor-pointer">
+                            <div className="flex items-center gap-2 truncate text-gray-600">
+                                <span className="mr-1">🔍 絞り込み:</span>
+                                {selectedCampaign === 'All' ? '全商材' : selectedCampaign}
+                                <span className="text-gray-300">|</span>
+                                {datePreset === 'thisMonth' ? '今月' :
+                                    datePreset === 'today' ? '今日' :
+                                        datePreset === 'yesterday' ? '昨日' :
+                                            startDate === endDate ? startDate.slice(5) : `${startDate.slice(5)}~`}
+                            </div>
+                            <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
+                        </summary>
+
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-2 md:p-0 bg-white md:bg-transparent rounded-lg md:rounded-none border md:border-none border-gray-100 shadow-sm md:shadow-none mb-2 md:mb-0">
+                            {/* 商材 Column */}
+                            <div className="flex flex-col gap-1 col-span-2 md:col-span-1">
+                                <span className="text-[10px] font-bold text-gray-500 tracking-wide md:block hidden">商材</span>
+                                <div className="md:hidden text-[10px] font-bold text-gray-500 mb-1">商材を選択</div>
+                                <select
+                                    value={selectedCampaign}
+                                    onChange={(e) => handleCampaignChange(e.target.value)}
+                                    className="filter-select text-sm md:text-xs px-2 h-10 md:h-auto w-full truncate bg-white border md:border-gray-200 rounded-lg"
+                                    title={selectedCampaign}
+                                >
+                                    <option value="All">All</option>
+                                    {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
+                                </select>
+                            </div>
+
+                            {/* beyond_page_name Column */}
+                            <div className="col-span-2 md:col-span-1">
+                                <MultiSelect
+                                    label="beyond_page_name"
+                                    options={beyondPageNames}
+                                    selectedValues={selectedBeyondPageNames}
+                                    onChange={handleBeyondPageNamesChange}
+                                />
+                            </div>
+
+                            {/* version_name Column */}
+                            <div className="col-span-2 md:col-span-1">
+                                <MultiSelect
+                                    label="version_name"
+                                    options={versionNames}
+                                    selectedValues={selectedVersionNames}
+                                    onChange={handleVersionNamesChange}
+                                />
+                            </div>
+
+                            {/* クリエイティブ Column */}
+                            <div className="col-span-2 md:col-span-1">
+                                <MultiSelect
+                                    label="クリエイティブ"
+                                    options={creativeValues}
+                                    selectedValues={selectedCreatives}
+                                    onChange={setSelectedCreatives}
+                                />
+                            </div>
+
+                            {/* 期間 Column */}
+                            <div className="flex flex-col gap-1 col-span-2 md:col-span-1 lg:col-span-1">
+                                <div className="flex items-center justify-between md:block">
+                                    <span className="text-[10px] font-bold text-gray-500 tracking-wide hidden md:block">期間</span>
+                                    <span className="text-[10px] font-bold text-gray-500 tracking-wide md:hidden mb-1 block">期間を選択</span>
+                                    <div className="flex items-center gap-1 text-[9px] truncate md:float-right">
+                                        <span className="text-blue-500">●</span>
+                                        <span className="font-bold text-gray-700">{startDate.replace(/-/g, '/').slice(5)}〜{endDate.replace(/-/g, '/').slice(5)}</span>
+                                    </div>
+                                </div>
+                                <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-10 md:h-8 overflow-hidden">
+                                    {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).map((preset) => (
+                                        <button
+                                            key={preset}
+                                            onClick={() => handlePresetChange(preset)}
+                                            className={cn(
+                                                "flex-1 text-[10px] md:text-[9px] font-bold transition-all border-r last:border-r-0 border-gray-100 active:bg-blue-50",
+                                                datePreset === preset
+                                                    ? "bg-blue-600 text-white border-blue-600"
+                                                    : "text-gray-500 hover:bg-gray-50"
+                                            )}
+                                        >
+                                            {preset === 'thisMonth' ? '今月' :
+                                                preset === 'today' ? '今日' :
+                                                    preset === 'yesterday' ? '昨日' :
+                                                        preset === '7days' ? '7日' : '選択'}
+                                        </button>
+                                    ))}
+                                </div>
+                            </div>
+                        </div>
+                    </details>
+
+                    {/* Custom date picker popup (Responsive) */}
+                    {isCustomDatePickerOpen && (
+                        <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                            <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-sm flex flex-col gap-4 animate-in zoom-in-95">
+                                <h3 className="text-lg font-bold text-gray-800">期間を指定</h3>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-xs font-bold text-gray-500">開始日</label>
+                                        <input
+                                            type="date"
+                                            value={startDate}
+                                            onChange={(e) => setStartDate(e.target.value)}
+                                            className="date-input text-base p-2 border rounded-lg"
+                                        />
+                                    </div>
+                                    <div className="flex flex-col gap-2">
+                                        <label className="text-xs font-bold text-gray-500">終了日</label>
+                                        <input
+                                            type="date"
+                                            value={endDate}
+                                            onChange={(e) => setEndDate(e.target.value)}
+                                            className="date-input text-base p-2 border rounded-lg"
+                                        />
+                                    </div>
+                                </div>
+                                <div className="flex gap-3 mt-2">
+                                    <button
+                                        onClick={() => setIsCustomDatePickerOpen(false)}
+                                        className="flex-1 py-3 text-sm font-bold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        onClick={() => setIsCustomDatePickerOpen(false)}
+                                        className="flex-1 py-3 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 shadow-lg shadow-blue-200"
+                                    >
+                                        決定
+                                    </button>
+                                </div>
+                            </div>
+                        </div>
+                    )}
                 </div>
 
                 {/* KPI Cards */}
                 {(selectedTab === 'total' || selectedTab === 'beyond') && (
-                    <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
-                        {/* Row 1 */}
-                        <KPICard
-                            label="出稿金額"
-                            value={Math.round(kpis.cost)}
-                            unit="円"
-                            colorClass="text-red"
-                            source={selectedTab === 'total' ? 'Beyond' : undefined}
-                        />
-                        <KPICard
-                            label="売上"
-                            value={Math.round(kpis.revenue)}
-                            unit="円"
-                            colorClass="text-blue"
-                        />
-                        <KPICard
-                            label="粗利"
-                            value={Math.round(kpis.profit)}
-                            unit="円"
-                            colorClass="text-orange"
-                        />
-                        <KPICard
-                            label="IMP"
-                            value={kpis.impressions}
-                            source={selectedTab === 'total' ? 'Meta' : undefined}
-                        />
-                        <KPICard
-                            label="CLICK"
-                            value={kpis.metaClicks}
-                            source={selectedTab === 'total' ? 'Meta' : undefined}
-                        />
-                        <KPICard
-                            label="商品LP CLICK"
-                            value={kpis.beyondClicks}
-                            unit="件"
-                            source={selectedTab === 'total' ? 'Beyond' : undefined}
-                        />
+                    <div className="space-y-3">
+                        {/* Mobile Priority-1 KPIs (Always Visible) */}
+                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                            <KPICard
+                                label="出稿金額"
+                                value={Math.round(kpis.cost)}
+                                unit="円"
+                                colorClass="text-red"
+                                source={selectedTab === 'total' ? 'Beyond' : undefined}
+                            />
+                            <KPICard
+                                label="売上"
+                                value={Math.round(kpis.revenue)}
+                                unit="円"
+                                colorClass="text-blue"
+                            />
+                            <KPICard
+                                label="粗利"
+                                value={Math.round(kpis.profit)}
+                                unit="円"
+                                colorClass="text-orange"
+                            />
+                            <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
+                            <KPICard
+                                label="CV"
+                                value={kpis.cv}
+                                unit="件"
+                                source={selectedTab === 'total' ? 'Beyond' : undefined}
+                            />
+                            <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
+                        </div>
 
-                        {/* Row 2 */}
-                        <KPICard
-                            label="CV"
-                            value={kpis.cv}
-                            unit="件"
-                            source={selectedTab === 'total' ? 'Beyond' : undefined}
-                        />
-                        <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                        <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
-                        <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
-                        <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                        <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                        {/* Mobile Toggle for Other KPIs */}
+                        <details className="group">
+                            <summary className="md:hidden flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
+                                <span className="group-open:hidden">▼ 詳細指標を表示</span>
+                                <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
+                            </summary>
 
-                        {/* Row 3 */}
-                        <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
-                        <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                        <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
-                        <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
-                        <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
-                        <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
+                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                {/* Secondary KPIs */}
+                                <KPICard
+                                    label="IMP"
+                                    value={kpis.impressions}
+                                    source={selectedTab === 'total' ? 'Meta' : undefined}
+                                />
+                                <KPICard
+                                    label="CLICK"
+                                    value={kpis.metaClicks}
+                                    source={selectedTab === 'total' ? 'Meta' : undefined}
+                                />
+                                <KPICard
+                                    label="商品LP CLICK"
+                                    value={kpis.beyondClicks}
+                                    unit="件"
+                                    source={selectedTab === 'total' ? 'Beyond' : undefined}
+                                />
+                                <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                                <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
+                                <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
+                                <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                                <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
+                                <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
+                                <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
+                                <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
+                            </div>
+                        </details>
+
+                        {/* Desktop View: Show everything (using CSS grid auto-flow or just keeping above structure which works fine for desktop too if details is open by default on desktop) */}
+                        {/* Actually, the details/summary approach hides content on desktop if closed. 
+                            Better to use a CSS-based visibility approach or just force open on desktop? 
+                            Let's use a simpler approach: Render secondary KPIs outside details on desktop, and inside details on mobile?
+                            Or just make details open by default on desktop and hide summary. */}
+                        <style jsx>{`
+                            @media (min-width: 768px) {
+                                details > summary { display: none; }
+                                details > div { display: grid; }
+                                details[open] > div { animation: none; }
+                            }
+                        `}</style>
                     </div>
                 )}
 
@@ -557,21 +663,32 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                 <p className="text-yellow-600 text-sm mt-1">Beyond タブまたは合計タブでデータを確認してください</p>
                             </div>
                         ) : (
-                            <>
+                            <div className="space-y-3">
+                                {/* Priority KPIs */}
                                 <KPIGrid columns={4}>
                                     <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
-                                    <KPICard label="IMP" value={kpis.impressions} />
-                                    <KPICard label="CLICK" value={kpis.metaClicks} />
                                     <KPICard label="CV" value={kpis.metaMCV} unit="件" />
-                                </KPIGrid>
-                                <div className="h-4" />
-                                <KPIGrid columns={4}>
-                                    <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                                    <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
                                     <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
+                                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
                                 </KPIGrid>
-                            </>
+
+                                {/* Toggle for Secondary */}
+                                <details className="group">
+                                    <summary className="md:hidden flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
+                                        <span className="group-open:hidden">▼ 詳細指標を表示</span>
+                                        <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
+                                    </summary>
+
+                                    <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                        <KPIGrid columns={4}>
+                                            <KPICard label="IMP" value={kpis.impressions} />
+                                            <KPICard label="CLICK" value={kpis.metaClicks} />
+                                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                        </KPIGrid>
+                                    </div>
+                                </details>
+                            </div>
                         )}
                     </>
                 )}

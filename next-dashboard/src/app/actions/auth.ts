@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
+import { createSessionToken, getSessionCookieOptions } from '@/lib/session';
 
 interface AuthState {
     error?: string;
@@ -12,14 +13,12 @@ export async function login(prevState: AuthState | null, formData: FormData): Pr
     const envPassword = process.env.LOGIN_KEY;
 
     if (password === envPassword) {
-        // Set cookie valid for 7 days
+        // Create signed token
+        const token = await createSessionToken();
+
+        // Set cookie with configurable options
         const cookieStore = await cookies();
-        cookieStore.set('auth_session', 'true', {
-            httpOnly: true,
-            secure: process.env.NODE_ENV === 'production',
-            maxAge: 60 * 60 * 24 * 7, // 1 week
-            path: '/',
-        });
+        cookieStore.set('auth_session', token, getSessionCookieOptions());
         redirect('/');
     }
 

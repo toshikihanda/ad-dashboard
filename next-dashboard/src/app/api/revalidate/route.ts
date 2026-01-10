@@ -12,7 +12,7 @@ export async function POST() {
             timestamp: new Date().toISOString()
         });
     } catch (error) {
-        console.error('Revalidation error:', error);
+        console.error('Refresh task failed');
         return NextResponse.json(
             { success: false, message: 'データ更新に失敗しました' },
             { status: 500 }

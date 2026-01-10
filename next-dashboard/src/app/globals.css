@@ -81,3 +81,13 @@ body {
 .text-purple {
   color: #8b5cf6;
 }
+
+/* Scrollbar utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

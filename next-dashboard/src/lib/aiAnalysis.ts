@@ -327,3 +327,158 @@ export function runAnalysis(
         metrics,
     };
 }
+
+// --- Trend Data Types & Functions ---
+
+export interface TrendItem {
+    versionName: string;
+    creative: string;
+    thisWeekCPA: number;
+    thisWeekCV: number;
+    lastWeekCPA: number;
+    lastWeekCV: number;
+    changeRate: number | null;
+    trend: '悪化' | '改善' | '横ばい';
+}
+
+export interface RankingItemForAI {
+    versionName: string;
+    creative: string;
+    cpa: number;
+    cv: number;
+    cost: number;
+}
+
+function isWithinDays(date: Date, days: number): boolean {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const cutoff = new Date(now);
+    cutoff.setDate(cutoff.getDate() - days);
+    return date >= cutoff;
+}
+
+function isBetweenDays(date: Date, fromDays: number, toDays: number): boolean {
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    const fromDate = new Date(now);
+    fromDate.setDate(fromDate.getDate() - fromDays);
+    const toDate = new Date(now);
+    toDate.setDate(toDate.getDate() - toDays);
+    return date >= fromDate && date < toDate;
+}
+
+export function calculateTrendData(data: ProcessedRow[], campaign: string): TrendItem[] {
+    // Filter by campaign and Beyond data only
+    const beyondData = data.filter(row =>
+        row.Campaign_Name === campaign && row.Media === 'Beyond'
+    );
+
+    // Group by version_name × creative_value
+    const combinations: Record<string, ProcessedRow[]> = {};
+    for (const row of beyondData) {
+        const key = `${row.version_name}|||${row.creative_value}`;
+        if (!combinations[key]) {
+            combinations[key] = [];
+        }
+        combinations[key].push(row);
+    }
+
+    const trendData: TrendItem[] = [];
+
+    for (const [key, rows] of Object.entries(combinations)) {
+        const [versionName, creative] = key.split('|||');
+
+        // This week data (last 7 days)
+        const thisWeekRows = rows.filter(r => isWithinDays(r.Date, 7));
+        const thisWeekCost = thisWeekRows.reduce((sum, r) => sum + r.Cost, 0);
+        const thisWeekCV = thisWeekRows.reduce((sum, r) => sum + r.CV, 0);
+        const thisWeekCPA = safeDivide(thisWeekCost, thisWeekCV);
+
+        // Last week data (8-14 days ago)
+        const lastWeekRows = rows.filter(r => isBetweenDays(r.Date, 14, 7));
+        const lastWeekCost = lastWeekRows.reduce((sum, r) => sum + r.Cost, 0);
+        const lastWeekCV = lastWeekRows.reduce((sum, r) => sum + r.CV, 0);
+        const lastWeekCPA = safeDivide(lastWeekCost, lastWeekCV);
+
+        // Calculate change rate
+        let changeRate: number | null = null;
+        if (lastWeekCPA > 0 && thisWeekCPA > 0) {
+            changeRate = ((thisWeekCPA - lastWeekCPA) / lastWeekCPA) * 100;
+        }
+
+        // Determine trend
+        let trend: '悪化' | '改善' | '横ばい' = '横ばい';
+        if (changeRate !== null) {
+            if (changeRate > 30) {
+                trend = '悪化';
+            } else if (changeRate < -20) {
+                trend = '改善';
+            }
+        }
+
+        // Only include combinations with sufficient data
+        if (thisWeekCV >= 1 || lastWeekCV >= 1) {
+            trendData.push({
+                versionName: versionName || '(未設定)',
+                creative: creative || '(未設定)',
+                thisWeekCPA,
+                thisWeekCV,
+                lastWeekCPA,
+                lastWeekCV,
+                changeRate,
+                trend,
+            });
+        }
+    }
+
+    // Sort by change rate descending (worst first for warnings)
+    return trendData.sort((a, b) => {
+        if (a.changeRate === null) return 1;
+        if (b.changeRate === null) return -1;
+        return b.changeRate - a.changeRate;
+    });
+}
+
+export function getRankingDataForAI(data: ProcessedRow[], campaign: string): RankingItemForAI[] {
+    // Filter by campaign and Beyond data only
+    const beyondData = data.filter(row =>
+        row.Campaign_Name === campaign && row.Media === 'Beyond'
+    );
+
+    // Filter last 7 days only
+    const recentData = beyondData.filter(row => isWithinDays(row.Date, 7));
+
+    // Group by version_name × creative_value
+    const combinations: Record<string, ProcessedRow[]> = {};
+    for (const row of recentData) {
+        const key = `${row.version_name}|||${row.creative_value}`;
+        if (!combinations[key]) {
+            combinations[key] = [];
+        }
+        combinations[key].push(row);
+    }
+
+    const rankings: RankingItemForAI[] = [];
+
+    for (const [key, rows] of Object.entries(combinations)) {
+        const [versionName, creative] = key.split('|||');
+        const totalCost = rows.reduce((sum, r) => sum + r.Cost, 0);
+        const totalCV = rows.reduce((sum, r) => sum + r.CV, 0);
+        const cpa = safeDivide(totalCost, totalCV);
+
+        // Only include combinations with at least 1 CV
+        if (totalCV >= 1) {
+            rankings.push({
+                versionName: versionName || '(未設定)',
+                creative: creative || '(未設定)',
+                cpa,
+                cv: totalCV,
+                cost: totalCost,
+            });
+        }
+    }
+
+    // Sort by CPA ascending (best first)
+    return rankings.sort((a, b) => a.cpa - b.cpa).slice(0, 10);
+}
+

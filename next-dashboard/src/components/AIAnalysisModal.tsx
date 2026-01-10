@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
-import { BaselineData, calculateCurrentMetrics } from '@/lib/aiAnalysis';
+import { BaselineData, calculateCurrentMetrics, calculateTrendData, getRankingDataForAI } from '@/lib/aiAnalysis';
 
 interface AIAnalysisModalProps {
     isOpen: boolean;
@@ -49,6 +49,12 @@ export default function AIAnalysisModal({
                 };
             }
 
+            // Calculate trend data (week-over-week comparison)
+            const trendData = calculateTrendData(data, selectedCampaign);
+
+            // Get ranking data (top 10 by CPA)
+            const rankingData = getRankingDataForAI(data, selectedCampaign);
+
             // Period label
             const periodLabel = selectedPeriod === 'all' ? '全期間' : `直近${selectedPeriod}日`;
 
@@ -69,6 +75,8 @@ export default function AIAnalysisModal({
                         CV数: currentMetrics.cvCount,
                     },
                     baseline: baselineForApi,
+                    rankingData,
+                    trendData,
                 }),
             });
 
