@@ -604,54 +604,72 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                         </div>
 
                         {/* Mobile Toggle for Other KPIs */}
-                        <details className="group">
-                            <summary className="md:hidden flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
-                                <span className="group-open:hidden">▼ 詳細指標を表示</span>
-                                <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
-                            </summary>
+                        <div className="md:hidden">
+                            <details className="group">
+                                <summary className="flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
+                                    <span className="group-open:hidden">▼ 詳細指標を表示</span>
+                                    <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
+                                </summary>
 
-                            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                {/* Secondary KPIs */}
-                                <KPICard
-                                    label="IMP"
-                                    value={kpis.impressions}
-                                    source={selectedTab === 'total' ? 'Meta' : undefined}
-                                />
-                                <KPICard
-                                    label="CLICK"
-                                    value={kpis.metaClicks}
-                                    source={selectedTab === 'total' ? 'Meta' : undefined}
-                                />
-                                <KPICard
-                                    label="商品LP CLICK"
-                                    value={kpis.beyondClicks}
-                                    unit="件"
-                                    source={selectedTab === 'total' ? 'Beyond' : undefined}
-                                />
-                                <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                                <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
-                                <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
-                                <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                                <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
-                                <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
-                                <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
-                                <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
-                                <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
-                            </div>
-                        </details>
+                                <div className="grid grid-cols-2 gap-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                    {/* Secondary KPIs */}
+                                    <KPICard
+                                        label="IMP"
+                                        value={kpis.impressions}
+                                        source={selectedTab === 'total' ? 'Meta' : undefined}
+                                    />
+                                    <KPICard
+                                        label="CLICK"
+                                        value={kpis.metaClicks}
+                                        source={selectedTab === 'total' ? 'Meta' : undefined}
+                                    />
+                                    <KPICard
+                                        label="商品LP CLICK"
+                                        value={kpis.beyondClicks}
+                                        unit="件"
+                                        source={selectedTab === 'total' ? 'Beyond' : undefined}
+                                    />
+                                    <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                                    <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
+                                    <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
+                                    <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                                    <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
+                                    <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
+                                    <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
+                                    <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
+                                </div>
+                            </details>
+                        </div>
 
-                        {/* Desktop View: Show everything (using CSS grid auto-flow or just keeping above structure which works fine for desktop too if details is open by default on desktop) */}
-                        {/* Actually, the details/summary approach hides content on desktop if closed. 
-                            Better to use a CSS-based visibility approach or just force open on desktop? 
-                            Let's use a simpler approach: Render secondary KPIs outside details on desktop, and inside details on mobile?
-                            Or just make details open by default on desktop and hide summary. */}
-                        <style jsx>{`
-                            @media (min-width: 768px) {
-                                details > summary { display: none; }
-                                details > div { display: grid; }
-                                details[open] > div { animation: none; }
-                            }
-                        `}</style>
+                        {/* Desktop: Always show secondary KPIs */}
+                        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-3">
+                            <KPICard
+                                label="IMP"
+                                value={kpis.impressions}
+                                source={selectedTab === 'total' ? 'Meta' : undefined}
+                            />
+                            <KPICard
+                                label="CLICK"
+                                value={kpis.metaClicks}
+                                source={selectedTab === 'total' ? 'Meta' : undefined}
+                            />
+                            <KPICard
+                                label="商品LP CLICK"
+                                value={kpis.beyondClicks}
+                                unit="件"
+                                source={selectedTab === 'total' ? 'Beyond' : undefined}
+                            />
+                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                            <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
+                            <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
+                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                            <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                            <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
+                            <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
+                            <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
+                            <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
+                        </div>
                     </div>
                 )}
 
@@ -673,21 +691,33 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                 </KPIGrid>
 
                                 {/* Toggle for Secondary */}
-                                <details className="group">
-                                    <summary className="md:hidden flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
-                                        <span className="group-open:hidden">▼ 詳細指標を表示</span>
-                                        <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
-                                    </summary>
+                                <div className="md:hidden">
+                                    <details className="group">
+                                        <summary className="flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
+                                            <span className="group-open:hidden">▼ 詳細指標を表示</span>
+                                            <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
+                                        </summary>
 
-                                    <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                        <KPIGrid columns={4}>
-                                            <KPICard label="IMP" value={kpis.impressions} />
-                                            <KPICard label="CLICK" value={kpis.metaClicks} />
-                                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                                        </KPIGrid>
-                                    </div>
-                                </details>
+                                        <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <KPIGrid columns={4}>
+                                                <KPICard label="IMP" value={kpis.impressions} />
+                                                <KPICard label="CLICK" value={kpis.metaClicks} />
+                                                <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                                                <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                            </KPIGrid>
+                                        </div>
+                                    </details>
+                                </div>
+
+                                {/* Desktop: Always show secondary KPIs */}
+                                <div className="hidden md:block mt-3">
+                                    <KPIGrid columns={4}>
+                                        <KPICard label="IMP" value={kpis.impressions} />
+                                        <KPICard label="CLICK" value={kpis.metaClicks} />
+                                        <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
+                                        <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                    </KPIGrid>
+                                </div>
                             </div>
                         )}
                     </>
