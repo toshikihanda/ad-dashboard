@@ -97,11 +97,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
 
         setStartDate(formatDateForInput(start));
         setEndDate(formatDateForInput(end));
-        // Reset filters when date changes
-        setSelectedCampaign('All');
-        setSelectedBeyondPageNames([]);
-        setSelectedVersionNames([]);
-        setSelectedCreatives([]);
+        // Note: Filters are NOT reset when date changes - user selections are preserved
     };
 
     // Filter data based on selections
