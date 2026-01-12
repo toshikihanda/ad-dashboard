@@ -18,12 +18,16 @@ interface RankingItem {
     profit: number;
     recoveryRate: number;
     roas: number;
-    pv: number;
+    impressions: number;
     clicks: number;
+    mcv: number;
     cv: number;
+    ctr: number;
     mcvr: number;
     cvr: number;
+    cpm: number;
     cpc: number;
+    mcpa: number;
     cpa: number;
     fvExit: number;
     svExit: number;
@@ -105,6 +109,7 @@ function aggregateRows(rows: ProcessedRow[]): RankingItem {
     const totalPV = rows.reduce((sum, row) => sum + row.PV, 0);
     const totalClicks = rows.reduce((sum, row) => sum + row.Clicks, 0);
     const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
+    const totalImpressions = rows.reduce((sum, row) => sum + row.Impressions, 0);
     const totalFvExit = rows.reduce((sum, row) => sum + row.FV_Exit, 0);
     const totalSvExit = rows.reduce((sum, row) => sum + row.SV_Exit, 0);
 
@@ -117,12 +122,16 @@ function aggregateRows(rows: ProcessedRow[]): RankingItem {
         profit: totalProfit,
         recoveryRate: safeDivide(totalRevenue, totalCost) * 100,
         roas: safeDivide(totalProfit, totalRevenue) * 100,
-        pv: totalPV,
+        impressions: totalImpressions,
         clicks: totalClicks,
+        mcv: totalClicks,
         cv: totalCV,
+        ctr: safeDivide(totalClicks, totalImpressions) * 100,
         mcvr: safeDivide(totalClicks, totalPV) * 100,
         cvr: safeDivide(totalCV, totalClicks) * 100,
+        cpm: safeDivide(totalCost, totalImpressions) * 1000,
         cpc: safeDivide(totalCost, totalClicks),
+        mcpa: safeDivide(totalCost, totalClicks),
         cpa: totalCV > 0 ? totalCost / totalCV : Infinity,
         fvExit: totalFvExit,
         svExit: totalSvExit,
@@ -243,12 +252,16 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                         <th className={cn(thClass, "hidden md:table-cell")}>粗利</th>
                         <th className={cn(thClass, "hidden lg:table-cell")}>回収率</th>
                         <th className={cn(thClass, "hidden lg:table-cell")}>ROAS</th>
-                        <th className={cn(thClass, "hidden lg:table-cell")}>PV</th>
+                        <th className={cn(thClass, "hidden lg:table-cell")}>Imp</th>
+                        <th className={cn(thClass, "hidden lg:table-cell")}>Clicks</th>
                         <th className={cn(thClass, "hidden lg:table-cell")}>商品LPクリック</th>
                         <th className={thClass}>CV</th>
+                        <th className={cn(thClass, "hidden md:table-cell")}>CTR</th>
                         <th className={cn(thClass, "hidden md:table-cell")}>MCVR</th>
                         <th className={cn(thClass, "hidden md:table-cell")}>CVR</th>
+                        <th className={cn(thClass, "hidden md:table-cell")}>CPM</th>
                         <th className={cn(thClass, "hidden md:table-cell")}>CPC</th>
+                        <th className={cn(thClass, "hidden md:table-cell")}>MCPA</th>
                         <th className={thClass}>CPA</th>
                         <th className={cn(thClass, "hidden xl:table-cell")}>FV離脱</th>
                         <th className={cn(thClass, "hidden xl:table-cell")}>SV離脱</th>
@@ -285,12 +298,16 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                             <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.profit)}円</td>
                             <td className={cn(tdClass, "hidden lg:table-cell")}>{formatPercent(item.recoveryRate)}</td>
                             <td className={cn(tdClass, "hidden lg:table-cell")}>{formatPercent(item.roas)}</td>
-                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatNumber(item.pv)}</td>
+                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatNumber(item.impressions)}</td>
                             <td className={cn(tdClass, "hidden lg:table-cell")}>{formatNumber(item.clicks)}</td>
+                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatNumber(item.mcv)}</td>
                             <td className={`${tdClass} font-medium`}>{item.cv}</td>
+                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatPercent(item.ctr)}</td>
                             <td className={cn(tdClass, "hidden md:table-cell")}>{formatPercent(item.mcvr)}</td>
                             <td className={cn(tdClass, "hidden md:table-cell")}>{formatPercent(item.cvr)}</td>
+                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.cpm)}円</td>
                             <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.cpc)}円</td>
+                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.mcpa)}円</td>
                             <td className={`${tdClass} font-bold text-blue-600`}>{formatNumber(item.cpa)}円</td>
                             <td className={cn(tdClass, "hidden xl:table-cell")}>{formatPercent(item.fvExitRate)}</td>
                             <td className={cn(tdClass, "hidden xl:table-cell")}>{formatPercent(item.svExitRate)}</td>
