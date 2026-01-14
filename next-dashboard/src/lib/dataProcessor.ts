@@ -227,8 +227,9 @@ function processMetaData(
         let profit = 0;
 
         if (config.type === '成果') {
+            // 成果型: Meta側は売上・粗利ともに0（粗利はBeyond側のみで計算）
             revenue = 0;
-            profit = -cost;
+            profit = 0;
         } else if (config.type === 'IH') {
             // IH -> 売上 = 出稿金額 × 手数料率, 粗利 = 売上と同じ
             revenue = cost * config.feeRate;
