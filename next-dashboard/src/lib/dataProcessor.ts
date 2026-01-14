@@ -12,7 +12,6 @@ export interface ProjectConfig {
     feeRate: number;          // 手数料率
     metaCvName: string;       // Meta CV名（CVとしてカウントする列名）
     metaAccountNames: string[];   // Meta Account Names（過去データ用）
-    beyondFolderNames: string[];  // Beyond Folder Names（過去データ用）
 }
 
 export interface ProcessedRow {
@@ -80,9 +79,8 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
         const feeRateRaw = row['手数料率'] || '0';
         const metaCvName = (row['Meta CV名'] || '').trim();
 
-        // 新規追加: Meta Account Names と Beyond Folder Names を読み込み
+        // Meta Account Names を読み込み
         const metaAccountNamesRaw = (row['Meta Account Names'] || '').trim();
-        const beyondFolderNamesRaw = (row['Beyond Folder Names'] || '').trim();
 
         // Skip rows without project name
         if (!projectName) continue;
@@ -99,9 +97,6 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
         const metaAccountNames = metaAccountNamesRaw
             ? metaAccountNamesRaw.split(',').map(s => s.trim()).filter(s => s)
             : [];
-        const beyondFolderNames = beyondFolderNamesRaw
-            ? beyondFolderNamesRaw.split(',').map(s => s.trim()).filter(s => s)
-            : [];
 
         configs.push({
             projectName,
@@ -112,7 +107,6 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
             feeRate,
             metaCvName,
             metaAccountNames,
-            beyondFolderNames,
         });
     }
 
@@ -158,14 +152,6 @@ function findProjectByBeyondKeyword(
         // Check new format: beyond_page_name contains beyondKeyword
         if (config.beyondKeyword && beyondPageName && beyondPageName.includes(config.beyondKeyword)) {
             return config;
-        }
-
-        // Check legacy format: folder_name matches (from Master_Setting)
-        if (config.beyondFolderNames && config.beyondFolderNames.length > 0 && folderName) {
-            const matchLegacy = config.beyondFolderNames.some(name =>
-                folderName.includes(name)
-            );
-            if (matchLegacy) return config;
         }
     }
     return null;
