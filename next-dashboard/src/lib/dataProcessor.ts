@@ -11,6 +11,8 @@ export interface ProjectConfig {
     unitPrice: number;        // 成果単価
     feeRate: number;          // 手数料率
     metaCvName: string;       // Meta CV名（CVとしてカウントする列名）
+    metaAccountNames: string[];   // Meta Account Names（過去データ用）
+    beyondFolderNames: string[];  // Beyond Folder Names（過去データ用）
 }
 
 export interface ProcessedRow {
@@ -78,6 +80,10 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
         const feeRateRaw = row['手数料率'] || '0';
         const metaCvName = (row['Meta CV名'] || '').trim();
 
+        // 新規追加: Meta Account Names と Beyond Folder Names を読み込み
+        const metaAccountNamesRaw = (row['Meta Account Names'] || '').trim();
+        const beyondFolderNamesRaw = (row['Beyond Folder Names'] || '').trim();
+
         // Skip rows without project name
         if (!projectName) continue;
 
@@ -89,6 +95,14 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
         let feeRate = parseNumber(feeRateRaw.replace('%', ''));
         if (feeRate > 1) feeRate = feeRate / 100; // Convert percentage to decimal
 
+        // カンマ区切りで分割して配列に変換
+        const metaAccountNames = metaAccountNamesRaw
+            ? metaAccountNamesRaw.split(',').map(s => s.trim()).filter(s => s)
+            : [];
+        const beyondFolderNames = beyondFolderNamesRaw
+            ? beyondFolderNamesRaw.split(',').map(s => s.trim()).filter(s => s)
+            : [];
+
         configs.push({
             projectName,
             metaKeyword,
@@ -97,34 +111,16 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
             unitPrice,
             feeRate,
             metaCvName,
+            metaAccountNames,
+            beyondFolderNames,
         });
     }
 
     return configs;
 }
 
-// Legacy data mapping for existing 3 products
-// Past data uses Account Name (Meta) / folder_name (Beyond)
-// New data uses Ad Name (Meta) / beyond_page_name (Beyond)
-const LEGACY_PRODUCT_MAPPING: Record<string, {
-    accountNames: string[];   // Meta: Account Name matching (legacy)
-    folderNames: string[];    // Beyond: folder_name matching (legacy)
-}> = {
-    'SAC_成果': {
-        accountNames: ['allattain01_SAC成果', 'allattain05_SAC成果（元予算）'],
-        folderNames: ['【運用】SAC_成果'],
-    },
-    'SAC_予算': {
-        accountNames: ['allattain05_SAC予算', 'allattain01_SAC予算（元成果）'],
-        folderNames: ['【運用】SAC_予算'],
-    },
-    'ルーチェ_予算': {
-        accountNames: ['allattain04_ルーチェ予算'],
-        folderNames: ['【運用】ルーチェ_予算'],
-    },
-};
 // Find matching project by keyword (partial match, first match wins)
-// Supports both legacy (Account Name) and new (Ad Name) formats
+// Supports both new (Ad Name) and legacy (Account Name) formats
 function findProjectByMetaKeyword(
     adName: string,
     accountName: string,
@@ -138,10 +134,9 @@ function findProjectByMetaKeyword(
             return config;
         }
 
-        // Check legacy format: Account Name matches
-        const legacyMapping = LEGACY_PRODUCT_MAPPING[config.projectName];
-        if (legacyMapping && accountName) {
-            const matchLegacy = legacyMapping.accountNames.some(name =>
+        // Check legacy format: Account Name matches (from Master_Setting)
+        if (config.metaAccountNames && config.metaAccountNames.length > 0 && accountName) {
+            const matchLegacy = config.metaAccountNames.some(name =>
                 accountName.includes(name)
             );
             if (matchLegacy) return config;
@@ -151,7 +146,7 @@ function findProjectByMetaKeyword(
 }
 
 // Find matching project for Beyond data
-// Supports both legacy (folder_name) and new (beyond_page_name) formats
+// Supports both new (beyond_page_name) and legacy (folder_name) formats
 function findProjectByBeyondKeyword(
     beyondPageName: string,
     folderName: string,
@@ -165,10 +160,9 @@ function findProjectByBeyondKeyword(
             return config;
         }
 
-        // Check legacy format: folder_name matches
-        const legacyMapping = LEGACY_PRODUCT_MAPPING[config.projectName];
-        if (legacyMapping && folderName) {
-            const matchLegacy = legacyMapping.folderNames.some(name =>
+        // Check legacy format: folder_name matches (from Master_Setting)
+        if (config.beyondFolderNames && config.beyondFolderNames.length > 0 && folderName) {
+            const matchLegacy = config.beyondFolderNames.some(name =>
                 folderName.includes(name)
             );
             if (matchLegacy) return config;
