@@ -171,7 +171,10 @@ function processMetaData(
     metaHistory: Record<string, string>[],
     configs: ProjectConfig[]
 ): ProcessedRow[] {
-    const today = formatDateStr(new Date());
+    // 日本時間で今日の日付を取得（VercelはUTCで動作するため）
+    const jstOffset = 9 * 60 * 60 * 1000;
+    const jstDate = new Date(Date.now() + jstOffset);
+    const today = formatDateStr(jstDate);
 
     type MetaRowWithDate = Record<string, string> & { dayStr: string };
 
@@ -182,7 +185,9 @@ function processMetaData(
                 dayStr: row['Day'] ? formatDateStr(parseDate(row['Day'])) : '',
             }))
             .filter(row => {
-                if (isLive) return row.dayStr === today;
+                // Liveデータは全件取得（移行タイミングの猶予を考慮）
+                if (isLive) return true;
+                // Historyは今日より前のみ（重複を避ける）
                 return row.dayStr < today;
             });
     };
@@ -256,7 +261,10 @@ function processBeyondData(
     beyondHistory: Record<string, string>[],
     configs: ProjectConfig[]
 ): ProcessedRow[] {
-    const today = formatDateStr(new Date());
+    // 日本時間で今日の日付を取得（VercelはUTCで動作するため）
+    const jstOffset = 9 * 60 * 60 * 1000;
+    const jstDate = new Date(Date.now() + jstOffset);
+    const today = formatDateStr(jstDate);
 
     type BeyondRowWithDate = Record<string, string> & { dayStr: string };
 
@@ -267,7 +275,9 @@ function processBeyondData(
                 dayStr: row['date_jst'] ? formatDateStr(parseDate(row['date_jst'])) : '',
             }))
             .filter(row => {
-                if (isLive) return row.dayStr === today;
+                // Liveデータは全件取得（移行タイミングの猶予を考慮）
+                if (isLive) return true;
+                // Historyは今日より前のみ（重複を避ける）
                 return row.dayStr < today;
             });
     };
