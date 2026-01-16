@@ -16,20 +16,20 @@ export function KPICard({ label, value, unit = '', colorClass = '', source }: KP
         : value;
 
     return (
-        <div className="bg-white/80 backdrop-blur-sm rounded-xl p-3 md:p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
-            <div className="flex items-center justify-between mb-1">
-                <div className="text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wide truncate pr-2">
+        <div className="bg-white/80 backdrop-blur-sm rounded-lg p-1.5 md:p-4 shadow-sm border border-gray-100 hover:shadow-md transition-shadow">
+            <div className="flex items-center justify-between mb-0.5">
+                <div className="text-[8px] md:text-xs font-semibold text-gray-500 uppercase tracking-tight truncate pr-1">
                     {label}
                 </div>
                 {source && (
-                    <div className="text-[9px] md:text-[10px] text-gray-400 font-normal whitespace-nowrap">
+                    <div className="text-[7px] md:text-[10px] text-gray-400 font-normal whitespace-nowrap">
                         ({source})
                     </div>
                 )}
             </div>
-            <div className={cn('text-xl md:text-2xl font-bold tracking-tight truncate', colorClass)}>
+            <div className={cn('text-base md:text-2xl font-bold tracking-tighter truncate', colorClass)}>
                 {formattedValue}
-                {unit && <span className="text-xs md:text-sm font-normal text-gray-400 ml-1">{unit}</span>}
+                {unit && <span className="text-[9px] md:text-sm font-normal text-gray-400 ml-0.5">{unit}</span>}
             </div>
         </div>
     );

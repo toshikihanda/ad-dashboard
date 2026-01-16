@@ -337,26 +337,24 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                 <button
                                     onClick={handleRefreshData}
                                     disabled={isRefreshing}
-                                    className="p-2 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50"
+                                    className="p-1 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50"
                                     title="更新"
                                 >
-                                    <span className={isRefreshing ? 'animate-spin block' : ''}>🔄</span>
+                                    <span className={isRefreshing ? 'animate-spin block text-xs' : 'text-xs'}>🔄</span>
                                 </button>
-                                {/* Mobile Operations Menu Toggle - Simple Popover implementation could go here, 
-                                    for now keeping direct buttons but compact */}
                                 <button
                                     onClick={() => setIsAnalysisModalOpen(true)}
-                                    className="p-2 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
+                                    className="p-1 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
                                     title="AI分析"
                                 >
-                                    📊
+                                    <span className="text-xs">📊</span>
                                 </button>
                                 <button
                                     onClick={() => setIsComparisonModalOpen(true)}
-                                    className="p-2 text-teal-600 hover:text-teal-800 rounded-full hover:bg-teal-50"
+                                    className="p-1 text-teal-600 hover:text-teal-800 rounded-full hover:bg-teal-50"
                                     title="比較"
                                 >
-                                    📈
+                                    <span className="text-xs">📈</span>
                                 </button>
                             </div>
                         </div>
@@ -450,7 +448,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                 <select
                                     value={selectedCampaign}
                                     onChange={(e) => handleCampaignChange(e.target.value)}
-                                    className="filter-select text-sm md:text-xs px-2 h-10 md:h-auto w-full truncate bg-white border md:border-gray-200 rounded-lg"
+                                    className="filter-select text-[10px] md:text-xs px-2 h-7 md:h-auto w-full truncate bg-white border md:border-gray-200 rounded-lg"
                                     title={selectedCampaign}
                                 >
                                     <option value="All">All</option>
@@ -567,9 +565,9 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
 
                 {/* KPI Cards */}
                 {(selectedTab === 'total' || selectedTab === 'beyond') && (
-                    <div className="space-y-3">
-                        {/* Mobile Priority-1 KPIs (Always Visible) */}
-                        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+                    <div className="space-y-2">
+                        {/* Always visible grid on all screens */}
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                             <KPICard
                                 label="出稿金額"
                                 value={Math.round(kpis.cost)}
@@ -577,18 +575,8 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                 colorClass="text-red"
                                 source={selectedTab === 'total' ? 'Beyond' : undefined}
                             />
-                            <KPICard
-                                label="売上"
-                                value={Math.round(kpis.revenue)}
-                                unit="円"
-                                colorClass="text-blue"
-                            />
-                            <KPICard
-                                label="粗利"
-                                value={Math.round(kpis.profit)}
-                                unit="円"
-                                colorClass="text-orange"
-                            />
+                            <KPICard label="売上" value={Math.round(kpis.revenue)} unit="円" colorClass="text-blue" />
+                            <KPICard label="粗利" value={Math.round(kpis.profit)} unit="円" colorClass="text-orange" />
                             <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
                             <KPICard
                                 label="CV"
@@ -599,63 +587,11 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
                         </div>
 
-                        {/* Mobile Toggle for Other KPIs */}
-                        <div className="md:hidden">
-                            <details className="group">
-                                <summary className="flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
-                                    <span className="group-open:hidden">▼ 詳細指標を表示</span>
-                                    <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
-                                </summary>
-
-                                <div className="grid grid-cols-2 gap-3 mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
-                                    {/* Secondary KPIs */}
-                                    <KPICard
-                                        label="IMP"
-                                        value={kpis.impressions}
-                                        source={selectedTab === 'total' ? 'Meta' : undefined}
-                                    />
-                                    <KPICard
-                                        label="CLICK"
-                                        value={kpis.metaClicks}
-                                        source={selectedTab === 'total' ? 'Meta' : undefined}
-                                    />
-                                    <KPICard
-                                        label="商品LP CLICK"
-                                        value={kpis.beyondClicks}
-                                        unit="件"
-                                        source={selectedTab === 'total' ? 'Beyond' : undefined}
-                                    />
-                                    <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                                    <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
-                                    <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
-                                    <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
-                                    <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
-                                    <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
-                                    <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
-                                    <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
-                                </div>
-                            </details>
-                        </div>
-
-                        {/* Desktop: Always show secondary KPIs */}
-                        <div className="hidden md:grid md:grid-cols-3 lg:grid-cols-6 gap-3">
-                            <KPICard
-                                label="IMP"
-                                value={kpis.impressions}
-                                source={selectedTab === 'total' ? 'Meta' : undefined}
-                            />
-                            <KPICard
-                                label="CLICK"
-                                value={kpis.metaClicks}
-                                source={selectedTab === 'total' ? 'Meta' : undefined}
-                            />
-                            <KPICard
-                                label="商品LP CLICK"
-                                value={kpis.beyondClicks}
-                                unit="件"
-                                source={selectedTab === 'total' ? 'Beyond' : undefined}
-                            />
+                        {/* Secondary Metrics - Also always visible in compact grid */}
+                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                            <KPICard label="IMP" value={kpis.impressions} source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="CLICK" value={kpis.metaClicks} source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
                             <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
                             <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />

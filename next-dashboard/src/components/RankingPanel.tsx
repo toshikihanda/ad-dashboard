@@ -234,18 +234,18 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
         );
     }
 
-    const thClass = "px-2 py-2 text-right text-[10px] font-medium text-gray-500 whitespace-nowrap bg-gray-50";
-    const tdClass = "px-2 py-2 text-right text-[10px] text-gray-700 whitespace-nowrap";
+    const thClass = "px-1.5 py-1 text-right text-[9px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
+    const tdClass = "px-1.5 py-1 text-right text-[9px] text-gray-700 whitespace-nowrap";
     const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     return (
-        <div className="overflow-x-auto -mx-4 px-4">
-            <table className="w-full text-sm" style={{ minWidth: '900px' }}>
+        <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
+            <table className="w-full text-sm" style={{ minWidth: '850px' }}>
                 <thead>
                     <tr className="bg-gray-50">
-                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 w-8 sticky left-0 bg-gray-50 z-20">順位</th>
-                        <th className={`${thClass} text-left sticky left-8 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>商材/記事×クリエイティブ</th>
-                        {showDate && <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 whitespace-nowrap">日付</th>}
+                        <th className="px-1 py-1 text-left text-[9px] font-semibold text-gray-500 w-6 sticky left-0 bg-gray-50 z-20">#</th>
+                        <th className={`${thClass} text-left sticky left-6 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>商材/記事×クリエイティブ</th>
+                        {showDate && <th className="px-1.5 py-1 text-left text-[9px] font-semibold text-gray-500 whitespace-nowrap">日付</th>}
                         <th className={thClass}>出稿金額</th>
                         <th className={thClass}>売上</th>
                         <th className={thClass}>粗利</th>
@@ -269,20 +269,20 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                 <tbody className="divide-y divide-gray-100">
                     {ranking.map((item, idx) => (
                         <tr key={idx} className="hover:bg-gray-50 bg-inherit group">
-                            <td className="px-2 py-2 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-transparent">
-                                <span className={idx < 3 ? 'text-base' : 'text-[10px] text-gray-500'}>
+                            <td className="px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-transparent">
+                                <span className={idx < 3 ? 'text-sm' : 'text-[9px] text-gray-500'}>
                                     {getRankIcon(idx + 1)}
                                 </span>
                             </td>
-                            <td className={`px-2 py-2 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-8 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>
+                            <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-6 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>
                                 <div className="whitespace-nowrap flex flex-col">
-                                    <span className="text-blue-600 font-medium truncate max-w-[100px]">{item.campaignName}</span>
-                                    <span className="text-gray-700 text-[9px] truncate max-w-[100px]">{item.versionName}</span>
-                                    <span className="text-gray-500 text-[9px] truncate max-w-[100px]">{item.creative}</span>
+                                    <span className="text-blue-600 font-semibold truncate max-w-[90px]">{item.campaignName}</span>
+                                    <span className="text-gray-700 text-[8px] leading-tight truncate max-w-[90px]">{item.versionName}</span>
+                                    <span className="text-gray-500 text-[8px] leading-tight truncate max-w-[90px]">{item.creative}</span>
                                 </div>
                             </td>
                             {showDate && (
-                                <td className="px-2 py-2 text-gray-600 text-[10px] whitespace-nowrap">
+                                <td className="px-1.5 py-1 text-gray-600 text-[9px] whitespace-nowrap">
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}

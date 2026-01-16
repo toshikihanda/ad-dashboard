@@ -206,13 +206,13 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
         );
     }
 
-    const thClass = "px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50";
-    const tdClass = "px-2 py-2 text-[10px] text-gray-700 whitespace-nowrap";
+    const thClass = "px-1.5 py-1 text-left text-[9px] font-semibold text-gray-500 uppercase tracking-tight whitespace-nowrap bg-gray-50";
+    const tdClass = "px-1.5 py-1 text-[9px] text-gray-700 whitespace-nowrap";
     const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     // ラベル列のヘッダーを動的に設定
     const hasCombinationFilter = filters && (filters.beyondPageNames.length > 0 || filters.versionNames.length > 0 || filters.creatives.length > 0);
-    const labelHeader = hasCombinationFilter ? '組み合わせ' : '案件名';
+    const labelHeader = hasCombinationFilter ? '組み合わせ' : '商材';
 
     if (viewMode === 'meta') {
         return (
