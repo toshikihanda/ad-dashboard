@@ -212,7 +212,7 @@ function processMetaData(
         let profit = 0;
 
         if (config.type === '成果') {
-            // 成果型: Meta側は売上・粗利ともに0（粗利はBeyond側のみで計算）
+            // 成果型: Meta側は売上・粗利ともに0（売上はBeyond側のみで計算）
             revenue = 0;
             profit = 0;
         } else if (config.type === 'IH') {
@@ -220,9 +220,9 @@ function processMetaData(
             revenue = cost * config.feeRate;
             profit = revenue;
         } else {
-            // '予算' -> Revenue = Cost * (1 + FeeRate), Profit = Revenue - Cost
-            revenue = cost * (1 + config.feeRate);
-            profit = revenue - cost;
+            // '予算': Meta側は売上・粗利ともに0（売上はBeyond側のみで計算）
+            revenue = 0;
+            profit = 0;
         }
 
         // 商材ごとに異なる CV 列を参照（未設定の場合は Results をフォールバック）
