@@ -206,8 +206,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
         );
     }
 
-    const thClass = "px-3 py-2 text-left text-[10px] md:text-xs font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50";
-    const tdClass = "px-3 py-2 text-xs md:text-sm text-gray-700 whitespace-nowrap";
+    const thClass = "px-2 py-2 text-left text-[10px] font-medium text-gray-500 uppercase tracking-wider whitespace-nowrap bg-gray-50";
+    const tdClass = "px-2 py-2 text-[10px] text-gray-700 whitespace-nowrap";
     const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     // ラベル列のヘッダーを動的に設定
@@ -216,9 +216,9 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
 
     if (viewMode === 'meta') {
         return (
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto -mx-4 px-4">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '600px' }}>
                     <thead className="bg-gray-50">
                         <tr>
                             <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
@@ -254,9 +254,9 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
 
     if (viewMode === 'beyond') {
         return (
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto -mx-4 px-4">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-                <table className="min-w-full divide-y divide-gray-200">
+                <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '700px' }}>
                     <thead className="bg-gray-50">
                         <tr>
                             <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
@@ -298,9 +298,9 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
 
     // Total view
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto -mx-4 px-4">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-            <table className="min-w-full divide-y divide-gray-200">
+            <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '1200px' }}>
                 <thead className="bg-gray-50">
                     <tr>
                         <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>

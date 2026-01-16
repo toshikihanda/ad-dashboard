@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from 'react';
 import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
-import { cn } from '@/lib/utils';
 
 interface RankingPanelProps {
     data: ProcessedRow[];
@@ -235,82 +234,76 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
         );
     }
 
-    const thClass = "px-2 py-2 text-right text-[10px] md:text-xs font-medium text-gray-500 whitespace-nowrap bg-gray-50";
-    const tdClass = "px-2 py-2 text-right text-xs text-gray-700 whitespace-nowrap";
+    const thClass = "px-2 py-2 text-right text-[10px] font-medium text-gray-500 whitespace-nowrap bg-gray-50";
+    const tdClass = "px-2 py-2 text-right text-[10px] text-gray-700 whitespace-nowrap";
     const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     return (
-        <div className="overflow-x-auto">
-            <table className="w-full text-sm">
+        <div className="overflow-x-auto -mx-4 px-4">
+            <table className="w-full text-sm" style={{ minWidth: '900px' }}>
                 <thead>
                     <tr className="bg-gray-50">
-                        <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 w-8 sticky left-0 bg-gray-50 z-20">順位</th>
-                        <th className={`${thClass} text-left sticky left-8 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[140px] md:min-w-0`}>商材/記事×クリエイティブ</th>
-                        {showDate && <th className="px-2 py-2 text-left text-xs font-medium text-gray-500 whitespace-nowrap">日付</th>}
+                        <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 w-8 sticky left-0 bg-gray-50 z-20">順位</th>
+                        <th className={`${thClass} text-left sticky left-8 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>商材/記事×クリエイティブ</th>
+                        {showDate && <th className="px-2 py-2 text-left text-[10px] font-medium text-gray-500 whitespace-nowrap">日付</th>}
                         <th className={thClass}>出稿金額</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>売上</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>粗利</th>
-                        <th className={cn(thClass, "hidden lg:table-cell")}>回収率</th>
-                        <th className={cn(thClass, "hidden lg:table-cell")}>ROAS</th>
-                        <th className={cn(thClass, "hidden lg:table-cell")}>Imp</th>
-                        <th className={cn(thClass, "hidden lg:table-cell")}>Clicks</th>
-                        <th className={cn(thClass, "hidden lg:table-cell")}>商品LPクリック</th>
+                        <th className={thClass}>売上</th>
+                        <th className={thClass}>粗利</th>
+                        <th className={thClass}>回収率</th>
+                        <th className={thClass}>ROAS</th>
+                        <th className={thClass}>Imp</th>
+                        <th className={thClass}>Clicks</th>
+                        <th className={thClass}>商品LPクリック</th>
                         <th className={thClass}>CV</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>CTR</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>MCVR</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>CVR</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>CPM</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>CPC</th>
-                        <th className={cn(thClass, "hidden md:table-cell")}>MCPA</th>
+                        <th className={thClass}>CTR</th>
+                        <th className={thClass}>MCVR</th>
+                        <th className={thClass}>CVR</th>
+                        <th className={thClass}>CPM</th>
+                        <th className={thClass}>CPC</th>
+                        <th className={thClass}>MCPA</th>
                         <th className={thClass}>CPA</th>
-                        <th className={cn(thClass, "hidden xl:table-cell")}>FV離脱</th>
-                        <th className={cn(thClass, "hidden xl:table-cell")}>SV離脱</th>
+                        <th className={thClass}>FV離脱</th>
+                        <th className={thClass}>SV離脱</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {ranking.map((item, idx) => (
                         <tr key={idx} className="hover:bg-gray-50 bg-inherit group">
                             <td className="px-2 py-2 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-transparent">
-                                <span className={idx < 3 ? 'text-base' : 'text-sm text-gray-500'}>
+                                <span className={idx < 3 ? 'text-base' : 'text-[10px] text-gray-500'}>
                                     {getRankIcon(idx + 1)}
                                 </span>
                             </td>
-                            <td className={`px-2 py-2 text-right text-xs text-gray-700 whitespace-nowrap text-left sticky left-8 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[140px] md:min-w-0`}>
-                                <div className="whitespace-nowrap flex flex-col md:block">
-                                    <span className="text-blue-600 font-medium truncate max-w-[120px] md:max-w-none block md:inline">{item.campaignName}</span>
-                                    <div className="md:inline">
-                                        <span className="text-gray-400 hidden md:inline"> / </span>
-                                        <span className="text-gray-700 text-[10px] md:text-sm truncate max-w-[120px] md:max-w-none block md:inline">{item.versionName}</span>
-                                    </div>
-                                    <div className="md:inline">
-                                        <span className="text-gray-400 mx-0.5 hidden md:inline">×</span>
-                                        <span className="text-gray-500 text-[10px] md:text-xs truncate max-w-[120px] md:max-w-none block md:inline">{item.creative}</span>
-                                    </div>
+                            <td className={`px-2 py-2 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-8 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>
+                                <div className="whitespace-nowrap flex flex-col">
+                                    <span className="text-blue-600 font-medium truncate max-w-[100px]">{item.campaignName}</span>
+                                    <span className="text-gray-700 text-[9px] truncate max-w-[100px]">{item.versionName}</span>
+                                    <span className="text-gray-500 text-[9px] truncate max-w-[100px]">{item.creative}</span>
                                 </div>
                             </td>
                             {showDate && (
-                                <td className="px-2 py-2 text-gray-600 text-xs whitespace-nowrap">
+                                <td className="px-2 py-2 text-gray-600 text-[10px] whitespace-nowrap">
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}
                             <td className={tdClass}>{formatNumber(item.cost)}円</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.revenue)}円</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.profit)}円</td>
-                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatPercent(item.recoveryRate)}</td>
-                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatPercent(item.roas)}</td>
-                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatNumber(item.impressions)}</td>
-                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatNumber(item.clicks)}</td>
-                            <td className={cn(tdClass, "hidden lg:table-cell")}>{formatNumber(item.mcv)}</td>
+                            <td className={tdClass}>{formatNumber(item.revenue)}円</td>
+                            <td className={tdClass}>{formatNumber(item.profit)}円</td>
+                            <td className={tdClass}>{formatPercent(item.recoveryRate)}</td>
+                            <td className={tdClass}>{formatPercent(item.roas)}</td>
+                            <td className={tdClass}>{formatNumber(item.impressions)}</td>
+                            <td className={tdClass}>{formatNumber(item.clicks)}</td>
+                            <td className={tdClass}>{formatNumber(item.mcv)}</td>
                             <td className={`${tdClass} font-medium`}>{item.cv}</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatPercent(item.ctr)}</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatPercent(item.mcvr)}</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatPercent(item.cvr)}</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.cpm)}円</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.cpc)}円</td>
-                            <td className={cn(tdClass, "hidden md:table-cell")}>{formatNumber(item.mcpa)}円</td>
+                            <td className={tdClass}>{formatPercent(item.ctr)}</td>
+                            <td className={tdClass}>{formatPercent(item.mcvr)}</td>
+                            <td className={tdClass}>{formatPercent(item.cvr)}</td>
+                            <td className={tdClass}>{formatNumber(item.cpm)}円</td>
+                            <td className={tdClass}>{formatNumber(item.cpc)}円</td>
+                            <td className={tdClass}>{formatNumber(item.mcpa)}円</td>
                             <td className={`${tdClass} font-bold text-blue-600`}>{formatNumber(item.cpa)}円</td>
-                            <td className={cn(tdClass, "hidden xl:table-cell")}>{formatPercent(item.fvExitRate)}</td>
-                            <td className={cn(tdClass, "hidden xl:table-cell")}>{formatPercent(item.svExitRate)}</td>
+                            <td className={tdClass}>{formatPercent(item.fvExitRate)}</td>
+                            <td className={tdClass}>{formatPercent(item.svExitRate)}</td>
                         </tr>
                     ))}
                 </tbody>
