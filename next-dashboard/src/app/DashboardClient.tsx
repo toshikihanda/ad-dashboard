@@ -657,6 +657,11 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                     <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
                 </div>
 
+                {/* Daily Data Table - placed above Charts */}
+                <div className="mt-8">
+                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={selectedTab} />
+                </div>
+
                 {/* Charts */}
                 <div className="mt-8">
                     {selectedTab === 'total' && (
@@ -743,11 +748,6 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             </div>
                         </>
                     )}
-                </div>
-
-                {/* Daily Data Table - placed between Charts and DataTable(選択期間) */}
-                <div className="mt-8">
-                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={selectedTab} />
                 </div>
             </div>
 
