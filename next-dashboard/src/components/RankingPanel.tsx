@@ -237,54 +237,33 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
     const thClass = "px-1.5 py-1 text-right text-[9px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
     const tdClass = "px-1.5 py-1 text-right text-[9px] text-gray-700 whitespace-nowrap";
     const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
-    // Fixed column widths for alignment with DataTable
-    const colWidths = {
-        cost: 'w-[70px]',
-        revenue: 'w-[70px]',
-        profit: 'w-[70px]',
-        recoveryRate: 'w-[50px]',
-        roas: 'w-[50px]',
-        imp: 'w-[50px]',
-        clicks: 'w-[50px]',
-        lpClick: 'w-[70px]',
-        cv: 'w-[35px]',
-        ctr: 'w-[45px]',
-        mcvr: 'w-[45px]',
-        cvr: 'w-[45px]',
-        cpm: 'w-[55px]',
-        cpc: 'w-[55px]',
-        mcpa: 'w-[55px]',
-        cpa: 'w-[70px]',
-        fvExit: 'w-[50px]',
-        svExit: 'w-[50px]',
-    };
 
     return (
         <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
-            <table className="w-full text-sm table-fixed" style={{ minWidth: '1050px' }}>
+            <table className="w-full text-sm" style={{ minWidth: '1100px' }}>
                 <thead>
                     <tr className="bg-gray-50">
                         <th className="px-1 py-1 text-left text-[9px] font-semibold text-gray-500 w-6 sticky left-0 bg-gray-50 z-20">#</th>
                         <th className={`${thClass} text-left sticky left-6 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>商材/記事×クリエイティブ</th>
                         {showDate && <th className="px-1.5 py-1 text-left text-[9px] font-semibold text-gray-500 whitespace-nowrap">日付</th>}
-                        <th className={`${thClass} ${colWidths.cost}`}>出稿金額</th>
-                        <th className={`${thClass} ${colWidths.revenue}`}>売上</th>
-                        <th className={`${thClass} ${colWidths.profit}`}>粗利</th>
-                        <th className={`${thClass} ${colWidths.recoveryRate}`}>回収率</th>
-                        <th className={`${thClass} ${colWidths.roas}`}>ROAS</th>
-                        <th className={`${thClass} ${colWidths.imp}`}>Imp</th>
-                        <th className={`${thClass} ${colWidths.clicks}`}>Clicks</th>
-                        <th className={`${thClass} ${colWidths.lpClick}`}>商品LPクリック</th>
-                        <th className={`${thClass} ${colWidths.cv}`}>CV</th>
-                        <th className={`${thClass} ${colWidths.ctr}`}>CTR</th>
-                        <th className={`${thClass} ${colWidths.mcvr}`}>MCVR</th>
-                        <th className={`${thClass} ${colWidths.cvr}`}>CVR</th>
-                        <th className={`${thClass} ${colWidths.cpm}`}>CPM</th>
-                        <th className={`${thClass} ${colWidths.cpc}`}>CPC</th>
-                        <th className={`${thClass} ${colWidths.mcpa}`}>MCPA</th>
-                        <th className={`${thClass} ${colWidths.cpa}`}>CPA</th>
-                        <th className={`${thClass} ${colWidths.fvExit}`}>FV離脱</th>
-                        <th className={`${thClass} ${colWidths.svExit}`}>SV離脱</th>
+                        <th className={thClass}>出稿金額</th>
+                        <th className={thClass}>売上</th>
+                        <th className={thClass}>粗利</th>
+                        <th className={thClass}>回収率</th>
+                        <th className={thClass}>ROAS</th>
+                        <th className={thClass}>Imp</th>
+                        <th className={thClass}>Clicks</th>
+                        <th className={thClass}>商品LPクリック</th>
+                        <th className={thClass}>CV</th>
+                        <th className={thClass}>CTR</th>
+                        <th className={thClass}>MCVR</th>
+                        <th className={thClass}>CVR</th>
+                        <th className={thClass}>CPM</th>
+                        <th className={thClass}>CPC</th>
+                        <th className={thClass}>MCPA</th>
+                        <th className={thClass}>CPA</th>
+                        <th className={thClass}>FV離脱</th>
+                        <th className={thClass}>SV離脱</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -307,24 +286,24 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}
-                            <td className={`${tdClass} ${colWidths.cost}`}>{formatNumber(item.cost)}円</td>
-                            <td className={`${tdClass} ${colWidths.revenue}`}>{formatNumber(item.revenue)}円</td>
-                            <td className={`${tdClass} ${colWidths.profit}`}>{formatNumber(item.profit)}円</td>
-                            <td className={`${tdClass} ${colWidths.recoveryRate}`}>{formatPercent(item.recoveryRate)}</td>
-                            <td className={`${tdClass} ${colWidths.roas}`}>{formatPercent(item.roas)}</td>
-                            <td className={`${tdClass} ${colWidths.imp}`}>{formatNumber(item.impressions)}</td>
-                            <td className={`${tdClass} ${colWidths.clicks}`}>{formatNumber(item.clicks)}</td>
-                            <td className={`${tdClass} ${colWidths.lpClick}`}>{formatNumber(item.mcv)}</td>
-                            <td className={`${tdClass} ${colWidths.cv} font-medium`}>{item.cv}</td>
-                            <td className={`${tdClass} ${colWidths.ctr}`}>{formatPercent(item.ctr)}</td>
-                            <td className={`${tdClass} ${colWidths.mcvr}`}>{formatPercent(item.mcvr)}</td>
-                            <td className={`${tdClass} ${colWidths.cvr}`}>{formatPercent(item.cvr)}</td>
-                            <td className={`${tdClass} ${colWidths.cpm}`}>{formatNumber(item.cpm)}円</td>
-                            <td className={`${tdClass} ${colWidths.cpc}`}>{formatNumber(item.cpc)}円</td>
-                            <td className={`${tdClass} ${colWidths.mcpa}`}>{formatNumber(item.mcpa)}円</td>
-                            <td className={`${tdClass} ${colWidths.cpa} font-bold text-blue-600`}>{formatNumber(item.cpa)}円</td>
-                            <td className={`${tdClass} ${colWidths.fvExit}`}>{formatPercent(item.fvExitRate)}</td>
-                            <td className={`${tdClass} ${colWidths.svExit}`}>{formatPercent(item.svExitRate)}</td>
+                            <td className={tdClass}>{formatNumber(item.cost)}円</td>
+                            <td className={tdClass}>{formatNumber(item.revenue)}円</td>
+                            <td className={tdClass}>{formatNumber(item.profit)}円</td>
+                            <td className={tdClass}>{formatPercent(item.recoveryRate)}</td>
+                            <td className={tdClass}>{formatPercent(item.roas)}</td>
+                            <td className={tdClass}>{formatNumber(item.impressions)}</td>
+                            <td className={tdClass}>{formatNumber(item.clicks)}</td>
+                            <td className={tdClass}>{formatNumber(item.mcv)}</td>
+                            <td className={`${tdClass} font-medium`}>{item.cv}</td>
+                            <td className={tdClass}>{formatPercent(item.ctr)}</td>
+                            <td className={tdClass}>{formatPercent(item.mcvr)}</td>
+                            <td className={tdClass}>{formatPercent(item.cvr)}</td>
+                            <td className={tdClass}>{formatNumber(item.cpm)}円</td>
+                            <td className={tdClass}>{formatNumber(item.cpc)}円</td>
+                            <td className={tdClass}>{formatNumber(item.mcpa)}円</td>
+                            <td className={`${tdClass} font-bold text-blue-600`}>{formatNumber(item.cpa)}円</td>
+                            <td className={tdClass}>{formatPercent(item.fvExitRate)}</td>
+                            <td className={tdClass}>{formatPercent(item.svExitRate)}</td>
                         </tr>
                     ))}
                 </tbody>

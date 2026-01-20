@@ -209,27 +209,6 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
     const thClass = "px-1.5 py-1 text-left text-[9px] font-semibold text-gray-500 uppercase tracking-tight whitespace-nowrap bg-gray-50";
     const tdClass = "px-1.5 py-1 text-[9px] text-gray-700 whitespace-nowrap";
     const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
-    // Fixed column widths for alignment with RankingPanel
-    const colWidths = {
-        cost: 'w-[70px]',
-        revenue: 'w-[70px]',
-        profit: 'w-[70px]',
-        recoveryRate: 'w-[50px]',
-        roas: 'w-[50px]',
-        imp: 'w-[50px]',
-        clicks: 'w-[50px]',
-        lpClick: 'w-[70px]',
-        cv: 'w-[35px]',
-        ctr: 'w-[45px]',
-        mcvr: 'w-[45px]',
-        cvr: 'w-[45px]',
-        cpm: 'w-[55px]',
-        cpc: 'w-[55px]',
-        mcpa: 'w-[55px]',
-        cpa: 'w-[70px]',
-        fvExit: 'w-[50px]',
-        svExit: 'w-[50px]',
-    };
 
     // ラベル列のヘッダーを動的に設定
     const hasCombinationFilter = filters && (filters.beyondPageNames.length > 0 || filters.versionNames.length > 0 || filters.creatives.length > 0);
@@ -237,140 +216,153 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
 
     if (viewMode === 'meta') {
         return (
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto -mx-4 px-4">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-                <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '600px' }}>
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
-                            <th className={thClass}>出稿金額</th>
-                            <th className={thClass}>Imp</th>
-                            <th className={thClass}>Clicks</th>
-                            <th className={thClass}>CV</th>
-                            <th className={thClass}>CTR</th>
-                            <th className={thClass}>CPM</th>
-                            <th className={thClass}>CPC</th>
-                            <th className={thClass}>CPA</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {rows.map((row, idx) => (
-                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit">
-                                <td className={`${tdClass} ${stickyColClass}`}>{row.label}</td>
-                                <td className={tdClass}>{formatNumber(row.cost)}</td>
-                                <td className={tdClass}>{formatNumber(row.impressions)}</td>
-                                <td className={tdClass}>{formatNumber(row.clicks)}</td>
-                                <td className={tdClass}>{formatNumber(row.cv)}</td>
-                                <td className={tdClass}>{formatPercent(row.ctr)}</td>
-                                <td className={tdClass}>{formatNumber(row.cpm)}</td>
-                                <td className={tdClass}>{formatNumber(row.cpc)}</td>
-                                <td className={tdClass}>{formatNumber(row.cpa)}</td>
+                <div className="overflow-x-auto -mx-4 px-4">
+                    <table className="w-full text-sm" style={{ minWidth: '600px' }}>
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-1 py-1 text-left text-[9px] font-semibold text-gray-500 w-6 sticky left-0 bg-gray-50 z-20">#</th>
+                                <th className={`${thClass} text-left sticky left-6 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>{labelHeader}</th>
+                                <th className={thClass}>出稿金額</th>
+                                <th className={thClass}>Imp</th>
+                                <th className={thClass}>Clicks</th>
+                                <th className={thClass}>CV</th>
+                                <th className={thClass}>CTR</th>
+                                <th className={thClass}>CPM</th>
+                                <th className={thClass}>CPC</th>
+                                <th className={thClass}>CPA</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {rows.map((row, idx) => (
+                                <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
+                                    <td className="px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[9px] text-gray-400">{idx + 1}</td>
+                                    <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-6 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>{row.label}</td>
+                                    <td className={tdClass}>{formatNumber(row.cost)}</td>
+                                    <td className={tdClass}>{formatNumber(row.impressions)}</td>
+                                    <td className={tdClass}>{formatNumber(row.clicks)}</td>
+                                    <td className={tdClass}>{formatNumber(row.cv)}</td>
+                                    <td className={tdClass}>{formatPercent(row.ctr)}</td>
+                                    <td className={tdClass}>{formatNumber(row.cpm)}</td>
+                                    <td className={tdClass}>{formatNumber(row.cpc)}</td>
+                                    <td className={tdClass}>{formatNumber(row.cpa)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     }
 
     if (viewMode === 'beyond') {
         return (
-            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto -mx-4 px-4">
+            <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-                <table className="min-w-full divide-y divide-gray-200" style={{ minWidth: '700px' }}>
-                    <thead className="bg-gray-50">
-                        <tr>
-                            <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
-                            <th className={thClass}>出稿金額</th>
-                            <th className={thClass}>PV</th>
-                            <th className={thClass}>Clicks</th>
-                            <th className={thClass}>CV</th>
-                            <th className={thClass}>MCVR</th>
-                            <th className={thClass}>CVR</th>
-                            <th className={thClass}>CPC</th>
-                            <th className={thClass}>CPA</th>
-                            <th className={thClass}>FV離脱</th>
-                            <th className={thClass}>SV離脱</th>
-                            <th className={thClass}>Total離脱</th>
-                        </tr>
-                    </thead>
-                    <tbody className="divide-y divide-gray-100">
-                        {rows.map((row, idx) => (
-                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit">
-                                <td className={`${tdClass} ${stickyColClass}`}>{row.label}</td>
-                                <td className={tdClass}>{formatNumber(row.cost)}</td>
-                                <td className={tdClass}>{formatNumber(row.pv)}</td>
-                                <td className={tdClass}>{formatNumber(row.clicks)}</td>
-                                <td className={tdClass}>{formatNumber(row.cv)}</td>
-                                <td className={tdClass}>{formatPercent(row.mcvr)}</td>
-                                <td className={tdClass}>{formatPercent(row.cvr)}</td>
-                                <td className={tdClass}>{formatNumber(row.cpc)}</td>
-                                <td className={tdClass}>{formatNumber(row.cpa)}</td>
-                                <td className={tdClass}>{formatPercent(row.fvExitRate)}</td>
-                                <td className={tdClass}>{formatPercent(row.svExitRate)}</td>
-                                <td className={tdClass}>{formatPercent(row.totalExitRate)}</td>
+                <div className="overflow-x-auto -mx-4 px-4">
+                    <table className="w-full text-sm" style={{ minWidth: '700px' }}>
+                        <thead className="bg-gray-50">
+                            <tr>
+                                <th className="px-1 py-1 text-left text-[9px] font-semibold text-gray-500 w-6 sticky left-0 bg-gray-50 z-20">#</th>
+                                <th className={`${thClass} text-left sticky left-6 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>{labelHeader}</th>
+                                <th className={thClass}>出稿金額</th>
+                                <th className={thClass}>PV</th>
+                                <th className={thClass}>Clicks</th>
+                                <th className={thClass}>CV</th>
+                                <th className={thClass}>MCVR</th>
+                                <th className={thClass}>CVR</th>
+                                <th className={thClass}>CPC</th>
+                                <th className={thClass}>CPA</th>
+                                <th className={thClass}>FV離脱</th>
+                                <th className={thClass}>SV離脱</th>
+                                <th className={thClass}>Total離脱</th>
                             </tr>
-                        ))}
-                    </tbody>
-                </table>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                            {rows.map((row, idx) => (
+                                <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
+                                    <td className="px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[9px] text-gray-400">{idx + 1}</td>
+                                    <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-6 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>{row.label}</td>
+                                    <td className={tdClass}>{formatNumber(row.cost)}</td>
+                                    <td className={tdClass}>{formatNumber(row.pv)}</td>
+                                    <td className={tdClass}>{formatNumber(row.clicks)}</td>
+                                    <td className={tdClass}>{formatNumber(row.cv)}</td>
+                                    <td className={tdClass}>{formatPercent(row.mcvr)}</td>
+                                    <td className={tdClass}>{formatPercent(row.cvr)}</td>
+                                    <td className={tdClass}>{formatNumber(row.cpc)}</td>
+                                    <td className={tdClass}>{formatNumber(row.cpa)}</td>
+                                    <td className={tdClass}>{formatPercent(row.fvExitRate)}</td>
+                                    <td className={tdClass}>{formatPercent(row.svExitRate)}</td>
+                                    <td className={tdClass}>{formatPercent(row.totalExitRate)}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
             </div>
         );
     }
 
     // Total view
     return (
-        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100 overflow-x-auto -mx-4 px-4">
+        <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
-            <table className="min-w-full divide-y divide-gray-200 table-fixed" style={{ minWidth: '1050px' }}>
-                <thead className="bg-gray-50">
-                    <tr>
-                        <th className={`${thClass} ${stickyColClass}`}>{labelHeader}</th>
-                        <th className={`${thClass} text-right ${colWidths.cost}`}>出稿金額</th>
-                        <th className={`${thClass} text-right ${colWidths.revenue}`}>売上</th>
-                        <th className={`${thClass} text-right ${colWidths.profit}`}>粗利</th>
-                        <th className={`${thClass} text-right ${colWidths.recoveryRate}`}>回収率</th>
-                        <th className={`${thClass} text-right ${colWidths.roas}`}>ROAS</th>
-                        <th className={`${thClass} text-right ${colWidths.imp}`}>Imp</th>
-                        <th className={`${thClass} text-right ${colWidths.clicks}`}>Clicks</th>
-                        <th className={`${thClass} text-right ${colWidths.lpClick}`}>商品LPクリック</th>
-                        <th className={`${thClass} text-right ${colWidths.cv}`}>CV</th>
-                        <th className={`${thClass} text-right ${colWidths.ctr}`}>CTR</th>
-                        <th className={`${thClass} text-right ${colWidths.mcvr}`}>MCVR</th>
-                        <th className={`${thClass} text-right ${colWidths.cvr}`}>CVR</th>
-                        <th className={`${thClass} text-right ${colWidths.cpm}`}>CPM</th>
-                        <th className={`${thClass} text-right ${colWidths.cpc}`}>CPC</th>
-                        <th className={`${thClass} text-right ${colWidths.mcpa}`}>MCPA</th>
-                        <th className={`${thClass} text-right ${colWidths.cpa}`}>CPA</th>
-                        <th className={`${thClass} text-right ${colWidths.fvExit}`}>FV離脱</th>
-                        <th className={`${thClass} text-right ${colWidths.svExit}`}>SV離脱</th>
-                    </tr>
-                </thead>
-                <tbody className="divide-y divide-gray-100">
-                    {rows.map((row, idx) => (
-                        <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit">
-                            <td className={`${tdClass} ${stickyColClass}`}>{row.label}</td>
-                            <td className={`${tdClass} text-right ${colWidths.cost}`}>{formatNumber(row.cost)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.revenue}`}>{formatNumber(row.revenue)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.profit}`}>{formatNumber(row.profit)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.recoveryRate}`}>{formatPercent(row.recoveryRate)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.roas}`}>{formatPercent(row.roas)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.imp}`}>{formatNumber(row.impressions)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.clicks}`}>{formatNumber(row.clicks)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.lpClick}`}>{formatNumber(row.mcv)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.cv}`}>{formatNumber(row.cv)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.ctr}`}>{formatPercent(row.ctr)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.mcvr}`}>{formatPercent(row.mcvr)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.cvr}`}>{formatPercent(row.cvr)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.cpm}`}>{formatNumber(row.cpm)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.cpc}`}>{formatNumber(row.cpc)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.mcpa}`}>{formatNumber(row.mcpa)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.cpa}`}>{formatNumber(row.cpa)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.fvExit}`}>{formatPercent(row.fvExitRate)}</td>
-                            <td className={`${tdClass} text-right ${colWidths.svExit}`}>{formatPercent(row.svExitRate)}</td>
+            <div className="overflow-x-auto -mx-4 px-4">
+                <table className="w-full text-sm" style={{ minWidth: '1100px' }}>
+                    <thead className="bg-gray-50">
+                        <tr>
+                            <th className="px-1 py-1 text-left text-[9px] font-semibold text-gray-500 w-6 sticky left-0 bg-gray-50 z-20">#</th>
+                            <th className={`${thClass} text-left sticky left-6 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>{labelHeader}</th>
+                            <th className={thClass}>出稿金額</th>
+                            <th className={thClass}>売上</th>
+                            <th className={thClass}>粗利</th>
+                            <th className={thClass}>回収率</th>
+                            <th className={thClass}>ROAS</th>
+                            <th className={thClass}>Imp</th>
+                            <th className={thClass}>Clicks</th>
+                            <th className={thClass}>商品LPクリック</th>
+                            <th className={thClass}>CV</th>
+                            <th className={thClass}>CTR</th>
+                            <th className={thClass}>MCVR</th>
+                            <th className={thClass}>CVR</th>
+                            <th className={thClass}>CPM</th>
+                            <th className={thClass}>CPC</th>
+                            <th className={thClass}>MCPA</th>
+                            <th className={thClass}>CPA</th>
+                            <th className={thClass}>FV離脱</th>
+                            <th className={thClass}>SV離脱</th>
                         </tr>
-                    ))}
-                </tbody>
-            </table>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                        {rows.map((row, idx) => (
+                            <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
+                                <td className="px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[9px] text-gray-400">{idx + 1}</td>
+                                <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-6 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>{row.label}</td>
+                                <td className={tdClass}>{formatNumber(row.cost)}</td>
+                                <td className={tdClass}>{formatNumber(row.revenue)}</td>
+                                <td className={tdClass}>{formatNumber(row.profit)}</td>
+                                <td className={tdClass}>{formatPercent(row.recoveryRate)}</td>
+                                <td className={tdClass}>{formatPercent(row.roas)}</td>
+                                <td className={tdClass}>{formatNumber(row.impressions)}</td>
+                                <td className={tdClass}>{formatNumber(row.clicks)}</td>
+                                <td className={tdClass}>{formatNumber(row.mcv)}</td>
+                                <td className={tdClass}>{formatNumber(row.cv)}</td>
+                                <td className={tdClass}>{formatPercent(row.ctr)}</td>
+                                <td className={tdClass}>{formatPercent(row.mcvr)}</td>
+                                <td className={tdClass}>{formatPercent(row.cvr)}</td>
+                                <td className={tdClass}>{formatNumber(row.cpm)}</td>
+                                <td className={tdClass}>{formatNumber(row.cpc)}</td>
+                                <td className={tdClass}>{formatNumber(row.mcpa)}</td>
+                                <td className={tdClass}>{formatNumber(row.cpa)}</td>
+                                <td className={tdClass}>{formatPercent(row.fvExitRate)}</td>
+                                <td className={tdClass}>{formatPercent(row.svExitRate)}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </table>
+            </div>
         </div>
     );
 }
+
