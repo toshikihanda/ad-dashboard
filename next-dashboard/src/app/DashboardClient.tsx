@@ -289,7 +289,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
             mcvr: safeDivide(beyondClicks, beyondPV) * 100,
             cvr: safeDivide(beyondCV, beyondClicks) * 100,
             cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: safeDivide(metaCost, metaClicks),
+            cpc: selectedTab === 'beyond' ? safeDivide(beyondCost, beyondPV) : safeDivide(metaCost, metaClicks),
             mcpa: safeDivide(beyondCost, beyondClicks),
             cpa: safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
@@ -686,8 +686,8 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                                 <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
                                 <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
                                 <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
-                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
-                                <CostMetricChart data={filteredData} title="MCPA" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPC" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCPA" costDivisorKey="Clicks" />
                                 <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
                                 <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
                                 <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
@@ -732,7 +732,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             </div>
                             <div className="h-4" />
                             <div className="grid grid-cols-4 gap-4">
-                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey="PV" />
                                 <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
                                 <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
                                 <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />

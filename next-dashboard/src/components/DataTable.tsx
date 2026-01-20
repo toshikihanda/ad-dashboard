@@ -162,7 +162,7 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
         mcvr: safeDivide(beyondClicks, pv) * 100,
         cvr: safeDivide(cv, beyondClicks) * 100,
         cpm: safeDivide(metaCost, impressions) * 1000,
-        cpc: safeDivide(metaCost, metaClicks),
+        cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, metaClicks),
         mcpa: safeDivide(beyondCost, beyondClicks),
         cpa: safeDivide(beyondCost, cv),
         pv,

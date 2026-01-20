@@ -129,7 +129,7 @@ function aggregateRows(rows: ProcessedRow[]): RankingItem {
         mcvr: safeDivide(totalClicks, totalPV) * 100,
         cvr: safeDivide(totalCV, totalClicks) * 100,
         cpm: safeDivide(totalCost, totalImpressions) * 1000,
-        cpc: safeDivide(totalCost, totalClicks),
+        cpc: safeDivide(totalCost, totalPV),
         mcpa: safeDivide(totalCost, totalClicks),
         cpa: totalCV > 0 ? totalCost / totalCV : Infinity,
         fvExit: totalFvExit,
