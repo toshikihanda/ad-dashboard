@@ -234,76 +234,100 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
         );
     }
 
+    // 固定列幅定義
+    const colW = {
+        rank: 'w-[24px]',
+        label: 'w-[110px]',
+        date: 'w-[70px]',
+        cost: 'w-[75px]',
+        revenue: 'w-[70px]',
+        profit: 'w-[70px]',
+        recoveryRate: 'w-[55px]',
+        roas: 'w-[50px]',
+        imp: 'w-[50px]',
+        clicks: 'w-[50px]',
+        lpClick: 'w-[70px]',
+        cv: 'w-[35px]',
+        ctr: 'w-[45px]',
+        mcvr: 'w-[45px]',
+        cvr: 'w-[45px]',
+        cpm: 'w-[60px]',
+        cpc: 'w-[60px]',
+        mcpa: 'w-[65px]',
+        cpa: 'w-[70px]',
+        fvExit: 'w-[50px]',
+        svExit: 'w-[50px]',
+    };
+
     const thClass = "px-1.5 py-1 text-right text-[9px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
     const tdClass = "px-1.5 py-1 text-right text-[9px] text-gray-700 whitespace-nowrap";
-    const stickyColClass = "sticky left-0 bg-inherit z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)]";
 
     return (
         <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
-            <table className="w-full text-sm" style={{ minWidth: '1100px' }}>
+            <table className="w-full text-sm table-fixed" style={{ minWidth: '1150px' }}>
                 <thead>
                     <tr className="bg-gray-50">
-                        <th className="px-1 py-1 text-left text-[9px] font-semibold text-gray-500 w-6 sticky left-0 bg-gray-50 z-20">#</th>
-                        <th className={`${thClass} text-left sticky left-6 bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>商材/記事×クリエイティブ</th>
-                        {showDate && <th className="px-1.5 py-1 text-left text-[9px] font-semibold text-gray-500 whitespace-nowrap">日付</th>}
-                        <th className={thClass}>出稿金額</th>
-                        <th className={thClass}>売上</th>
-                        <th className={thClass}>粗利</th>
-                        <th className={thClass}>回収率</th>
-                        <th className={thClass}>ROAS</th>
-                        <th className={thClass}>Imp</th>
-                        <th className={thClass}>Clicks</th>
-                        <th className={thClass}>商品LPクリック</th>
-                        <th className={thClass}>CV</th>
-                        <th className={thClass}>CTR</th>
-                        <th className={thClass}>MCVR</th>
-                        <th className={thClass}>CVR</th>
-                        <th className={thClass}>CPM</th>
-                        <th className={thClass}>CPC</th>
-                        <th className={thClass}>MCPA</th>
-                        <th className={thClass}>CPA</th>
-                        <th className={thClass}>FV離脱</th>
-                        <th className={thClass}>SV離脱</th>
+                        <th className={`px-1 py-1 text-center text-[9px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
+                        <th className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>商材/記事×クリエイティブ</th>
+                        {showDate && <th className={`${thClass} text-left ${colW.date}`}>日付</th>}
+                        <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
+                        <th className={`${thClass} ${colW.revenue}`}>売上</th>
+                        <th className={`${thClass} ${colW.profit}`}>粗利</th>
+                        <th className={`${thClass} ${colW.recoveryRate}`}>回収率</th>
+                        <th className={`${thClass} ${colW.roas}`}>ROAS</th>
+                        <th className={`${thClass} ${colW.imp}`}>Imp</th>
+                        <th className={`${thClass} ${colW.clicks}`}>Clicks</th>
+                        <th className={`${thClass} ${colW.lpClick}`}>商品LPクリック</th>
+                        <th className={`${thClass} ${colW.cv}`}>CV</th>
+                        <th className={`${thClass} ${colW.ctr}`}>CTR</th>
+                        <th className={`${thClass} ${colW.mcvr}`}>MCVR</th>
+                        <th className={`${thClass} ${colW.cvr}`}>CVR</th>
+                        <th className={`${thClass} ${colW.cpm}`}>CPM</th>
+                        <th className={`${thClass} ${colW.cpc}`}>CPC</th>
+                        <th className={`${thClass} ${colW.mcpa}`}>MCPA</th>
+                        <th className={`${thClass} ${colW.cpa}`}>CPA</th>
+                        <th className={`${thClass} ${colW.fvExit}`}>FV離脱</th>
+                        <th className={`${thClass} ${colW.svExit}`}>SV離脱</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
                     {ranking.map((item, idx) => (
                         <tr key={idx} className="hover:bg-gray-50 bg-inherit group">
-                            <td className="px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 border-r border-transparent">
+                            <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 ${colW.rank}`}>
                                 <span className={idx < 3 ? 'text-sm' : 'text-[9px] text-gray-500'}>
                                     {getRankIcon(idx + 1)}
                                 </span>
                             </td>
-                            <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-6 bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] min-w-[100px]`}>
+                            <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>
                                 <div className="whitespace-nowrap flex flex-col">
-                                    <span className="text-blue-600 font-semibold truncate max-w-[90px]">{item.campaignName}</span>
-                                    <span className="text-gray-700 text-[8px] leading-tight truncate max-w-[90px]">{item.versionName}</span>
-                                    <span className="text-gray-500 text-[8px] leading-tight truncate max-w-[90px]">{item.creative}</span>
+                                    <span className="text-blue-600 font-semibold truncate max-w-[100px]">{item.campaignName}</span>
+                                    <span className="text-gray-700 text-[8px] leading-tight truncate max-w-[100px]">{item.versionName}</span>
+                                    <span className="text-gray-500 text-[8px] leading-tight truncate max-w-[100px]">{item.creative}</span>
                                 </div>
                             </td>
                             {showDate && (
-                                <td className="px-1.5 py-1 text-gray-600 text-[9px] whitespace-nowrap">
+                                <td className={`px-1.5 py-1 text-right text-gray-600 text-[9px] whitespace-nowrap ${colW.date}`}>
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}
-                            <td className={tdClass}>{formatNumber(item.cost)}円</td>
-                            <td className={tdClass}>{formatNumber(item.revenue)}円</td>
-                            <td className={tdClass}>{formatNumber(item.profit)}円</td>
-                            <td className={tdClass}>{formatPercent(item.recoveryRate)}</td>
-                            <td className={tdClass}>{formatPercent(item.roas)}</td>
-                            <td className={tdClass}>{formatNumber(item.impressions)}</td>
-                            <td className={tdClass}>{formatNumber(item.clicks)}</td>
-                            <td className={tdClass}>{formatNumber(item.mcv)}</td>
-                            <td className={`${tdClass} font-medium`}>{item.cv}</td>
-                            <td className={tdClass}>{formatPercent(item.ctr)}</td>
-                            <td className={tdClass}>{formatPercent(item.mcvr)}</td>
-                            <td className={tdClass}>{formatPercent(item.cvr)}</td>
-                            <td className={tdClass}>{formatNumber(item.cpm)}円</td>
-                            <td className={tdClass}>{formatNumber(item.cpc)}円</td>
-                            <td className={tdClass}>{formatNumber(item.mcpa)}円</td>
-                            <td className={`${tdClass} font-bold text-blue-600`}>{formatNumber(item.cpa)}円</td>
-                            <td className={tdClass}>{formatPercent(item.fvExitRate)}</td>
-                            <td className={tdClass}>{formatPercent(item.svExitRate)}</td>
+                            <td className={`${tdClass} ${colW.cost}`}>{formatNumber(item.cost)}円</td>
+                            <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(item.revenue)}円</td>
+                            <td className={`${tdClass} ${colW.profit}`}>{formatNumber(item.profit)}円</td>
+                            <td className={`${tdClass} ${colW.recoveryRate}`}>{formatPercent(item.recoveryRate)}</td>
+                            <td className={`${tdClass} ${colW.roas}`}>{formatPercent(item.roas)}</td>
+                            <td className={`${tdClass} ${colW.imp}`}>{item.impressions > 0 ? formatNumber(item.impressions) : '-'}</td>
+                            <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(item.clicks)}</td>
+                            <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(item.mcv)}</td>
+                            <td className={`${tdClass} ${colW.cv} font-medium`}>{item.cv}</td>
+                            <td className={`${tdClass} ${colW.ctr}`}>{item.impressions > 0 ? formatPercent(item.ctr) : '-'}</td>
+                            <td className={`${tdClass} ${colW.mcvr}`}>{formatPercent(item.mcvr)}</td>
+                            <td className={`${tdClass} ${colW.cvr}`}>{formatPercent(item.cvr)}</td>
+                            <td className={`${tdClass} ${colW.cpm}`}>{item.impressions > 0 ? formatNumber(item.cpm) + '円' : '-'}</td>
+                            <td className={`${tdClass} ${colW.cpc}`}>{formatNumber(item.cpc)}円</td>
+                            <td className={`${tdClass} ${colW.mcpa}`}>{formatNumber(item.mcpa)}円</td>
+                            <td className={`${tdClass} ${colW.cpa} font-bold text-blue-600`}>{formatNumber(item.cpa)}円</td>
+                            <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(item.fvExitRate)}</td>
+                            <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(item.svExitRate)}</td>
                         </tr>
                     ))}
                 </tbody>
