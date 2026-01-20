@@ -26,9 +26,7 @@ const CAMPAIGN_COLORS: Record<string, string> = {
 };
 
 function formatYAxis(value: number): string {
-    if (value >= 1000000) return `${(value / 1000000).toFixed(1)}M`;
-    if (value >= 1000) return `${(value / 1000).toFixed(0)}K`;
-    return value.toString();
+    return value.toLocaleString('ja-JP');
 }
 
 function formatDate(dateStr: string): string {
