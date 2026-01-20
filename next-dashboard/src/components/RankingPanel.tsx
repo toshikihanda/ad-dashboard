@@ -259,15 +259,15 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
         svExit: 'w-[50px]',
     };
 
-    const thClass = "px-1.5 py-1 text-right text-[9px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
-    const tdClass = "px-1.5 py-1 text-right text-[9px] text-gray-700 whitespace-nowrap";
+    const thClass = "px-1.5 py-1 text-right text-[10px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
+    const tdClass = "px-1.5 py-1 text-right text-[10px] text-gray-700 whitespace-nowrap";
 
     return (
         <div className="overflow-x-auto -mx-4 px-4 no-scrollbar">
             <table className="w-full text-sm table-fixed" style={{ minWidth: '1150px' }}>
                 <thead>
                     <tr className="bg-gray-50">
-                        <th className={`px-1 py-1 text-center text-[9px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
+                        <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                         <th className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>商材/記事×クリエイティブ</th>
                         {showDate && <th className={`${thClass} text-left ${colW.date}`}>日付</th>}
                         <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
@@ -294,19 +294,19 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                     {ranking.map((item, idx) => (
                         <tr key={idx} className="hover:bg-gray-50 bg-inherit group">
                             <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 ${colW.rank}`}>
-                                <span className={idx < 3 ? 'text-sm' : 'text-[9px] text-gray-500'}>
+                                <span className={idx < 3 ? 'text-sm' : 'text-[10px] text-gray-500'}>
                                     {getRankIcon(idx + 1)}
                                 </span>
                             </td>
-                            <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>
+                            <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>
                                 <div className="whitespace-nowrap flex flex-col">
                                     <span className="text-blue-600 font-semibold truncate max-w-[100px]">{item.campaignName}</span>
-                                    <span className="text-gray-700 text-[8px] leading-tight truncate max-w-[100px]">{item.versionName}</span>
-                                    <span className="text-gray-500 text-[8px] leading-tight truncate max-w-[100px]">{item.creative}</span>
+                                    <span className="text-gray-700 text-[9px] leading-tight truncate max-w-[100px]">{item.versionName}</span>
+                                    <span className="text-gray-500 text-[9px] leading-tight truncate max-w-[100px]">{item.creative}</span>
                                 </div>
                             </td>
                             {showDate && (
-                                <td className={`px-1.5 py-1 text-right text-gray-600 text-[9px] whitespace-nowrap ${colW.date}`}>
+                                <td className={`px-1.5 py-1 text-right text-gray-600 text-[10px] whitespace-nowrap ${colW.date}`}>
                                     {item.date ? formatDisplayDate(item.date) : '-'}
                                 </td>
                             )}

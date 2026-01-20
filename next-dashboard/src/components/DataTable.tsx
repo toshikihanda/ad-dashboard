@@ -232,8 +232,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
         pv: 'w-[55px]',
     };
 
-    const thClass = "px-1.5 py-1 text-right text-[9px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
-    const tdClass = "px-1.5 py-1 text-right text-[9px] text-gray-700 whitespace-nowrap";
+    const thClass = "px-1.5 py-1 text-right text-[10px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
+    const tdClass = "px-1.5 py-1 text-right text-[10px] text-gray-700 whitespace-nowrap";
 
     // ラベル列のヘッダーを動的に設定
     const hasCombinationFilter = filters && (filters.beyondPageNames.length > 0 || filters.versionNames.length > 0 || filters.creatives.length > 0);
@@ -247,7 +247,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                     <table className="w-full text-sm table-fixed" style={{ minWidth: '700px' }}>
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className={`px-1 py-1 text-center text-[9px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
+                                <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}</th>
                                 <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
                                 <th className={`${thClass} ${colW.imp}`}>Imp</th>
@@ -262,8 +262,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                         <tbody className="divide-y divide-gray-100">
                             {rows.map((row, idx) => (
                                 <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
-                                    <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[9px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                    <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
+                                    <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
+                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                     <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
@@ -289,7 +289,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                     <table className="w-full text-sm table-fixed" style={{ minWidth: '850px' }}>
                         <thead className="bg-gray-50">
                             <tr>
-                                <th className={`px-1 py-1 text-center text-[9px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
+                                <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}</th>
                                 <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
                                 <th className={`${thClass} ${colW.pv}`}>PV</th>
@@ -307,8 +307,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                         <tbody className="divide-y divide-gray-100">
                             {rows.map((row, idx) => (
                                 <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
-                                    <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[9px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                    <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
+                                    <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
+                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                     <td className={`${tdClass} ${colW.pv}`}>{formatNumber(row.pv)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
@@ -337,7 +337,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                 <table className="w-full text-sm table-fixed" style={{ minWidth: '1150px' }}>
                     <thead className="bg-gray-50">
                         <tr>
-                            <th className={`px-1 py-1 text-center text-[9px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
+                            <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                             <th className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}</th>
                             <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
                             <th className={`${thClass} ${colW.revenue}`}>売上</th>
@@ -362,8 +362,8 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                     <tbody className="divide-y divide-gray-100">
                         {rows.map((row, idx) => (
                             <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
-                                <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[9px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                <td className={`px-1.5 py-1 text-left text-[9px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
+                                <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
+                                <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                 <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                 <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
                                 <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>
