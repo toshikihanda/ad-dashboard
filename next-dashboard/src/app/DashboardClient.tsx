@@ -568,23 +568,12 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                     <div className="space-y-2">
                         {/* Always visible grid on all screens */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            <KPICard
-                                label="出稿金額"
-                                value={Math.round(kpis.cost)}
-                                unit="円"
-                                colorClass="text-red"
-                                source={selectedTab === 'total' ? 'Beyond' : undefined}
-                            />
-                            <KPICard label="売上" value={Math.round(kpis.revenue)} unit="円" colorClass="text-blue" />
-                            <KPICard label="粗利" value={Math.round(kpis.profit)} unit="円" colorClass="text-orange" />
-                            <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                            <KPICard
-                                label="CV"
-                                value={kpis.cv}
-                                unit="件"
-                                source={selectedTab === 'total' ? 'Beyond' : undefined}
-                            />
-                            <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" />
+                            <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="売上" value={Math.round(kpis.revenue)} unit="円" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="粗利" value={Math.round(kpis.profit)} unit="円" colorClass="text-orange" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CV" value={kpis.cv} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
 
                         {/* Secondary Metrics - Also always visible in compact grid */}
@@ -592,15 +581,15 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             <KPICard label="IMP" value={kpis.impressions} source={selectedTab === 'total' ? 'Meta' : undefined} />
                             <KPICard label="CLICK" value={kpis.metaClicks} source={selectedTab === 'total' ? 'Meta' : undefined} />
                             <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                            <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" />
-                            <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" />
-                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                            <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
-                            <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" />
-                            <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" />
-                            <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" />
-                            <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" />
+                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
                     </div>
                 )}
