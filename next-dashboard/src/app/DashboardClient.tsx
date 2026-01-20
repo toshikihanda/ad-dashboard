@@ -7,6 +7,7 @@ import { BaselineData } from '@/lib/aiAnalysis';
 import { KPICard, KPIGrid } from '@/components/KPICard';
 import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
+import { DailyDataTable } from '@/components/DailyDataTable';
 import { RankingPanel } from '@/components/RankingPanel';
 import AIAnalysisModal from '@/components/AIAnalysisModal';
 import PeriodComparisonModal from '@/components/PeriodComparisonModal';
@@ -742,6 +743,11 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             </div>
                         </>
                     )}
+                </div>
+
+                {/* Daily Data Table - placed between Charts and DataTable(選択期間) */}
+                <div className="mt-8">
+                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={selectedTab} />
                 </div>
             </div>
 
