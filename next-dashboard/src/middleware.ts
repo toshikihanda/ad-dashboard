@@ -44,6 +44,6 @@ export const config = {
          * - api/auth-debug (auth debugging endpoint)
          * - api/auth-debug-headers (auth header debugging)
          */
-        '/((?!_next/static|_next/image|favicon.ico|api/login|api/auth-debug|api/auth-debug-headers).*)',
+        '/((?!_next/static|_next/image|favicon.ico|api/login|api/auth-debug|api/auth-debug-headers|api/debug-urara).*)',
     ],
 };
