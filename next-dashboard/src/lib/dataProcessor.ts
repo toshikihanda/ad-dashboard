@@ -140,17 +140,16 @@ function findProjectByMetaKeyword(
 }
 
 // Find matching project for Beyond data
-// Supports both new (beyond_page_name) and legacy (folder_name) formats
+// Uses beyond_page_name (or folder_name as fallback for Beyond_History)
 function findProjectByBeyondKeyword(
     beyondPageName: string,
-    folderName: string,
     configs: ProjectConfig[]
 ): ProjectConfig | null {
-    if (!beyondPageName && !folderName) return null;
+    if (!beyondPageName) return null;
 
     for (const config of configs) {
-        // Check new format: beyond_page_name contains beyondKeyword
-        if (config.beyondKeyword && beyondPageName && beyondPageName.includes(config.beyondKeyword)) {
+        // Check if beyond_page_name contains beyondKeyword
+        if (config.beyondKeyword && beyondPageName.includes(config.beyondKeyword)) {
             return config;
         }
     }
@@ -289,9 +288,9 @@ function processBeyondData(
     const results: ProcessedRow[] = [];
 
     for (const row of combined) {
-        const beyondPageName = (row['beyond_page_name'] || '').trim();
-        const folderName = (row['folder_name'] || '').trim();
-        const config = findProjectByBeyondKeyword(beyondPageName, folderName, configs);
+        // Use beyond_page_name, or fallback to folder_name for Beyond_History
+        const beyondPageName = (row['beyond_page_name'] || row['folder_name'] || '').trim();
+        const config = findProjectByBeyondKeyword(beyondPageName, configs);
 
         // Skip if no matching project found
         if (!config) continue;

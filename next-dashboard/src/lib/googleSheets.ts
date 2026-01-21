@@ -12,9 +12,24 @@ export interface SheetData {
   Baseline: Record<string, string>[];
 }
 
+// Sheet GID mapping (required for export endpoint which has no row limit)
+// To get GID: Open spreadsheet, go to sheet, check URL for #gid=XXXXXXX
+const SHEET_GIDS: Record<string, number> = {
+  'Meta_Live': 0,           // Usually first sheet is gid=0
+  'Meta_History': 0,        // Will be updated with actual GID
+  'Beyond_Live': 0,         // Will be updated with actual GID
+  'Beyond_History': 0,      // Will be updated with actual GID
+  'Master_Setting': 0,      // Will be updated with actual GID
+  'Baseline': 0,            // Will be updated with actual GID
+};
+
 async function loadSheetData(sheetName: string): Promise<Record<string, string>[]> {
   const encodedName = encodeURIComponent(sheetName);
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}`;
+
+  // Try export endpoint first (no row limit), fallback to gviz if GID not configured
+  // For now, use gviz with higher limit query
+  // Note: gviz/tq has a limit, so we use tq parameter to request more rows
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}&tq=${encodeURIComponent('SELECT * LIMIT 50000')}`;
 
   try {
     const response = await fetch(url, { next: { revalidate: 600, tags: ['sheets-data'] } }); // Cache for 10 min, tagged for revalidation

@@ -26,10 +26,10 @@ export async function GET() {
         // Get Beyond_History sample for different keywords
         const beyondHistory = sheetsData.Beyond_History;
 
-        // Test matching for each config
         const matchingResults = allConfigs.map(config => {
             const matchingRows = beyondHistory.filter(row => {
-                const beyondPageName = (row['beyond_page_name'] || '').trim();
+                // Use beyond_page_name, or fallback to folder_name for Beyond_History
+                const beyondPageName = (row['beyond_page_name'] || row['folder_name'] || '').trim();
                 return config.beyondKeyword && beyondPageName && beyondPageName.includes(config.beyondKeyword);
             });
             return {
@@ -40,9 +40,9 @@ export async function GET() {
             };
         });
 
-        // Find unique beyond_page_names in Beyond_History
+        // Find unique beyond_page_names in Beyond_History (using folder_name as fallback)
         const uniqueBeyondPageNames = [...new Set(
-            beyondHistory.map(row => (row['beyond_page_name'] || '').trim()).filter(n => n)
+            beyondHistory.map(row => (row['beyond_page_name'] || row['folder_name'] || '').trim()).filter(n => n)
         )].slice(0, 20);
 
         // Check Master_Setting raw data
@@ -53,6 +53,9 @@ export async function GET() {
             '運用タイプ': row['運用タイプ'],
         }));
 
+        // Get raw sample of Beyond_History data (first 2 rows, all columns)
+        const beyondHistoryRawSample = beyondHistory.slice(0, 2);
+
         return NextResponse.json({
             masterSettingRowCount: masterSetting.length,
             configsCount: allConfigs.length,
@@ -61,9 +64,13 @@ export async function GET() {
             beyondHistoryRowCount: beyondHistory.length,
             uniqueBeyondPageNamesSample: uniqueBeyondPageNames,
             masterSettingRawSample: masterSettingRaw,
+            beyondHistoryRawSample,
             debugInfo: {
                 masterSettingColumns: masterSetting[0] ? Object.keys(masterSetting[0]) : [],
-                beyondHistoryColumns: beyondHistory[0] ? Object.keys(beyondHistory[0]).slice(0, 10) : [],
+                beyondHistoryColumns: beyondHistory[0] ? Object.keys(beyondHistory[0]) : [],
+                beyondLiveColumns: sheetsData.Beyond_Live[0] ? Object.keys(sheetsData.Beyond_Live[0]) : [],
+                beyondLiveRowCount: sheetsData.Beyond_Live.length,
+                beyondLiveRawSample: sheetsData.Beyond_Live.slice(0, 2),
             }
         });
     } catch (error) {
