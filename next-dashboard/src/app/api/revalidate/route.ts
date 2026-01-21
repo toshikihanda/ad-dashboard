@@ -3,8 +3,8 @@ import { NextResponse } from 'next/server';
 
 export async function POST() {
     try {
-        // Revalidate the home page to fetch fresh data from Google Sheets
-        revalidatePath('/');
+        // Revalidate the entire app layout to clear all cached data including fetch cache
+        revalidatePath('/', 'layout');
 
         return NextResponse.json({
             success: true,

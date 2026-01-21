@@ -17,7 +17,7 @@ async function loadSheetData(sheetName: string): Promise<Record<string, string>[
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}`;
 
   try {
-    const response = await fetch(url, { next: { revalidate: 600 } }); // Cache for 10 min
+    const response = await fetch(url, { next: { revalidate: 600, tags: ['sheets-data'] } }); // Cache for 10 min, tagged for revalidation
     if (!response.ok) {
       console.error(`Sheet fetch failed: ${response.status}`);
       return [];

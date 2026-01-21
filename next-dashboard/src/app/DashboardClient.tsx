@@ -667,7 +667,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                     {selectedTab === 'total' && (
                         <>
                             {/* Row 1: 出稿金額、売上、粗利、CPA、CV、ROAS - same order as KPI cards */}
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <CostChart data={filteredData.filter(r => r.Media === 'Beyond')} title="出稿金額" />
                                 <RevenueChart data={filteredData.filter(r => r.Media === 'Beyond')} title="売上" />
                                 <GenericBarChart data={filteredData} title="粗利" dataKey="Gross_Profit" />
@@ -677,7 +677,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             </div>
                             <div className="h-4" />
                             {/* Row 2: IMP、CLICK、商品LP CLICK、CTR、MCVR、CVR */}
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <GenericBarChart data={filteredData.filter(r => r.Media === 'Meta')} title="IMP" dataKey="Impressions" />
                                 <GenericBarChart data={filteredData.filter(r => r.Media === 'Meta')} title="CLICK" dataKey="Clicks" />
                                 <GenericBarChart data={filteredData.filter(r => r.Media === 'Beyond')} title="商品LP CLICK" dataKey="Clicks" />
@@ -687,7 +687,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             </div>
                             <div className="h-4" />
                             {/* Row 3: CPM、CPC、MCPA、FV離脱率、SV離脱率、回収率 */}
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPC" costDivisorKey="Clicks" />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCPA" costDivisorKey="Clicks" />
@@ -721,7 +721,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                     {selectedTab === 'beyond' && (
                         <>
                             {/* Row 1: 出稿金額、売上、粗利、CPA、CV、ROAS */}
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <CostChart data={filteredData} title="出稿金額" />
                                 <RevenueChart data={filteredData} title="売上" />
                                 <GenericBarChart data={filteredData} title="粗利" dataKey="Gross_Profit" />
@@ -731,7 +731,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             </div>
                             <div className="h-4" />
                             {/* Row 2: PV、商品LP CLICK、MCVR、CVR、CPC、MCPA */}
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <GenericBarChart data={filteredData} title="PV" dataKey="PV" />
                                 <GenericBarChart data={filteredData} title="商品LP CLICK" dataKey="Clicks" />
                                 <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
@@ -741,7 +741,7 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
                             </div>
                             <div className="h-4" />
                             {/* Row 3: FV離脱率、SV離脱率、回収率 */}
-                            <div className="grid grid-cols-3 md:grid-cols-6 gap-4">
+                            <div className="grid grid-cols-3 gap-4">
                                 <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
                                 <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
                                 <GenericRateChart data={filteredData} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
