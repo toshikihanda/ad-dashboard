@@ -295,12 +295,12 @@ function processBeyondData(
         // Skip if no matching project found
         if (!config) continue;
 
-        // Filter by utm_creative
+        // Get parameter and extract creative value (no filter - data is pre-filtered in Google Sheets)
         const parameter = (row['parameter'] || '').trim();
-        if (!parameter.startsWith('utm_creative=')) continue;
-
         const versionName = (row['version_name'] || '').trim();
-        const creativeValue = parameter.replace('utm_creative=', '');
+        const creativeValue = parameter.startsWith('utm_creative=')
+            ? parameter.replace('utm_creative=', '')
+            : parameter;
 
         const cost = parseNumber(row['cost']);
         const cv = parseNumber(row['cv']);
@@ -430,4 +430,12 @@ export function getUniqueCreativeValues(data: ProcessedRow[]): string[] {
     const beyondData = data.filter(row => row.Media === 'Beyond');
     const creativeValues = new Set(beyondData.map(row => row.creative_value).filter(v => v));
     return Array.from(creativeValues);
+}
+
+// Get project names from Master_Setting for campaign filter
+export function getProjectNamesFromMasterSetting(masterSetting: Record<string, string>[]): string[] {
+    return masterSetting
+        .map(row => (row['管理用案件名'] || '').trim())
+        .filter(name => name !== '')
+        .sort();
 }

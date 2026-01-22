@@ -16,6 +16,7 @@ import { MultiSelect } from '@/components/MultiSelect';
 interface DashboardClientProps {
     initialData: ProcessedRow[];
     baselineData: BaselineData;
+    masterProjects: string[];
 }
 
 type TabType = 'total' | 'meta' | 'beyond';
@@ -32,7 +33,7 @@ function formatDateForInput(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-export default function DashboardClient({ initialData, baselineData }: DashboardClientProps) {
+export default function DashboardClient({ initialData, baselineData, masterProjects }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaign, setSelectedCampaign] = useState('All');
     // 複数選択対応（配列で管理）
@@ -188,11 +189,10 @@ export default function DashboardClient({ initialData, baselineData }: Dashboard
         return pageNameFilteredData.filter(row => selectedVersionNames.includes(row.version_name));
     }, [pageNameFilteredData, selectedVersionNames]);
 
-    // Generate filter options (cascading, based on date-filtered data)
+    // Generate filter options - campaigns from Master_Setting (not dependent on data)
     const campaigns = useMemo(() => {
-        const uniqueCampaigns = [...new Set(dateFilteredData.map(row => row.Campaign_Name).filter(c => c))];
-        return uniqueCampaigns.sort();
-    }, [dateFilteredData]);
+        return masterProjects;
+    }, [masterProjects]);
 
     // beyond_page_name options: filtered by date + campaign
     const beyondPageNames = useMemo(() => {

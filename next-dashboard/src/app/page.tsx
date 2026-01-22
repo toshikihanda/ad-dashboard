@@ -1,5 +1,5 @@
 import { loadDataFromSheets } from '@/lib/googleSheets';
-import { processData } from '@/lib/dataProcessor';
+import { processData, getProjectNamesFromMasterSetting } from '@/lib/dataProcessor';
 import { parseBaselineData } from '@/lib/aiAnalysis';
 import DashboardClient from './DashboardClient';
 
@@ -9,10 +9,15 @@ export default async function Home() {
   const rawData = await loadDataFromSheets();
   const processedData = processData(rawData);
   const baselineData = parseBaselineData(rawData.Baseline);
+  const masterProjects = getProjectNamesFromMasterSetting(rawData.Master_Setting);
 
   return (
     <main className="min-h-screen p-6">
-      <DashboardClient initialData={processedData} baselineData={baselineData} />
+      <DashboardClient
+        initialData={processedData}
+        baselineData={baselineData}
+        masterProjects={masterProjects}
+      />
     </main>
   );
 }

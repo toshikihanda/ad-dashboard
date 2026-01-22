@@ -36,7 +36,10 @@ export async function GET() {
                 projectName: config.projectName,
                 beyondKeyword: config.beyondKeyword,
                 matchingRowCount: matchingRows.length,
-                sampleBeyondPageNames: [...new Set(matchingRows.slice(0, 5).map(r => r['beyond_page_name']))],
+                sampleBeyondPageNames: [...new Set(matchingRows.slice(0, 5).map(r => r['beyond_page_name'] || r['folder_name']))],
+                // Check how many rows pass utm_creative filter
+                utmCreativeCount: matchingRows.filter(r => (r['parameter'] || '').startsWith('utm_creative=')).length,
+                sampleParameters: [...new Set(matchingRows.slice(0, 10).map(r => r['parameter']))].slice(0, 5),
             };
         });
 
