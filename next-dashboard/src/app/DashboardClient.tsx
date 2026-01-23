@@ -42,6 +42,20 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
     const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
     const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
+    const [isReportModalOpen, setIsReportModalOpen] = useState(false);
+    const [reportCampaign, setReportCampaign] = useState<string>('');
+    const [reportCopied, setReportCopied] = useState(false);
+    const [reportStep, setReportStep] = useState<0 | 1 | 2>(0); // 0: Select, 1: Confirm, 2: Result
+    const [isGeneratingReport, setIsGeneratingReport] = useState(false);
+    const [generatedReportInfo, setGeneratedReportInfo] = useState<{
+        reportUrl: string;
+        spreadsheetUrl: string;
+        token: string;
+    } | null>(null);
+    // レポート用期間選択
+    const [reportPeriodPreset, setReportPeriodPreset] = useState<'7days' | '14days' | '30days' | 'thisMonth' | 'custom'>('thisMonth');
+    const [reportStartDate, setReportStartDate] = useState('');
+    const [reportEndDate, setReportEndDate] = useState('');
 
     // Date state - use fixed initial values to avoid hydration mismatch
     const [datePreset, setDatePreset] = useState<'thisMonth' | 'today' | 'yesterday' | '7days' | 'custom'>('thisMonth');
@@ -344,6 +358,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     <span className={isRefreshing ? 'animate-spin block text-xs' : 'text-xs'}>🔄</span>
                                 </button>
                                 <button
+                                    onClick={() => setIsReportModalOpen(true)}
+                                    className="p-1 text-orange-600 hover:text-orange-800 rounded-full hover:bg-orange-50"
+                                    title="レポート作成"
+                                >
+                                    <span className="text-xs">📋</span>
+                                </button>
+                                <button
                                     onClick={() => setIsAnalysisModalOpen(true)}
                                     className="p-1 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
                                     title="AI分析"
@@ -408,6 +429,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             >
                                 <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
                                 <span>{isRefreshing ? '更新中...' : '更新'}</span>
+                            </button>
+                            <button
+                                onClick={() => setIsReportModalOpen(true)}
+                                className="px-3 py-1.5 text-xs font-bold bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all shadow-sm flex items-center gap-1.5"
+                            >
+                                <span>📋</span>
+                                <span>レポート</span>
                             </button>
                             <button
                                 onClick={() => setIsAnalysisModalOpen(true)}
@@ -767,6 +795,236 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                 data={initialData}
                 campaigns={campaigns}
             />
+
+            {/* Report Generation Modal */}
+            {isReportModalOpen && (
+                <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
+                    <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg flex flex-col gap-4 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
+                        <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
+                            <span>📋</span>
+                            <span>クライアント共有用レポート作成</span>
+                        </h3>
+
+                        {reportStep === 0 && (
+                            <>
+                                <p className="text-sm text-gray-600">
+                                    共有したい商材と期間を選択してください。
+                                    <br />
+                                    <span className="text-xs text-gray-500">※売上・粗利・ROAS等の内部数値は除外されます</span>
+                                </p>
+
+                                {/* 商材選択 */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-gray-500">① 商材を選択</label>
+                                    <select
+                                        value={reportCampaign}
+                                        onChange={(e) => setReportCampaign(e.target.value)}
+                                        className="p-2 border rounded-lg text-sm bg-white"
+                                    >
+                                        <option value="">商材を選択してください</option>
+                                        {masterProjects.map(c => (
+                                            <option key={c} value={c}>{c}</option>
+                                        ))}
+                                    </select>
+                                </div>
+
+                                {/* 期間選択 */}
+                                <div className="flex flex-col gap-2">
+                                    <label className="text-xs font-bold text-gray-500">② 期間を選択</label>
+                                    <div className="grid grid-cols-5 gap-1 bg-gray-100 p-1 rounded-lg">
+                                        {(['7days', '14days', '30days', 'thisMonth', 'custom'] as const).map((preset) => (
+                                            <button
+                                                key={preset}
+                                                onClick={() => {
+                                                    setReportPeriodPreset(preset);
+                                                    if (preset !== 'custom') {
+                                                        const now = new Date();
+                                                        let start = new Date();
+                                                        if (preset === '7days') start.setDate(now.getDate() - 6);
+                                                        else if (preset === '14days') start.setDate(now.getDate() - 13);
+                                                        else if (preset === '30days') start.setDate(now.getDate() - 29);
+                                                        else if (preset === 'thisMonth') start = new Date(now.getFullYear(), now.getMonth(), 1);
+
+                                                        const formatDate = (d: Date) => d.toISOString().split('T')[0];
+                                                        setReportStartDate(formatDate(start));
+                                                        setReportEndDate(formatDate(now));
+                                                    }
+                                                }}
+                                                className={`px-2 py-1.5 text-[10px] font-bold rounded transition-all ${reportPeriodPreset === preset
+                                                    ? 'bg-blue-600 text-white shadow'
+                                                    : 'text-gray-600 hover:bg-gray-200'
+                                                    }`}
+                                            >
+                                                {preset === '7days' ? '7日' : preset === '14days' ? '14日' : preset === '30days' ? '30日' : preset === 'thisMonth' ? '今月' : 'カスタム'}
+                                            </button>
+                                        ))}
+                                    </div>
+
+                                    {reportPeriodPreset === 'custom' && (
+                                        <div className="grid grid-cols-2 gap-2 mt-2">
+                                            <input type="date" value={reportStartDate} onChange={(e) => setReportStartDate(e.target.value)} className="p-2 border rounded-lg text-sm" />
+                                            <input type="date" value={reportEndDate} onChange={(e) => setReportEndDate(e.target.value)} className="p-2 border rounded-lg text-sm" />
+                                        </div>
+                                    )}
+
+                                    {reportStartDate && reportEndDate && (
+                                        <div className="text-xs text-gray-500 mt-1">
+                                            選択期間: {reportStartDate.replace(/-/g, '/')} 〜 {reportEndDate.replace(/-/g, '/')}
+                                        </div>
+                                    )}
+                                </div>
+
+                                <div className="flex gap-3 mt-4">
+                                    <button
+                                        onClick={() => setIsReportModalOpen(false)}
+                                        className="flex-1 py-2.5 text-sm font-bold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                                    >
+                                        キャンセル
+                                    </button>
+                                    <button
+                                        disabled={!reportCampaign || !reportStartDate || !reportEndDate}
+                                        onClick={() => setReportStep(1)}
+                                        className="flex-1 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
+                                    >
+                                        次へ
+                                    </button>
+                                </div>
+                            </>
+                        )}
+
+                        {reportStep === 1 && (
+                            <div className="flex flex-col gap-4 py-2">
+                                <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-3">
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-500">対象商材:</span>
+                                        <span className="font-bold text-gray-800">{reportCampaign}</span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-sm">
+                                        <span className="text-gray-500">対象期間:</span>
+                                        <span className="font-bold text-gray-800">{reportStartDate} 〜 {reportEndDate}</span>
+                                    </div>
+                                    <div className="pt-2 border-t border-blue-200 text-[11px] text-blue-700 leading-relaxed">
+                                        <p>✅ 専用のスプレッドシートが自動作成されます</p>
+                                        <p>✅ セキュリティ保護されたランダムなURLを発行します</p>
+                                        <p>✅ クライアントは指定した商材の数値のみ閲覧可能です</p>
+                                    </div>
+                                </div>
+
+                                <div className="flex gap-3 mt-2">
+                                    <button
+                                        disabled={isGeneratingReport}
+                                        onClick={() => setReportStep(0)}
+                                        className="flex-1 py-3 text-sm font-bold bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200"
+                                    >
+                                        戻る
+                                    </button>
+                                    <button
+                                        disabled={isGeneratingReport}
+                                        onClick={async () => {
+                                            setIsGeneratingReport(true);
+                                            try {
+                                                const res = await fetch('/api/report/generate', {
+                                                    method: 'POST',
+                                                    headers: { 'Content-Type': 'application/json' },
+                                                    body: JSON.stringify({
+                                                        projectName: reportCampaign,
+                                                        startDate: reportStartDate,
+                                                        endDate: reportEndDate
+                                                    })
+                                                });
+                                                const data = await res.json();
+                                                if (data.error) throw new Error(data.error);
+
+                                                setGeneratedReportInfo(data);
+                                                setReportStep(2);
+                                            } catch (e: any) {
+                                                alert(`エラーが発生しました: ${e.message}`);
+                                            } finally {
+                                                setIsGeneratingReport(false);
+                                            }
+                                        }}
+                                        className="flex-3 py-3 text-sm font-bold bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-lg hover:from-blue-700 hover:to-indigo-700 shadow-lg relative overflow-hidden"
+                                    >
+                                        {isGeneratingReport ? (
+                                            <div className="flex items-center justify-center gap-2">
+                                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                                <span>スプレッドシート作成中...</span>
+                                            </div>
+                                        ) : (
+                                            <span>レポートを発行する</span>
+                                        )}
+                                    </button>
+                                </div>
+                            </div>
+                        )}
+
+                        {reportStep === 2 && generatedReportInfo && (
+                            <div className="flex flex-col gap-4 py-2">
+                                <div className="bg-green-50 p-4 rounded-lg border border-green-100 text-center">
+                                    <div className="text-3xl mb-2">🎉</div>
+                                    <p className="text-sm font-bold text-green-800">レポートが正常に発行されました</p>
+                                </div>
+
+                                <div className="space-y-4">
+                                    <div className="flex flex-col gap-1.5">
+                                        <label className="text-xs font-bold text-gray-500">🔗 レポート閲覧用URL</label>
+                                        <div className="flex items-center gap-2">
+                                            <input
+                                                type="text"
+                                                readOnly
+                                                value={`${window.location.origin}${generatedReportInfo.reportUrl}`}
+                                                className="flex-1 p-2 border rounded-lg text-xs bg-gray-50 font-mono"
+                                            />
+                                            <button
+                                                onClick={() => {
+                                                    navigator.clipboard.writeText(`${window.location.origin}${generatedReportInfo.reportUrl}`);
+                                                    setReportCopied(true);
+                                                    setTimeout(() => setReportCopied(false), 2000);
+                                                }}
+                                                className={`px-3 py-2 text-xs font-bold rounded-lg transition-all ${reportCopied ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                            >
+                                                {reportCopied ? 'コピー済' : 'コピー'}
+                                            </button>
+                                        </div>
+                                    </div>
+
+                                    <div className="flex flex-col gap-1.5 pt-2">
+                                        <label className="text-xs font-bold text-gray-500">📊 データ元スプレッドシート</label>
+                                        <a
+                                            href={generatedReportInfo.spreadsheetUrl}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-3 border border-gray-200 rounded-lg bg-gray-50 hover:bg-white hover:border-blue-300 transition-all flex items-center justify-between group"
+                                        >
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 bg-green-100 rounded flex items-center justify-center text-lg">📄</div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-xs font-bold text-gray-700">スプレッドシートを開く</span>
+                                                    <span className="text-[10px] text-gray-500">このシートを編集するとレポートに反映されます</span>
+                                                </div>
+                                            </div>
+                                            <span className="text-gray-400 group-hover:text-blue-500 group-hover:translate-x-1 transition-all">→</span>
+                                        </a>
+                                    </div>
+                                </div>
+
+                                <button
+                                    onClick={() => {
+                                        setIsReportModalOpen(false);
+                                        setReportStep(0);
+                                        setGeneratedReportInfo(null);
+                                        setReportCampaign('');
+                                    }}
+                                    className="w-full py-3 mt-2 text-sm font-bold bg-gray-800 text-white rounded-lg hover:bg-gray-900"
+                                >
+                                    完了
+                                </button>
+                            </div>
+                        )}
+                    </div>
+                </div>
+            )}
         </>
     );
 }
+
