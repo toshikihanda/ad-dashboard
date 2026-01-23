@@ -59,21 +59,33 @@ export async function POST(req: NextRequest) {
         const campaignDisplay = campaigns.length > 1 ? `${campaigns[0]} 他` : campaigns[0];
         const spreadsheetTitle = `${campaignDisplay} (${startDate} - ${endDate})`;
 
-        console.log('[API] Creating spreadsheet...');
-        const spreadsheetId = await createReportSpreadsheet(spreadsheetTitle);
+        let spreadsheetId: string;
+        try {
+            console.log('[API] Step 3: Creating spreadsheet...');
+            spreadsheetId = await createReportSpreadsheet(spreadsheetTitle);
+            console.log('[API] Step 3: Spreadsheet created:', spreadsheetId);
+        } catch (err: any) {
+            console.error('[API] Step 3 FAILED: createReportSpreadsheet error:', err.message);
+            throw new Error(`スプレッドシート作成失敗: ${err.message}`);
+        }
 
         // 4. Transform data for writing to sheet
         const headers = Object.keys(filteredData[0]);
         const rows = filteredData.map(d => headers.map(h => {
             const val = (d as any)[h];
-            // Date型は文字列に変換
             if (val instanceof Date) return toDateString(val);
             return val;
         }));
         const sheetData = [headers, ...rows];
 
-        console.log('[API] Writing data to new sheet...');
-        await writeDataToSheet(spreadsheetId, 'ReportData', sheetData);
+        try {
+            console.log('[API] Step 4: Writing data to new sheet...');
+            await writeDataToSheet(spreadsheetId, 'ReportData', sheetData);
+            console.log('[API] Step 4: Data written successfully');
+        } catch (err: any) {
+            console.error('[API] Step 4 FAILED: writeDataToSheet error:', err.message);
+            throw new Error(`データ書き込み失敗: ${err.message}`);
+        }
 
         // 5. Store metadata in the master list
         const reportUrl = `/report/${token}`;

@@ -45,8 +45,9 @@ export async function getGoogleAuth() {
     const privateKey = formatPrivateKey(rawKey);
 
     // デバッグ情報（サーバーログに出力されます）
-    console.log(`[GoogleAuth] Email: ${clientEmail ? 'Set' : 'Missing'}`);
+    console.log(`[GoogleAuth] Using email: ${clientEmail}`);
     console.log(`[GoogleAuth] Key format check: ${privateKey.startsWith('-----BEGIN') && privateKey.endsWith('-----\n') ? 'OK' : 'INVALID'}`);
+    console.log(`[GoogleAuth] Key length: ${privateKey.length} chars`);
 
     if (!clientEmail || !privateKey || privateKey.length < 100) {
         throw new Error('Google API credentials are not valid or missing.');
