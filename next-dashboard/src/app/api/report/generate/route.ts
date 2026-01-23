@@ -20,6 +20,16 @@ export async function POST(req: NextRequest) {
         const rawData = await loadDataFromSheets();
         const processed = processData(rawData);
 
+        // デバッグ: 最初のデータの形式を確認
+        console.log('[API] Total processed rows:', processed.length);
+        if (processed.length > 0) {
+            console.log('[API] Sample data keys:', Object.keys(processed[0]));
+            console.log('[API] Sample Campaign_Name:', processed[0].Campaign_Name);
+            console.log('[API] Sample Date:', processed[0].Date);
+        }
+        console.log('[API] Requested campaigns:', campaigns);
+        console.log('[API] Requested date range:', startDate, '~', endDate);
+
         // Filter data by campaign and date
         const filteredData = processed.filter(d => {
             const dateMatch = d.Date >= startDate && d.Date <= endDate;
@@ -27,8 +37,18 @@ export async function POST(req: NextRequest) {
             return dateMatch && campaignMatch;
         });
 
+        console.log('[API] Filtered data count:', filteredData.length);
+
         if (filteredData.length === 0) {
-            return NextResponse.json({ error: '対象期間にデータが存在しません' }, { status: 400 });
+            // より詳細なエラーメッセージ
+            const availableCampaigns = [...new Set(processed.map(d => d.Campaign_Name))];
+            const availableDates = [...new Set(processed.map(d => d.Date))].sort();
+            console.log('[API] Available campaigns:', availableCampaigns);
+            console.log('[API] Available date range:', availableDates[0], '~', availableDates[availableDates.length - 1]);
+
+            return NextResponse.json({
+                error: `対象期間にデータが存在しません。利用可能な商材: ${availableCampaigns.slice(0, 5).join(', ')}...、データ期間: ${availableDates[0]} ~ ${availableDates[availableDates.length - 1]}`
+            }, { status: 400 });
         }
 
         // 3. Create a new Google Spreadsheet
