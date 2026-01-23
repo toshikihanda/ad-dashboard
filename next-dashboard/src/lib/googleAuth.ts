@@ -6,7 +6,7 @@ const SCOPES = [
 ];
 
 /**
- * Googleの秘密鍵（Private Key）をNode.jsが受理できる形式に整形する
+ * Googleの秘密鍵（Private Key）をNode.jsが確実に受理できる形式に整形する
  */
 function formatPrivateKey(key: string | undefined): string {
     if (!key) return '';
@@ -14,19 +14,28 @@ function formatPrivateKey(key: string | undefined): string {
     // 1. 前後の引用符や空白を完全に除去
     let cleaned = key.trim().replace(/^["']|["']$/g, '');
 
-    // 2. 複数のバリエーションの改行エスケープを実際の改行に変換
-    //    (\\n や \n 文字列を 本物の改行コードに置換)
+    // 2. 文字列としての "\n" (バックスラッシュ + n) を実際の改行コードに置換
     cleaned = cleaned.replace(/\\n/g, '\n');
 
-    // 3. もし鍵の本体部分だけでヘッダーがない場合、または改行が壊れている場合を考慮
-    // PEM形式は -----BEGIN PRIVATE KEY----- で始まる必要がある
-    if (!cleaned.includes('-----BEGIN PRIVATE KEY-----')) {
-        // 鍵の本体と思われる部分を整形（スペースをすべて除去して64文字ごとに改行を入れるのが本来のPEMだが、Nodeは1行でも読める場合がある）
-        // ここでは最低限、ヘッダーとフッターを付与してみる
-        cleaned = `-----BEGIN PRIVATE KEY-----\n${cleaned}\n-----END PRIVATE KEY-----\n`;
-    }
+    // 3. ヘッダーとフッターに挟まれた「中身」を抽出して整形
+    // ユーザーが1行で貼り付けてしまった場合、ヘッダーの直後に改行がないためエラーになる
+    const header = '-----BEGIN PRIVATE KEY-----';
+    const footer = '-----END PRIVATE KEY-----';
 
-    return cleaned;
+    if (cleaned.includes(header) && cleaned.includes(footer)) {
+        // ヘッダーとフッターを取り除いて、中身（Base64部分）だけにする
+        let body = cleaned
+            .replace(header, '')
+            .replace(footer, '')
+            .replace(/\s+/g, ''); // スペースや改行を一旦すべて削除
+
+        // 正しいPEM形式（ヘッダー + 改行 + 中身 + 改行 + フッター + 改行）に再構築
+        return `${header}\n${body}\n${footer}\n`;
+    } else {
+        // ヘッダーがない場合は、全体を中身として扱い付与する
+        const body = cleaned.replace(/\s+/g, '');
+        return `${header}\n${body}\n${footer}\n`;
+    }
 }
 
 export async function getGoogleAuth() {
@@ -35,10 +44,9 @@ export async function getGoogleAuth() {
 
     const privateKey = formatPrivateKey(rawKey);
 
-    // デバッグ情報（秘密鍵自体は出さない）
+    // デバッグ情報（サーバーログに出力されます）
     console.log(`[GoogleAuth] Email: ${clientEmail ? 'Set' : 'Missing'}`);
-    console.log(`[GoogleAuth] Key length: ${privateKey.length} chars`);
-    console.log(`[GoogleAuth] Key starts with: ${privateKey.substring(0, 30)}...`);
+    console.log(`[GoogleAuth] Key format check: ${privateKey.startsWith('-----BEGIN') && privateKey.endsWith('-----\n') ? 'OK' : 'INVALID'}`);
 
     if (!clientEmail || !privateKey || privateKey.length < 100) {
         throw new Error('Google API credentials are not valid or missing.');
