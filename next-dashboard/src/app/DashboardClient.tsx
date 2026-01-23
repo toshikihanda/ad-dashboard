@@ -43,7 +43,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
     const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
-    const [reportCampaign, setReportCampaign] = useState<string>('');
+    const [reportCampaigns, setReportCampaigns] = useState<string[]>([]);
     const [reportCopied, setReportCopied] = useState(false);
     const [reportStep, setReportStep] = useState<0 | 1 | 2>(0); // 0: Select, 1: Confirm, 2: Result
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
@@ -813,19 +813,33 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     <span className="text-xs text-gray-500">※売上・粗利・ROAS等の内部数値は除外されます</span>
                                 </p>
 
-                                {/* 商材選択 */}
+                                {/* 商材選択（複数可） */}
                                 <div className="flex flex-col gap-2">
-                                    <label className="text-xs font-bold text-gray-500">① 商材を選択</label>
-                                    <select
-                                        value={reportCampaign}
-                                        onChange={(e) => setReportCampaign(e.target.value)}
-                                        className="p-2 border rounded-lg text-sm bg-white"
-                                    >
-                                        <option value="">商材を選択してください</option>
+                                    <label className="text-xs font-bold text-gray-500">① 商材を選択（複数可）</label>
+                                    <div className="max-h-40 overflow-y-auto border rounded-lg p-2 bg-white space-y-1">
                                         {masterProjects.map(c => (
-                                            <option key={c} value={c}>{c}</option>
+                                            <label key={c} className="flex items-center gap-2 p-1.5 hover:bg-gray-50 rounded cursor-pointer">
+                                                <input
+                                                    type="checkbox"
+                                                    checked={reportCampaigns.includes(c)}
+                                                    onChange={(e) => {
+                                                        if (e.target.checked) {
+                                                            setReportCampaigns([...reportCampaigns, c]);
+                                                        } else {
+                                                            setReportCampaigns(reportCampaigns.filter(x => x !== c));
+                                                        }
+                                                    }}
+                                                    className="w-4 h-4 text-blue-600 rounded"
+                                                />
+                                                <span className="text-sm text-gray-700">{c}</span>
+                                            </label>
                                         ))}
-                                    </select>
+                                    </div>
+                                    {reportCampaigns.length > 0 && (
+                                        <div className="text-xs text-blue-600">
+                                            {reportCampaigns.length}件選択中
+                                        </div>
+                                    )}
                                 </div>
 
                                 {/* 期間選択 */}
@@ -882,7 +896,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                         キャンセル
                                     </button>
                                     <button
-                                        disabled={!reportCampaign || !reportStartDate || !reportEndDate}
+                                        disabled={reportCampaigns.length === 0 || !reportStartDate || !reportEndDate}
                                         onClick={() => setReportStep(1)}
                                         className="flex-1 py-2.5 text-sm font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed shadow-md"
                                     >
@@ -895,9 +909,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                         {reportStep === 1 && (
                             <div className="flex flex-col gap-4 py-2">
                                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-100 space-y-3">
-                                    <div className="flex items-center justify-between text-sm">
+                                    <div className="flex flex-col gap-1 text-sm">
                                         <span className="text-gray-500">対象商材:</span>
-                                        <span className="font-bold text-gray-800">{reportCampaign}</span>
+                                        <div className="flex flex-wrap gap-1">
+                                            {reportCampaigns.map(c => (
+                                                <span key={c} className="px-2 py-0.5 bg-blue-100 text-blue-800 rounded text-xs font-bold">{c}</span>
+                                            ))}
+                                        </div>
                                     </div>
                                     <div className="flex items-center justify-between text-sm">
                                         <span className="text-gray-500">対象期間:</span>
@@ -927,7 +945,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                                     method: 'POST',
                                                     headers: { 'Content-Type': 'application/json' },
                                                     body: JSON.stringify({
-                                                        projectName: reportCampaign,
+                                                        campaigns: reportCampaigns,
                                                         startDate: reportStartDate,
                                                         endDate: reportEndDate
                                                     })
@@ -1013,7 +1031,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                         setIsReportModalOpen(false);
                                         setReportStep(0);
                                         setGeneratedReportInfo(null);
-                                        setReportCampaign('');
+                                        setReportCampaigns([]);
                                     }}
                                     className="w-full py-3 mt-2 text-sm font-bold bg-gray-800 text-white rounded-lg hover:bg-gray-900"
                                 >
