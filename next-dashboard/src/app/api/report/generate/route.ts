@@ -21,7 +21,7 @@ export async function POST(req: NextRequest) {
         const processed = processData(rawData);
 
         // Filter data by campaign and date
-        const filteredData = processed.dailyData.filter(d => {
+        const filteredData = processed.filter(d => {
             const dateMatch = d.Date >= startDate && d.Date <= endDate;
             const campaignMatch = campaigns.includes(d.Campaign_Name);
             return dateMatch && campaignMatch;
@@ -53,7 +53,7 @@ export async function POST(req: NextRequest) {
         console.log('[API] Adding report to master list...');
         await addReportToList({
             token,
-            campaigns,
+            projectName: campaigns.join(', '),
             startDate,
             endDate,
             spreadsheetId,
