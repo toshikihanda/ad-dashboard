@@ -7,7 +7,9 @@ const SCOPES = [
 
 export async function getGoogleAuth() {
     const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
-    const privateKey = process.env.GOOGLE_PRIVATE_KEY?.replace(/\\n/g, '\n');
+    // Vercel環境では \n がリテラル文字列として保存されるため、実際の改行に変換
+    const rawKey = process.env.GOOGLE_PRIVATE_KEY || '';
+    const privateKey = rawKey.split('\\n').join('\n');
 
     if (!clientEmail || !privateKey) {
         throw new Error('Google API credentials are not set in environment variables.');
