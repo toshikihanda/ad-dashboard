@@ -70,25 +70,45 @@ export async function createReportSpreadsheet(title: string) {
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    const res = await sheets.spreadsheets.create({
-        requestBody: {
-            properties: {
-                title: `[Report] ${title}`,
-            },
-        },
-    });
+    let spreadsheetId: string;
 
-    const spreadsheetId = res.data.spreadsheetId;
+    // Step 1: Create spreadsheet
+    try {
+        console.log('[createReportSpreadsheet] Step 1: Creating spreadsheet with Sheets API...');
+        const res = await sheets.spreadsheets.create({
+            requestBody: {
+                properties: {
+                    title: `[Report] ${title}`,
+                },
+            },
+        });
+        spreadsheetId = res.data.spreadsheetId!;
+        console.log('[createReportSpreadsheet] Step 1 SUCCESS: Spreadsheet ID =', spreadsheetId);
+    } catch (err: any) {
+        console.error('[createReportSpreadsheet] Step 1 FAILED (Sheets API create):', err.message);
+        throw err;
+    }
+
     if (!spreadsheetId) throw new Error('Failed to create spreadsheet');
 
-    const drive = google.drive({ version: 'v3', auth });
-    await drive.permissions.create({
-        fileId: spreadsheetId,
-        requestBody: {
-            role: 'reader',
-            type: 'anyone',
-        },
-    });
+    // Step 2: Set public permissions (anyone with link can view)
+    try {
+        console.log('[createReportSpreadsheet] Step 2: Setting permissions with Drive API...');
+        const drive = google.drive({ version: 'v3', auth });
+        await drive.permissions.create({
+            fileId: spreadsheetId,
+            requestBody: {
+                role: 'reader',
+                type: 'anyone',
+            },
+        });
+        console.log('[createReportSpreadsheet] Step 2 SUCCESS: Permissions set');
+    } catch (err: any) {
+        console.error('[createReportSpreadsheet] Step 2 FAILED (Drive API permissions):', err.message);
+        // 共有設定が失敗してもスプレッドシートは作成されているので、URLを返す
+        // ただしログに残す
+        console.warn('[createReportSpreadsheet] Note: Spreadsheet was created but sharing failed. Manual sharing may be required.');
+    }
 
     return spreadsheetId;
 }
