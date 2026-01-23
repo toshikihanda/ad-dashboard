@@ -64,11 +64,11 @@ export async function POST(req: NextRequest) {
             }, { status: 400 });
         }
 
-        // 3. シート名を生成（商材名_開始日_終了日）
+        // 3. シート名を生成（商材名_開始日_終了日_トークン）
         const campaignDisplay = campaigns.length > 1
             ? campaigns[0].replace(/[^a-zA-Z0-9ぁ-んァ-ン一-龥]/g, '')
             : campaigns[0].replace(/[^a-zA-Z0-9ぁ-んァ-ン一-龥]/g, '');
-        const sheetName = `Report_${campaignDisplay}_${startDate.replace(/-/g, '')}_${endDate.replace(/-/g, '')}`;
+        const sheetName = `Rpt_${campaignDisplay}_${startDate.replace(/-/g, '').slice(4)}_${adminToken.slice(0, 6)}`;
 
         // 4. マスターシート内に新しいシート（タブ）を作成
         await createReportSheet(sheetName);
