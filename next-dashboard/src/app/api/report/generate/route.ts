@@ -17,7 +17,23 @@ export async function POST(req: NextRequest) {
 
         // 2. データ取得とフィルタリング
         const rawData = await loadDataFromSheets();
+
+        // デバッグ: 各シートから取得した行数
+        console.log('[Report] Raw data counts:');
+        console.log('  - Meta_Live:', rawData.Meta_Live.length);
+        console.log('  - Meta_History:', rawData.Meta_History.length);
+        console.log('  - Beyond_Live:', rawData.Beyond_Live.length);
+        console.log('  - Beyond_History:', rawData.Beyond_History.length);
+
         const processed = processData(rawData);
+
+        // デバッグ: 処理後のMedia別内訳
+        const metaCount = processed.filter(d => d.Media === 'Meta').length;
+        const beyondCount = processed.filter(d => d.Media === 'Beyond').length;
+        console.log('[Report] Processed data:');
+        console.log('  - Total:', processed.length);
+        console.log('  - Meta:', metaCount);
+        console.log('  - Beyond:', beyondCount);
 
         const toDateString = (d: any): string => {
             if (!d) return '';
@@ -32,6 +48,14 @@ export async function POST(req: NextRequest) {
             const campaignMatch = campaigns.includes(d.Campaign_Name);
             return dateMatch && campaignMatch;
         });
+
+        // デバッグ: フィルタリング後のMedia別内訳
+        const filteredMetaCount = filteredData.filter(d => d.Media === 'Meta').length;
+        const filteredBeyondCount = filteredData.filter(d => d.Media === 'Beyond').length;
+        console.log('[Report] Filtered data:');
+        console.log('  - Total:', filteredData.length);
+        console.log('  - Meta:', filteredMetaCount);
+        console.log('  - Beyond:', filteredBeyondCount);
 
         if (filteredData.length === 0) {
             const availableDates = [...new Set(processed.map(d => toDateString(d.Date)))].filter(Boolean).sort();
