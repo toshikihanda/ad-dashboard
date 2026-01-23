@@ -1,92 +1,80 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { loadDataFromSheets } from '@/lib/googleSheets';
-import { processData, filterByCampaign, filterByDateRange } from '@/lib/dataProcessor';
 import { createReportSpreadsheet, writeDataToSheet } from '@/lib/googleAuth';
 import { addReportToList } from '@/lib/reportStore';
-import crypto from 'crypto';
+import { loadDataFromSheets } from '@/lib/googleSheets';
+import { processData } from '@/lib/dataProcessor';
 
 export async function POST(req: NextRequest) {
     try {
-        const body = await req.json();
-        const { projectName, startDate, endDate } = body;
+        const { campaigns, startDate, endDate, datePreset } = await req.json();
 
-        if (!projectName || !startDate || !endDate) {
-            return NextResponse.json({ error: 'Missing parameters' }, { status: 400 });
+        if (!campaigns || !Array.isArray(campaigns) || campaigns.length === 0) {
+            return NextResponse.json({ error: '商材を選択してください' }, { status: 400 });
         }
 
-        // 1. Generate Token
-        const token = crypto.randomBytes(8).toString('hex'); // 16 characters random string
+        // 1. Generate unique token
+        const token = Math.random().toString(36).substring(2, 10) + Math.random().toString(36).substring(2, 10);
 
-        // 2. Fetch and Filter Data
+        // 2. Fetch and filter data for the report
+        // We use the existing data loading logic
         const rawData = await loadDataFromSheets();
-        const processedData = processData(rawData);
+        const processed = processData(rawData);
 
-        // Filter by campaign and date
-        const campaignData = filterByCampaign(processedData, projectName);
-        const filteredData = filterByDateRange(campaignData, new Date(startDate), new Date(endDate));
+        // Filter data by campaign and date
+        const filteredData = processed.dailyData.filter(d => {
+            const dateMatch = d.Date >= startDate && d.Date <= endDate;
+            const campaignMatch = campaigns.includes(d.Campaign_Name);
+            return dateMatch && campaignMatch;
+        });
 
         if (filteredData.length === 0) {
-            return NextResponse.json({ error: 'No data found for the selected criteria' }, { status: 404 });
+            return NextResponse.json({ error: '対象期間にデータが存在しません' }, { status: 400 });
         }
 
-        // 3. Create Spreadsheet
-        const title = `${projectName} (${startDate}〜${endDate})`;
-        const spreadsheetId = await createReportSpreadsheet(title);
+        // 3. Create a new Google Spreadsheet
+        const campaignDisplay = campaigns.length > 1 ? `${campaigns[0]} 他` : campaigns[0];
+        const spreadsheetTitle = `${campaignDisplay} (${startDate}pt - ${endDate})`;
 
-        // 4. Prepare Data for Writing (CSV-like 2D array)
-        // Headers: Date, Media, Campaign_Name, Cost, Impressions, Clicks, CV, PV, FV_Exit, SV_Exit, beyond_page_name, version_name, creative_value
-        const headers = [
-            'Date', 'Media', 'Campaign_Name', 'Cost', 'Impressions', 'Clicks',
-            'CV', 'PV', 'FV_Exit', 'SV_Exit', 'beyond_page_name', 'version_name', 'creative_value'
-        ];
+        console.log('[API] Creating spreadsheet...');
+        const spreadsheetId = await createReportSpreadsheet(spreadsheetTitle);
 
-        const dataRows = filteredData.map(row => [
-            row.Date.toISOString().split('T')[0],
-            row.Media,
-            row.Campaign_Name,
-            row.Cost,
-            row.Impressions,
-            row.Clicks,
-            row.CV,
-            row.PV,
-            row.FV_Exit,
-            row.SV_Exit,
-            row.beyond_page_name,
-            row.version_name,
-            row.creative_value
-        ]);
+        // 4. Transform data for writing to sheet
+        const headers = Object.keys(filteredData[0]);
+        const rows = filteredData.map(d => headers.map(h => (d as any)[h]));
+        const sheetData = [headers, ...rows];
 
-        const fullData = [headers, ...dataRows];
+        console.log('[API] Writing data to new sheet...');
+        await writeDataToSheet(spreadsheetId, 'ReportData', sheetData);
 
-        // 5. Write Data
-        await writeDataToSheet(spreadsheetId, 'Data', fullData);
+        // 5. Store metadata in the master list
+        const reportUrl = `${new URL(req.url).origin}/report/${token}`;
+        const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit`;
 
-        // 6. Save to Master List
-        const createdAt = new Date().toLocaleString('ja-JP', { timeZone: 'Asia/Tokyo' });
+        console.log('[API] Adding report to master list...');
         await addReportToList({
             token,
-            projectName,
+            campaigns,
             startDate,
             endDate,
             spreadsheetId,
-            createdAt
+            createdAt: new Date().toISOString()
         });
-
-        const reportUrl = `/report/${token}`;
-        const spreadsheetUrl = `https://docs.google.com/spreadsheets/d/${spreadsheetId}`;
 
         return NextResponse.json({
             success: true,
-            token,
             reportUrl,
-            spreadsheetUrl,
-            projectName,
-            startDate,
-            endDate
+            spreadsheetUrl
         });
 
     } catch (error: any) {
-        console.error('Report Generation Error:', error);
-        return NextResponse.json({ error: error.message || 'Internal Server Error' }, { status: 500 });
+        console.error('Report generation error:', error);
+        // Google APIのエラーメッセージを抽出
+        const apiError = error.response?.data?.error?.message;
+        const errorMessage = apiError ? `Google API Error: ${apiError}` : (error.message || 'Unknown error');
+
+        return NextResponse.json(
+            { error: `エラーが発生しました: ${errorMessage}` },
+            { status: 500 }
+        );
     }
 }
