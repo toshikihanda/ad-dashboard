@@ -11,28 +11,19 @@ const SCOPES = [
 function formatPrivateKey(key: string | undefined): string {
     if (!key) return '';
 
-    // 1. 前後の引用符や空白を完全に除去
     let cleaned = key.trim().replace(/^["']|["']$/g, '');
-
-    // 2. 文字列としての "\n" (バックスラッシュ + n) を実際の改行コードに置換
     cleaned = cleaned.replace(/\\n/g, '\n');
 
-    // 3. ヘッダーとフッターに挟まれた「中身」を抽出して整形
-    // ユーザーが1行で貼り付けてしまった場合、ヘッダーの直後に改行がないためエラーになる
     const header = '-----BEGIN PRIVATE KEY-----';
     const footer = '-----END PRIVATE KEY-----';
 
     if (cleaned.includes(header) && cleaned.includes(footer)) {
-        // ヘッダーとフッターを取り除いて、中身（Base64部分）だけにする
         let body = cleaned
             .replace(header, '')
             .replace(footer, '')
-            .replace(/\s+/g, ''); // スペースや改行を一旦すべて削除
-
-        // 正しいPEM形式（ヘッダー + 改行 + 中身 + 改行 + フッター + 改行）に再構築
+            .replace(/\s+/g, '');
         return `${header}\n${body}\n${footer}\n`;
     } else {
-        // ヘッダーがない場合は、全体を中身として扱い付与する
         const body = cleaned.replace(/\s+/g, '');
         return `${header}\n${body}\n${footer}\n`;
     }
@@ -41,16 +32,10 @@ function formatPrivateKey(key: string | undefined): string {
 export async function getGoogleAuth() {
     const clientEmail = process.env.GOOGLE_CLIENT_EMAIL;
     const rawKey = process.env.GOOGLE_PRIVATE_KEY;
-
     const privateKey = formatPrivateKey(rawKey);
 
-    // デバッグ情報（サーバーログに出力されます）
-    console.log(`[GoogleAuth] Using email: ${clientEmail}`);
-    console.log(`[GoogleAuth] Key format check: ${privateKey.startsWith('-----BEGIN') && privateKey.endsWith('-----\n') ? 'OK' : 'INVALID'}`);
-    console.log(`[GoogleAuth] Key length: ${privateKey.length} chars`);
-
     if (!clientEmail || !privateKey || privateKey.length < 100) {
-        throw new Error('Google API credentials are not valid or missing.');
+        throw new Error(`認証情報エラー: email=${!!clientEmail}, keyLength=${privateKey.length}`);
     }
 
     try {
@@ -61,20 +46,24 @@ export async function getGoogleAuth() {
         });
         return auth;
     } catch (err: any) {
-        console.error('[GoogleAuth] Failed to initialize JWT:', err.message);
-        throw err;
+        throw new Error(`JWT初期化失敗: ${err.message}`);
     }
 }
 
-export async function createReportSpreadsheet(title: string) {
-    const auth = await getGoogleAuth();
-    const sheets = google.sheets({ version: 'v4', auth });
+export async function createReportSpreadsheet(title: string): Promise<string> {
+    // Step 0: 認証
+    let auth;
+    try {
+        auth = await getGoogleAuth();
+    } catch (err: any) {
+        throw new Error(`[Step0] 認証失敗: ${err.message}`);
+    }
 
+    const sheets = google.sheets({ version: 'v4', auth });
     let spreadsheetId: string;
 
-    // Step 1: Create spreadsheet
+    // Step 1: スプレッドシート新規作成
     try {
-        console.log('[createReportSpreadsheet] Step 1: Creating spreadsheet with Sheets API...');
         const res = await sheets.spreadsheets.create({
             requestBody: {
                 properties: {
@@ -83,17 +72,17 @@ export async function createReportSpreadsheet(title: string) {
             },
         });
         spreadsheetId = res.data.spreadsheetId!;
-        console.log('[createReportSpreadsheet] Step 1 SUCCESS: Spreadsheet ID =', spreadsheetId);
+        if (!spreadsheetId) {
+            throw new Error('spreadsheetId is null');
+        }
     } catch (err: any) {
-        console.error('[createReportSpreadsheet] Step 1 FAILED (Sheets API create):', err.message);
-        throw err;
+        // Google APIのエラー詳細を抽出
+        const details = err.response?.data?.error?.message || err.message;
+        throw new Error(`[Step1] Sheets API新規作成失敗: ${details}`);
     }
 
-    if (!spreadsheetId) throw new Error('Failed to create spreadsheet');
-
-    // Step 2: Set public permissions (anyone with link can view)
+    // Step 2: 共有設定（失敗しても続行）
     try {
-        console.log('[createReportSpreadsheet] Step 2: Setting permissions with Drive API...');
         const drive = google.drive({ version: 'v3', auth });
         await drive.permissions.create({
             fileId: spreadsheetId,
@@ -102,48 +91,70 @@ export async function createReportSpreadsheet(title: string) {
                 type: 'anyone',
             },
         });
-        console.log('[createReportSpreadsheet] Step 2 SUCCESS: Permissions set');
     } catch (err: any) {
-        console.error('[createReportSpreadsheet] Step 2 FAILED (Drive API permissions):', err.message);
-        // 共有設定が失敗してもスプレッドシートは作成されているので、URLを返す
-        // ただしログに残す
-        console.warn('[createReportSpreadsheet] Note: Spreadsheet was created but sharing failed. Manual sharing may be required.');
+        const details = err.response?.data?.error?.message || err.message;
+        console.error(`[Step2] 共有設定失敗 (続行): ${details}`);
+        // 共有設定が失敗しても、スプレッドシートは作成できているので続行
     }
 
     return spreadsheetId;
 }
 
 export async function writeDataToSheet(spreadsheetId: string, sheetName: string, data: any[][]) {
-    const auth = await getGoogleAuth();
-    const sheets = google.sheets({ version: 'v4', auth });
-
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-    const sheetExists = spreadsheet.data.sheets?.some(s => s.properties?.title === sheetName);
-
-    if (!sheetExists) {
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId,
-            requestBody: {
-                requests: [{
-                    addSheet: {
-                        properties: { title: sheetName }
-                    }
-                }]
-            }
-        });
+    let auth;
+    try {
+        auth = await getGoogleAuth();
+    } catch (err: any) {
+        throw new Error(`[WriteData] 認証失敗: ${err.message}`);
     }
 
-    await sheets.spreadsheets.values.clear({
-        spreadsheetId,
-        range: `${sheetName}!A1:Z50000`,
-    });
+    const sheets = google.sheets({ version: 'v4', auth });
 
-    await sheets.spreadsheets.values.update({
-        spreadsheetId,
-        range: `${sheetName}!A1`,
-        valueInputOption: 'USER_ENTERED',
-        requestBody: {
-            values: data,
-        },
-    });
+    // シートが存在するか確認
+    try {
+        const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
+        const sheetExists = spreadsheet.data.sheets?.some(s => s.properties?.title === sheetName);
+
+        if (!sheetExists) {
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId,
+                requestBody: {
+                    requests: [{
+                        addSheet: {
+                            properties: { title: sheetName }
+                        }
+                    }]
+                }
+            });
+        }
+    } catch (err: any) {
+        const details = err.response?.data?.error?.message || err.message;
+        throw new Error(`[WriteData] シート確認/作成失敗: ${details}`);
+    }
+
+    // データクリア
+    try {
+        await sheets.spreadsheets.values.clear({
+            spreadsheetId,
+            range: `${sheetName}!A1:Z50000`,
+        });
+    } catch (err: any) {
+        const details = err.response?.data?.error?.message || err.message;
+        throw new Error(`[WriteData] データクリア失敗: ${details}`);
+    }
+
+    // データ書き込み
+    try {
+        await sheets.spreadsheets.values.update({
+            spreadsheetId,
+            range: `${sheetName}!A1`,
+            valueInputOption: 'USER_ENTERED',
+            requestBody: {
+                values: data,
+            },
+        });
+    } catch (err: any) {
+        const details = err.response?.data?.error?.message || err.message;
+        throw new Error(`[WriteData] データ書き込み失敗: ${details}`);
+    }
 }
