@@ -50,54 +50,50 @@ export async function getGoogleAuth() {
     }
 }
 
-export async function createReportSpreadsheet(title: string): Promise<string> {
-    // Step 0: 認証
+/**
+ * マスターシート内に新しいシート（タブ）を作成してレポートデータを保存する
+ * 新規スプレッドシートの作成権限がない場合のワークアラウンド
+ */
+export async function createReportSheet(sheetName: string): Promise<void> {
+    const masterId = process.env.GOOGLE_SHEETS_MASTER_ID;
+    if (!masterId) {
+        throw new Error('GOOGLE_SHEETS_MASTER_ID が設定されていません');
+    }
+
     let auth;
     try {
         auth = await getGoogleAuth();
     } catch (err: any) {
-        throw new Error(`[Step0] 認証失敗: ${err.message}`);
+        throw new Error(`[認証失敗] ${err.message}`);
     }
 
     const sheets = google.sheets({ version: 'v4', auth });
-    let spreadsheetId: string;
 
-    // Step 1: スプレッドシート新規作成
+    // マスターシート内に新しいシート（タブ）を作成
     try {
-        const res = await sheets.spreadsheets.create({
+        const res = await sheets.spreadsheets.batchUpdate({
+            spreadsheetId: masterId,
             requestBody: {
-                properties: {
-                    title: `[Report] ${title}`,
-                },
-            },
+                requests: [{
+                    addSheet: {
+                        properties: {
+                            title: sheetName,
+                        }
+                    }
+                }]
+            }
         });
-        spreadsheetId = res.data.spreadsheetId!;
-        if (!spreadsheetId) {
-            throw new Error('spreadsheetId is null');
+
+        const newSheetId = res.data.replies?.[0]?.addSheet?.properties?.sheetId;
+        if (newSheetId === undefined) {
+            throw new Error('シートIDが取得できませんでした');
         }
-    } catch (err: any) {
-        // Google APIのエラー詳細を抽出
-        const details = err.response?.data?.error?.message || err.message;
-        throw new Error(`[Step1] Sheets API新規作成失敗: ${details}`);
-    }
 
-    // Step 2: 共有設定（失敗しても続行）
-    try {
-        const drive = google.drive({ version: 'v3', auth });
-        await drive.permissions.create({
-            fileId: spreadsheetId,
-            requestBody: {
-                role: 'reader',
-                type: 'anyone',
-            },
-        });
+        // シート作成成功
     } catch (err: any) {
         const details = err.response?.data?.error?.message || err.message;
-        console.error(`[Step2] 共有設定失敗 (続行): ${details}`);
-        // 共有設定が失敗しても、スプレッドシートは作成できているので続行
+        throw new Error(`[シート作成失敗] ${details}`);
     }
-
-    return spreadsheetId;
 }
 
 export async function writeDataToSheet(spreadsheetId: string, sheetName: string, data: any[][]) {
@@ -110,37 +106,14 @@ export async function writeDataToSheet(spreadsheetId: string, sheetName: string,
 
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // シートが存在するか確認
-    try {
-        const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId });
-        const sheetExists = spreadsheet.data.sheets?.some(s => s.properties?.title === sheetName);
-
-        if (!sheetExists) {
-            await sheets.spreadsheets.batchUpdate({
-                spreadsheetId,
-                requestBody: {
-                    requests: [{
-                        addSheet: {
-                            properties: { title: sheetName }
-                        }
-                    }]
-                }
-            });
-        }
-    } catch (err: any) {
-        const details = err.response?.data?.error?.message || err.message;
-        throw new Error(`[WriteData] シート確認/作成失敗: ${details}`);
-    }
-
-    // データクリア
+    // データクリア（エラーは無視 - シートが新しい場合データがない）
     try {
         await sheets.spreadsheets.values.clear({
             spreadsheetId,
             range: `${sheetName}!A1:Z50000`,
         });
     } catch (err: any) {
-        const details = err.response?.data?.error?.message || err.message;
-        throw new Error(`[WriteData] データクリア失敗: ${details}`);
+        // 新規シートの場合はクリア不要なのでエラーは無視
     }
 
     // データ書き込み
@@ -157,4 +130,11 @@ export async function writeDataToSheet(spreadsheetId: string, sheetName: string,
         const details = err.response?.data?.error?.message || err.message;
         throw new Error(`[WriteData] データ書き込み失敗: ${details}`);
     }
+}
+
+/**
+ * シートのURLを生成（マスターシート内の特定シートへのリンク）
+ */
+export function getSheetUrl(spreadsheetId: string, sheetId: number): string {
+    return `https://docs.google.com/spreadsheets/d/${spreadsheetId}/edit#gid=${sheetId}`;
 }

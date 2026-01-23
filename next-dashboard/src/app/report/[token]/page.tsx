@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import ReportClient from '../ReportClient';
-import { getReportByToken } from '@/lib/reportStore';
+import { getReportByToken, getSheetUrl, getMasterSpreadsheetId } from '@/lib/reportStore';
 import { getGoogleAuth } from '@/lib/googleAuth';
 import { google } from 'googleapis';
 import { ProcessedRow } from '@/lib/dataProcessor';
@@ -15,14 +15,23 @@ export const metadata: Metadata = {
     },
 };
 
-async function getReportData(spreadsheetId: string) {
+/**
+ * マスターシート内の指定されたシートからデータを取得
+ */
+async function getReportData(sheetName: string) {
+    const masterId = getMasterSpreadsheetId();
+    if (!masterId) {
+        console.error('MASTER_ID not set');
+        return [];
+    }
+
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
     try {
         const res = await sheets.spreadsheets.values.get({
-            spreadsheetId,
-            range: 'Data!A:M', // Adjust range if needed
+            spreadsheetId: masterId,
+            range: `${sheetName}!A:Z`,
         });
 
         const rows = res.data.values;
@@ -31,39 +40,39 @@ async function getReportData(spreadsheetId: string) {
         const headers = rows[0];
         const dataRows = rows.slice(1);
 
-        // Convert back to ProcessedRow format (with Date objects etc)
-        return dataRows.map(r => ({
-            Date: new Date(r[0]),
-            Media: r[1],
-            Campaign_Name: r[2],
-            Cost: Number(r[3]) || 0,
-            Impressions: Number(r[4]) || 0,
-            Clicks: Number(r[5]) || 0,
-            CV: Number(r[6]) || 0,
-            PV: Number(r[7]) || 0,
-            FV_Exit: Number(r[8]) || 0,
-            SV_Exit: Number(r[9]) || 0,
-            beyond_page_name: r[10] || '',
-            version_name: r[11] || '',
-            creative_value: r[12] || '',
-            // Derived fields (optional if UI recalculates them)
-            MCV: Number(r[6]) || 0,
-        })) as unknown as ProcessedRow[];
+        // ヘッダーを使ってオブジェクトに変換
+        return dataRows.map(row => {
+            const obj: any = {};
+            headers.forEach((h: string, i: number) => {
+                let val = row[i];
+                // 数値っぽいものは数値に変換
+                if (val && !isNaN(Number(val)) && h !== 'Date') {
+                    val = Number(val);
+                }
+                // Dateは文字列のまま
+                obj[h] = val ?? '';
+            });
+            return obj;
+        }) as ProcessedRow[];
     } catch (e) {
-        console.error('Failed to fetch data from report spreadsheet', e);
+        console.error('Failed to fetch data from report sheet', e);
         return [];
     }
 }
 
 export default async function Page({ params }: { params: { token: string } }) {
     const { token } = params;
-    const report = await getReportByToken(token);
+    const result = await getReportByToken(token);
 
-    if (!report) {
+    if (!result) {
         notFound();
     }
 
-    const data = await getReportData(report.spreadsheetId);
+    const { entry, isAdmin } = result;
+    const data = await getReportData(entry.sheetName);
+
+    // スプレッドシートURL（管理者のみ使用）
+    const spreadsheetUrl = isAdmin ? await getSheetUrl(entry.sheetName) : undefined;
 
     return (
         <div className="min-h-screen bg-slate-100 p-4 md:p-6">
@@ -74,9 +83,12 @@ export default async function Page({ params }: { params: { token: string } }) {
             }>
                 <ReportClient
                     initialData={data}
-                    masterProjects={[report.projectName]}
-                    spreadsheetUrl={`https://docs.google.com/spreadsheets/d/${report.spreadsheetId}`}
-                    createdAt={report.createdAt}
+                    masterProjects={entry.projectName.split(', ')}
+                    spreadsheetUrl={spreadsheetUrl}
+                    createdAt={entry.createdAt}
+                    isAdmin={isAdmin}
+                    adminToken={isAdmin ? entry.adminToken : undefined}
+                    existingClientToken={entry.clientToken || undefined}
                 />
             </Suspense>
         </div>

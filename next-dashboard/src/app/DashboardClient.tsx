@@ -48,9 +48,8 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     const [reportStep, setReportStep] = useState<0 | 1 | 2>(0); // 0: Select, 1: Confirm, 2: Result
     const [isGeneratingReport, setIsGeneratingReport] = useState(false);
     const [generatedReportInfo, setGeneratedReportInfo] = useState<{
-        reportUrl: string;
+        adminUrl: string;
         spreadsheetUrl: string;
-        token: string;
     } | null>(null);
     // レポート用期間選択
     const [reportPeriodPreset, setReportPeriodPreset] = useState<'7days' | '14days' | '30days' | 'thisMonth' | 'custom'>('thisMonth');
@@ -985,17 +984,17 @@ export default function DashboardClient({ initialData, baselineData, masterProje
 
                                 <div className="space-y-4">
                                     <div className="flex flex-col gap-1.5">
-                                        <label className="text-xs font-bold text-gray-500">🔗 レポート閲覧用URL</label>
+                                        <label className="text-xs font-bold text-gray-500">🔗 管理者用URL（元データ確認可能）</label>
                                         <div className="flex items-center gap-2">
                                             <input
                                                 type="text"
                                                 readOnly
-                                                value={`${window.location.origin}${generatedReportInfo.reportUrl}`}
+                                                value={`${window.location.origin}${generatedReportInfo.adminUrl}`}
                                                 className="flex-1 p-2 border rounded-lg text-xs bg-gray-50 font-mono"
                                             />
                                             <button
                                                 onClick={() => {
-                                                    navigator.clipboard.writeText(`${window.location.origin}${generatedReportInfo.reportUrl}`);
+                                                    navigator.clipboard.writeText(`${window.location.origin}${generatedReportInfo.adminUrl}`);
                                                     setReportCopied(true);
                                                     setTimeout(() => setReportCopied(false), 2000);
                                                 }}
