@@ -25,77 +25,12 @@ interface ReportClientProps {
     existingClientToken?: string;
 }
 
-// クライアント用URL発行ボタン
+// Phase 2で再開予定
+/*
 function ClientUrlButton({ adminToken, existingClientToken }: { adminToken?: string; existingClientToken?: string }) {
-    const [clientUrl, setClientUrl] = useState<string | null>(existingClientToken ? `/report/${existingClientToken}` : null);
-    const [isGenerating, setIsGenerating] = useState(false);
-    const [copied, setCopied] = useState(false);
-
-    const handleGenerate = async () => {
-        if (!adminToken) return;
-        setIsGenerating(true);
-        try {
-            const res = await fetch('/api/report/generate-client', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ adminToken })
-            });
-            const data = await res.json();
-            if (data.error) throw new Error(data.error);
-            setClientUrl(data.clientUrl);
-        } catch (e: any) {
-            alert(`エラー: ${e.message}`);
-        } finally {
-            setIsGenerating(false);
-        }
-    };
-
-    const handleCopy = () => {
-        if (!clientUrl) return;
-        navigator.clipboard.writeText(`${window.location.origin}${clientUrl}`);
-        setCopied(true);
-        setTimeout(() => setCopied(false), 2000);
-    };
-
-    if (clientUrl) {
-        return (
-            <div className="flex items-center gap-2">
-                <input
-                    type="text"
-                    readOnly
-                    value={`${typeof window !== 'undefined' ? window.location.origin : ''}${clientUrl}`}
-                    className="px-2 py-1.5 text-xs bg-gray-50 border rounded-lg w-48 md:w-56 font-mono truncate"
-                />
-                <button
-                    onClick={handleCopy}
-                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all ${copied ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
-                >
-                    {copied ? '✓' : 'コピー'}
-                </button>
-            </div>
-        );
-    }
-
-    return (
-        <button
-            onClick={handleGenerate}
-            disabled={isGenerating}
-            className="flex items-center justify-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all disabled:opacity-50"
-        >
-            {isGenerating ? (
-                <>
-                    <div className="w-3 h-3 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                    <span>発行中...</span>
-                </>
-            ) : (
-                <>
-                    <span>🔗</span>
-                    <span>クライアント用URL発行</span>
-                </>
-            )}
-        </button>
-    );
+    // ...
 }
+*/
 
 type TabType = 'total' | 'meta' | 'beyond';
 
@@ -493,11 +428,11 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
                                         className="flex items-center justify-center gap-2 px-4 py-2 bg-green-600 hover:bg-green-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
                                     >
                                         <span>📄</span>
-                                        <span>元データ確認</span>
+                                        <span>スプレッドシートを開く</span>
                                     </a>
                                 )}
-                                {/* クライアント用URL発行ボタン */}
-                                <ClientUrlButton adminToken={adminToken} existingClientToken={existingClientToken} />
+                                {/* クライアント用URL発行ボタン（Phase 1では非表示） */}
+                                {/* <ClientUrlButton adminToken={adminToken} existingClientToken={existingClientToken} /> */}
                             </div>
                         )}
 
