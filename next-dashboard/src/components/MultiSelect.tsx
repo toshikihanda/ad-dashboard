@@ -44,7 +44,7 @@ export function MultiSelect({ label, options, selectedValues, onChange, maxDispl
     const displayText = selectedValues.length === 0
         ? 'All'
         : selectedValues.length === 1
-            ? selectedValues[0].substring(0, maxDisplayLength)
+            ? String(selectedValues[0]).substring(0, maxDisplayLength)
             : `${selectedValues.length}件選択中`;
 
     return (
@@ -85,7 +85,7 @@ export function MultiSelect({ label, options, selectedValues, onChange, maxDispl
 
                         {options.map(option => (
                             <label
-                                key={option}
+                                key={String(option)}
                                 className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
                             >
                                 <input
@@ -94,8 +94,8 @@ export function MultiSelect({ label, options, selectedValues, onChange, maxDispl
                                     onChange={() => handleToggle(option)}
                                     className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
-                                <span className="text-xs text-gray-600 truncate" title={option}>
-                                    {option.substring(0, maxDisplayLength)}
+                                <span className="text-xs text-gray-600 truncate" title={String(option)}>
+                                    {String(option).substring(0, maxDisplayLength)}
                                 </span>
                             </label>
                         ))}

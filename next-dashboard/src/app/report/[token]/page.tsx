@@ -47,14 +47,23 @@ async function getReportData(sheetName: string) {
 
         return dataRows.map(row => {
             const obj: any = {};
+            // 数値に変換すべき列名のリスト（これ以外は文字列または日付として扱う）
+            const numericHeaders = ['Cost', 'Impressions', 'Clicks', 'CV', 'MCV', 'PV', 'FV_Exit', 'SV_Exit', 'Revenue', 'Gross_Profit', 'cost', 'click', 'pv', 'cv', 'fv_exit', 'sv_exit'];
+
             headers.forEach((h: string, i: number) => {
                 let val = row[i];
                 if (h === 'Date' && val) {
                     const parsedDate = new Date(val);
                     obj[h] = isNaN(parsedDate.getTime()) ? val : parsedDate;
-                } else if (val && !isNaN(Number(val))) {
-                    obj[h] = Number(val);
+                } else if (numericHeaders.includes(h.toLowerCase()) || numericHeaders.includes(h)) {
+                    // 数値列なら数値に変換
+                    if (val && !isNaN(Number(val))) {
+                        obj[h] = Number(val);
+                    } else {
+                        obj[h] = 0;
+                    }
                 } else {
+                    // それ以外（version_name etc.）は文字列として維持
                     obj[h] = val ?? '';
                 }
             });
