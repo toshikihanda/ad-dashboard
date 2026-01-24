@@ -23,14 +23,42 @@ interface ReportClientProps {
     isAdmin?: boolean;
     adminToken?: string;
     existingClientToken?: string;
+    defaultStartDate?: string;
+    defaultEndDate?: string;
+    isShareMode?: boolean;
 }
 
-// Phase 2で再開予定
-/*
-function ClientUrlButton({ adminToken, existingClientToken }: { adminToken?: string; existingClientToken?: string }) {
-    // ...
+function ClientUrlButton({ adminToken }: { adminToken?: string }) {
+    const [copied, setCopied] = useState(false);
+
+    if (!adminToken) return null;
+
+    // 現在のホスト名を取得してURLを生成
+    const shareUrl = typeof window !== 'undefined'
+        ? `${window.location.origin}/report/${adminToken}/share`
+        : '';
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(shareUrl);
+        setCopied(true);
+        setTimeout(() => setCopied(false), 2000);
+    };
+
+    return (
+        <div className="flex flex-col gap-2">
+            <button
+                onClick={handleCopy}
+                className="flex items-center justify-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-lg shadow-sm transition-all"
+            >
+                <span>🔗</span>
+                <span>{copied ? 'コピーしました！' : 'シェア用（閲覧専用）URLを取得'}</span>
+            </button>
+            <div className="text-[10px] text-gray-400 bg-gray-50 p-2 rounded border truncate max-w-[200px]">
+                {shareUrl}
+            </div>
+        </div>
+    );
 }
-*/
 
 type TabType = 'total' | 'meta' | 'beyond';
 
@@ -46,7 +74,18 @@ function formatDateForInput(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-export default function ReportClient({ initialData, masterProjects, spreadsheetUrl, createdAt, isAdmin = false, adminToken, existingClientToken }: ReportClientProps) {
+export default function ReportClient({
+    initialData,
+    masterProjects,
+    spreadsheetUrl,
+    createdAt,
+    isAdmin = false,
+    adminToken,
+    existingClientToken,
+    defaultStartDate,
+    defaultEndDate,
+    isShareMode = false
+}: ReportClientProps) {
     const searchParams = useSearchParams();
 
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
@@ -69,9 +108,6 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
     // URLパラメータから商材・期間をプリセット
     useEffect(() => {
         if (!isClient) {
-            const now = new Date();
-            const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-
             // URLパラメータから期間を取得
             const startParam = searchParams.get('start');
             const endParam = searchParams.get('end');
@@ -81,8 +117,15 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
                 setStartDate(startParam);
                 setEndDate(endParam);
                 setDatePreset('custom');
+            } else if (defaultStartDate && defaultEndDate) {
+                // レポート保存時の設定がある場合（優先）
+                setStartDate(defaultStartDate);
+                setEndDate(defaultEndDate);
+                setDatePreset('custom');
             } else {
                 // デフォルトは今月
+                const now = new Date();
+                const firstOfMonth = new Date(now.getFullYear(), now.getMonth(), 1);
                 setStartDate(formatDateForInput(firstOfMonth));
                 setEndDate(formatDateForInput(now));
             }
@@ -436,9 +479,9 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
 
                         {/* 管理者用ボタンエリア */}
                         {isAdmin && (
-                            <div className="order-first md:order-last w-full md:w-auto flex flex-col md:flex-row gap-2">
+                            <div className="order-first md:order-last w-full md:w-auto flex flex-col md:flex-row gap-4 items-start md:items-center">
                                 {/* データ元確認ボタン */}
-                                {spreadsheetUrl && (
+                                {spreadsheetUrl && !isShareMode && (
                                     <a
                                         href={spreadsheetUrl}
                                         target="_blank"
@@ -449,8 +492,10 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
                                         <span>スプレッドシートを開く</span>
                                     </a>
                                 )}
-                                {/* クライアント用URL発行ボタン（Phase 1では非表示） */}
-                                {/* <ClientUrlButton adminToken={adminToken} existingClientToken={existingClientToken} /> */}
+                                {/* クライアント用URL発行ボタン */}
+                                {!isShareMode && adminToken && (
+                                    <ClientUrlButton adminToken={adminToken} />
+                                )}
                             </div>
                         )}
 
@@ -578,31 +623,33 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
                             <div className="flex flex-col gap-1 col-span-2 md:col-span-1 lg:col-span-1">
                                 <div className="flex items-center justify-between md:block">
                                     <span className="text-[10px] font-bold text-gray-500 tracking-wide hidden md:block">期間</span>
-                                    <span className="text-[10px] font-bold text-gray-500 tracking-wide md:hidden mb-1 block">期間を選択</span>
+                                    <span className="text-[10px] font-bold text-gray-500 tracking-wide md:hidden mb-1 block">期間</span>
                                     <div className="flex items-center gap-1 text-[9px] truncate md:float-right">
                                         <span className="text-blue-500">●</span>
                                         <span className="font-bold text-gray-700">{startDate.replace(/-/g, '/').slice(5)}〜{endDate.replace(/-/g, '/').slice(5)}</span>
                                     </div>
                                 </div>
-                                <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-10 md:h-8 overflow-hidden">
-                                    {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).filter(p => availablePresets.includes(p)).map((preset) => (
-                                        <button
-                                            key={preset}
-                                            onClick={() => handlePresetChange(preset)}
-                                            className={cn(
-                                                "flex-1 text-[10px] md:text-[9px] font-bold transition-all border-r last:border-r-0 border-gray-100 active:bg-blue-50",
-                                                datePreset === preset
-                                                    ? "bg-blue-600 text-white border-blue-600"
-                                                    : "text-gray-500 hover:bg-gray-50"
-                                            )}
-                                        >
-                                            {preset === 'thisMonth' ? '今月' :
-                                                preset === 'today' ? '今日' :
-                                                    preset === 'yesterday' ? '昨日' :
-                                                        preset === '7days' ? '7日' : '選択'}
-                                        </button>
-                                    ))}
-                                </div>
+                                {!isShareMode && (
+                                    <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-10 md:h-8 overflow-hidden">
+                                        {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).filter(p => availablePresets.includes(p)).map((preset) => (
+                                            <button
+                                                key={preset}
+                                                onClick={() => handlePresetChange(preset)}
+                                                className={cn(
+                                                    "flex-1 text-[10px] md:text-[9px] font-bold transition-all border-r last:border-r-0 border-gray-100 active:bg-blue-50",
+                                                    datePreset === preset
+                                                        ? "bg-blue-600 text-white border-blue-600"
+                                                        : "text-gray-500 hover:bg-gray-50"
+                                                )}
+                                            >
+                                                {preset === 'thisMonth' ? '今月' :
+                                                    preset === 'today' ? '今日' :
+                                                        preset === 'yesterday' ? '昨日' :
+                                                            preset === '7days' ? '7日' : '選択'}
+                                            </button>
+                                        ))}
+                                    </div>
+                                )}
                             </div>
                         </div>
                     </details>

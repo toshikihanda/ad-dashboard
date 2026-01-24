@@ -1,14 +1,14 @@
 import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
-import ReportClient from '../ReportClient';
+import ReportClient from '../../ReportClient';
 import { findReportByToken, getSheetUrl, getMasterSpreadsheetId } from '@/lib/reportStore';
 import { getGoogleAuth } from '@/lib/googleAuth';
 import { google } from 'googleapis';
 import { ProcessedRow } from '@/lib/dataProcessor';
 
 export const metadata: Metadata = {
-    title: '広告レポート',
+    title: '広告レポート (閲覧専用)',
     robots: {
         index: false,
         follow: false,
@@ -70,43 +70,34 @@ export default async function Page({ params }: { params: Promise<{ token: string
     const { token } = await params;
     const masterId = getMasterSpreadsheetId();
 
-    console.log(`[ReportPage] Rendering for token: "${token}"`);
-    console.log(`[ReportPage] Target Spreadsheet ID (from store): "${masterId}"`);
+    console.log(`[SharePage] Rendering for token: "${token}"`);
 
-    // マスターIDのチェック
     if (!masterId) {
-        console.error('[ReportPage] ERROR: No Master Spreadsheet ID configured');
         return (
             <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-red-50 text-red-800">
                 <h1 className="text-xl font-bold mb-2">⚠️ 設定エラー</h1>
-                <p>GOOGLE_SHEETS_MASTER_ID または REPORT_ID が設定されていません。</p>
+                <p>システム設定が不完全です。</p>
             </div>
         );
     }
 
     try {
-        console.log(`[ReportPage] Calling findReportByToken("${token}")...`);
+        // シェア用ページでも管理トークンまたはクライアントトークンのどちらでもアクセス可能とするが、
+        // 常に isAdmin=false として扱う
         const result = await findReportByToken(token);
 
         if (!result) {
-            console.warn(`[ReportPage] RESULT: No report found for token "${token}"`);
+            console.warn(`[SharePage] RESULT: No report found for token "${token}"`);
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-50 text-slate-800">
                     <h1 className="text-xl font-bold mb-2">📊 レポートが見つかりません</h1>
-                    <p className="text-sm opacity-70 mb-4">指定されたトークンが無効か、レポートがまだ作成されていない可能性があります。</p>
-                    <p className="text-[10px] text-slate-400 mb-4">(Token: {token})</p>
-                    <a href="/" className="text-blue-600 hover:underline">ダッシュボードへ戻る</a>
+                    <p className="text-sm opacity-70">リンクが正しくないか、レポートが削除された可能性があります。</p>
                 </div>
             );
         }
 
-        const { entry, isAdmin } = result;
-        console.log(`[ReportPage] RESULT: SUCCESS! Admin=${isAdmin}, SheetName=${entry.sheetName}`);
-
+        const { entry } = result;
         const data = await getReportData(entry.sheetName);
-        console.log(`[ReportPage] Data fetched: ${data.length} rows`);
-
-        const spreadsheetUrl = isAdmin ? await getSheetUrl(entry.sheetName) : undefined;
 
         return (
             <div className="min-h-screen bg-slate-100 p-4 md:p-6">
@@ -118,11 +109,9 @@ export default async function Page({ params }: { params: Promise<{ token: string
                     <ReportClient
                         initialData={data}
                         masterProjects={entry.projectName.split(', ')}
-                        spreadsheetUrl={spreadsheetUrl}
                         createdAt={entry.createdAt}
-                        isAdmin={isAdmin}
-                        adminToken={isAdmin ? entry.adminToken : undefined}
-                        existingClientToken={entry.clientToken || undefined}
+                        isAdmin={false} // シェア用は常に管理者権限なし
+                        isShareMode={true} // シェアモードを有効化
                         defaultStartDate={entry.startDate}
                         defaultEndDate={entry.endDate}
                     />
@@ -130,14 +119,12 @@ export default async function Page({ params }: { params: Promise<{ token: string
             </div>
         );
     } catch (error: any) {
-        console.error('[ReportPage] UNEXPECTED ERROR:', error.message);
+        console.error('[SharePage] ERROR:', error.message);
         return (
             <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-orange-50 text-orange-800">
                 <h1 className="text-xl font-bold mb-2">⚠️ データ取得エラー</h1>
-                <p className="text-sm mb-4">{error.message}</p>
-                <a href="/" className="text-orange-600 hover:underline">ダッシュボードへ戻る</a>
+                <p className="text-sm">レポートデータの読み込み中にエラーが発生しました。</p>
             </div>
         );
     }
 }
-
