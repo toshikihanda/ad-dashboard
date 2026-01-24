@@ -12,6 +12,7 @@ export interface ProjectConfig {
     feeRate: number;          // 手数料率
     metaCvName: string;       // Meta CV名（CVとしてカウントする列名）
     metaAccountNames: string[];   // Meta Account Names（過去データ用）
+    parameterType: string;    // パラメーター種別 (utm_creative, utm_source, etc.)
 }
 
 export interface ProcessedRow {
@@ -101,6 +102,9 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
             ? metaAccountNamesRaw.split(',').map(s => s.trim()).filter(s => s)
             : [];
 
+        // パラメーター種別 を読み込み（空ならデフォルト utm_creative）
+        const parameterType = (row['パラメーター種別'] || 'utm_creative').trim();
+
         configs.push({
             projectName,
             metaKeyword,
@@ -110,6 +114,7 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
             feeRate,
             metaCvName,
             metaAccountNames,
+            parameterType,
         });
     }
 
@@ -298,12 +303,17 @@ function processBeyondData(
         // Skip if no matching project found
         if (!config) continue;
 
-        // Get parameter and extract creative value (no filter - data is pre-filtered in Google Sheets)
+        // Get parameter and filter by project's parameter type
         const parameter = (row['parameter'] || '').trim();
+        const pType = config.parameterType || 'utm_creative';
+
+        // パラメーター種別で指定されたキーワードで始まる行のみを取得
+        if (!parameter.startsWith(pType + '=')) {
+            continue;
+        }
+
+        const creativeValue = parameter.replace(pType + '=', '');
         const versionName = (row['version_name'] || '').trim();
-        const creativeValue = parameter.startsWith('utm_creative=')
-            ? parameter.replace('utm_creative=', '')
-            : parameter;
 
         const cost = parseNumber(row['cost']);
         const cv = parseNumber(row['cv']);

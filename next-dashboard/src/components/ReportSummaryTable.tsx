@@ -14,6 +14,7 @@ interface ReportSummaryTableProps {
     endDate: string;
     viewMode: 'total' | 'meta' | 'beyond';
     allowedCampaigns?: string[]; // URLで指定された商材リスト
+    isVersionFilterActive?: boolean;
 }
 
 interface SummaryRow {
@@ -63,7 +64,7 @@ function getDateRange(periodType: 'today' | 'yesterday' | '3days' | '7days'): { 
     return { start, end };
 }
 
-function aggregateData(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): Omit<SummaryRow, 'period'> {
+function aggregateData(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond', isVersionFilterActive: boolean): Omit<SummaryRow, 'period'> {
     const metaData = data.filter(row => row.Media === 'Meta');
     const beyondData = data.filter(row => row.Media === 'Beyond');
 
@@ -82,18 +83,22 @@ function aggregateData(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyon
 
     const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
 
+    // version_name フィルター時は PV をクリックとして扱う
+    const displayMetaClicks = isVersionFilterActive ? pv : metaClicks;
+    const displayBeyondClicks = isVersionFilterActive ? pv : beyondClicks;
+
     return {
         cost: displayCost,
         impressions,
-        clicks: viewMode === 'beyond' ? beyondClicks : metaClicks,
-        mcv: beyondClicks,
+        clicks: viewMode === 'beyond' ? displayBeyondClicks : displayMetaClicks,
+        mcv: displayBeyondClicks,
         cv,
-        ctr: safeDivide(metaClicks, impressions) * 100,
-        mcvr: safeDivide(beyondClicks, pv) * 100,
-        cvr: safeDivide(cv, beyondClicks) * 100,
+        ctr: safeDivide(displayMetaClicks, impressions) * 100,
+        mcvr: safeDivide(displayBeyondClicks, pv) * 100,
+        cvr: safeDivide(cv, displayBeyondClicks) * 100,
         cpm: safeDivide(metaCost, impressions) * 1000,
-        cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, metaClicks),
-        mcpa: safeDivide(beyondCost, beyondClicks),
+        cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, displayMetaClicks),
+        mcpa: safeDivide(beyondCost, displayBeyondClicks),
         cpa: safeDivide(beyondCost, cv),
         fvExitRate: safeDivide(fvExit, pv) * 100,
         svExitRate: safeDivide(svExit, pv - fvExit) * 100,
@@ -115,36 +120,37 @@ function generateSummaryRows(
     data: ProcessedRow[],
     startDate: string,
     endDate: string,
-    viewMode: 'total' | 'meta' | 'beyond'
+    viewMode: 'total' | 'meta' | 'beyond',
+    isVersionFilterActive: boolean
 ): SummaryRow[] {
     const rows: SummaryRow[] = [];
 
     // 当日
     const todayRange = getDateRange('today');
     const todayData = filterByDateRange(data, todayRange.start, todayRange.end);
-    rows.push({ period: '当日', ...aggregateData(todayData, viewMode) });
+    rows.push({ period: '当日', ...aggregateData(todayData, viewMode, isVersionFilterActive) });
 
     // 前日
     const yesterdayRange = getDateRange('yesterday');
     const yesterdayData = filterByDateRange(data, yesterdayRange.start, yesterdayRange.end);
-    rows.push({ period: '前日', ...aggregateData(yesterdayData, viewMode) });
+    rows.push({ period: '前日', ...aggregateData(yesterdayData, viewMode, isVersionFilterActive) });
 
     // 直近3日
     const threeDaysRange = getDateRange('3days');
     const threeDaysData = filterByDateRange(data, threeDaysRange.start, threeDaysRange.end);
-    rows.push({ period: '直近3日', ...aggregateData(threeDaysData, viewMode) });
+    rows.push({ period: '直近3日', ...aggregateData(threeDaysData, viewMode, isVersionFilterActive) });
 
     // 直近7日
     const sevenDaysRange = getDateRange('7days');
     const sevenDaysData = filterByDateRange(data, sevenDaysRange.start, sevenDaysRange.end);
-    rows.push({ period: '直近7日', ...aggregateData(sevenDaysData, viewMode) });
+    rows.push({ period: '直近7日', ...aggregateData(sevenDaysData, viewMode, isVersionFilterActive) });
 
     // 選択期間
     if (startDate && endDate) {
         const selectedData = filterByDateRange(data, new Date(startDate), new Date(endDate));
         const start = startDate.replace(/-/g, '/').slice(5);
         const end = endDate.replace(/-/g, '/').slice(5);
-        rows.push({ period: `選択期間(${start}〜${end})`, ...aggregateData(selectedData, viewMode) });
+        rows.push({ period: `選択期間(${start}〜${end})`, ...aggregateData(selectedData, viewMode, isVersionFilterActive) });
     }
 
     return rows;
@@ -239,7 +245,7 @@ function SummaryTable({
     );
 }
 
-export function ReportSummaryTable({ data, startDate, endDate, viewMode, allowedCampaigns = [] }: ReportSummaryTableProps) {
+export function ReportSummaryTable({ data, startDate, endDate, viewMode, allowedCampaigns = [], isVersionFilterActive = false }: ReportSummaryTableProps) {
     // 商材ごとにサマリーを生成
     const campaignSummaries = useMemo(() => {
         // データ内のユニークな商材を取得
@@ -254,7 +260,7 @@ export function ReportSummaryTable({ data, startDate, endDate, viewMode, allowed
         if (targetCampaigns.length <= 1) {
             return [{
                 campaign: '',  // タイトル表示なし
-                rows: generateSummaryRows(data, startDate, endDate, viewMode)
+                rows: generateSummaryRows(data, startDate, endDate, viewMode, isVersionFilterActive)
             }];
         }
 
@@ -263,18 +269,18 @@ export function ReportSummaryTable({ data, startDate, endDate, viewMode, allowed
             const campaignData = data.filter(row => row.Campaign_Name === campaign);
             return {
                 campaign,
-                rows: generateSummaryRows(campaignData, startDate, endDate, viewMode)
+                rows: generateSummaryRows(campaignData, startDate, endDate, viewMode, isVersionFilterActive)
             };
         });
 
         // 全体合計も追加
         summaries.push({
             campaign: '📊 全体合計',
-            rows: generateSummaryRows(data, startDate, endDate, viewMode)
+            rows: generateSummaryRows(data, startDate, endDate, viewMode, isVersionFilterActive)
         });
 
         return summaries;
-    }, [data, startDate, endDate, viewMode, allowedCampaigns]);
+    }, [data, startDate, endDate, viewMode, allowedCampaigns, isVersionFilterActive]);
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">

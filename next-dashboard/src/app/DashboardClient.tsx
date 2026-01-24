@@ -260,29 +260,35 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     };
 
     // Calculate KPIs
+    const isVersionFilterActive = selectedVersionNames.length > 0;
+
     const kpis = useMemo(() => {
         const metaData = filteredData.filter(row => row.Media === 'Meta');
         const beyondData = filteredData.filter(row => row.Media === 'Beyond');
 
         // Meta aggregations
         const impressions = metaData.reduce((sum, row) => sum + row.Impressions, 0);
-        const metaClicks = metaData.reduce((sum, row) => sum + row.Clicks, 0);
+        const metaClicksRaw = metaData.reduce((sum, row) => sum + row.Clicks, 0);
         const metaCost = metaData.reduce((sum, row) => sum + row.Cost, 0);
 
         // Beyond aggregations
         const beyondCost = beyondData.reduce((sum, row) => sum + row.Cost, 0);
         const beyondPV = beyondData.reduce((sum, row) => sum + row.PV, 0);
-        const beyondClicks = beyondData.reduce((sum, row) => sum + row.Clicks, 0);
+        const beyondClicksRaw = beyondData.reduce((sum, row) => sum + row.Clicks, 0);
         const beyondCV = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
 
+        // --- version_name フィルター有効時の切り替え ---
+        // フィルター時は PV を Clicks として扱う
+        const displayMetaClicks = isVersionFilterActive ? beyondPV : metaClicksRaw;
+        const displayBeyondClicks = isVersionFilterActive ? beyondPV : beyondClicksRaw;
+
         // MCV from Meta
         const metaMCV = metaData.reduce((sum, row) => sum + row.MCV, 0);
 
-        // Revenue and Profit are already calculated in ProcessedRow (from Master_Setting)
+        // Revenue and Profit
         const revenue = filteredData.reduce((sum, row) => sum + row.Revenue, 0);
-        // IHの場合は粗利=売上となるため、ProcessedRowのGross_Profitを使用
         const profit = filteredData.reduce((sum, row) => sum + row.Gross_Profit, 0);
 
         const displayCost = selectedTab === 'meta' ? metaCost : beyondCost;
@@ -292,27 +298,26 @@ export default function DashboardClient({ initialData, baselineData, masterProje
             revenue,
             profit,
             impressions,
-            metaClicks,
-            beyondClicks,
+            metaClicks: displayMetaClicks,
+            beyondClicks: displayBeyondClicks,
             cv: beyondCV,
             metaMCV,
             pv: beyondPV,
             fvExit,
             svExit,
-            ctr: safeDivide(metaClicks, impressions) * 100,
-            mcvr: safeDivide(beyondClicks, beyondPV) * 100,
-            cvr: safeDivide(beyondCV, beyondClicks) * 100,
+            ctr: safeDivide(displayMetaClicks, impressions) * 100,
+            mcvr: safeDivide(displayBeyondClicks, beyondPV) * 100,
+            cvr: safeDivide(beyondCV, displayBeyondClicks) * 100,
             cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: selectedTab === 'beyond' ? safeDivide(beyondCost, beyondPV) : safeDivide(metaCost, metaClicks),
-            mcpa: safeDivide(beyondCost, beyondClicks),
+            cpc: selectedTab === 'beyond' ? safeDivide(beyondCost, beyondPV) : safeDivide(metaCost, displayMetaClicks),
+            mcpa: safeDivide(beyondCost, displayBeyondClicks),
             cpa: safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
             svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
             totalExitRate: safeDivide(fvExit + svExit, beyondPV) * 100,
-            recoveryRate: safeDivide(revenue, displayCost) * 100,
-            roas: safeDivide(revenue, displayCost),
+            roas: Math.floor(safeDivide(revenue, displayCost) * 100), // 回収率をROASとして扱う（切り捨て）
         };
-    }, [filteredData, selectedTab]);
+    }, [filteredData, selectedTab, isVersionFilterActive]);
 
     // Period data helpers
     const today = new Date();
@@ -601,7 +606,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             <KPICard label="粗利" value={Math.round(kpis.profit)} unit="円" colorClass="text-orange" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="CV" value={kpis.cv} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="ROAS" value={kpis.roas.toFixed(2)} unit="倍" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="ROAS" value={kpis.roas} unit="%" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
 
                         {/* Secondary Metrics - Also always visible in compact grid */}
@@ -617,7 +622,6 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="回収率" value={kpis.recoveryRate.toFixed(1)} unit="%" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
                     </div>
                 )}
@@ -673,7 +677,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                 )}
 
                 {/* CPA Ranking */}
-                <RankingPanel data={filteredData} selectedCampaign={selectedCampaign} />
+                <RankingPanel data={filteredData} selectedCampaign={selectedCampaign} isVersionFilterActive={isVersionFilterActive} />
 
                 {/* Data Tables */}
                 <div className="mt-8 space-y-4">
@@ -686,7 +690,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
 
                 {/* Daily Data Table - placed above Charts */}
                 <div className="mt-8">
-                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={selectedTab} />
+                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={selectedTab} isVersionFilterActive={isVersionFilterActive} />
                 </div>
 
                 {/* Charts */}
@@ -700,27 +704,26 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 <GenericBarChart data={filteredData} title="粗利" dataKey="Gross_Profit" />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CPA" costDivisorKey="CV" />
                                 <CVChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CV" />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={1} unit="倍" />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={100} unit="%" />
                             </div>
                             <div className="h-4" />
                             {/* Row 2: IMP、CLICK、商品LP CLICK、CTR、MCVR、CVR */}
                             <div className="grid grid-cols-3 gap-4">
                                 <GenericBarChart data={filteredData.filter(r => r.Media === 'Meta')} title="IMP" dataKey="Impressions" />
-                                <GenericBarChart data={filteredData.filter(r => r.Media === 'Meta')} title="CLICK" dataKey="Clicks" />
-                                <GenericBarChart data={filteredData.filter(r => r.Media === 'Beyond')} title="商品LP CLICK" dataKey="Clicks" />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Meta')} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
+                                <GenericBarChart data={filteredData.filter(r => r.Media === 'Meta')} title="CLICK" dataKey={isVersionFilterActive ? "PV" : "Clicks"} />
+                                <GenericBarChart data={filteredData.filter(r => r.Media === 'Beyond')} title="商品LP CLICK" dataKey={isVersionFilterActive ? "PV" : "Clicks"} />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Meta')} title="CTR" numeratorKey={isVersionFilterActive ? "PV" : "Clicks"} denominatorKey="Impressions" />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCVR" numeratorKey={isVersionFilterActive ? "PV" : "Clicks"} denominatorKey="PV" />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CVR" numeratorKey="CV" denominatorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                             </div>
                             <div className="h-4" />
                             {/* Row 3: CPM、CPC、MCPA、FV離脱率、SV離脱率、回収率 */}
                             <div className="grid grid-cols-3 gap-4">
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
-                                <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPC" costDivisorKey="Clicks" />
-                                <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCPA" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPC" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
+                                <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCPA" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
                             </div>
                         </>
                     )}
@@ -732,14 +735,14 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 <CostChart data={filteredData} title="出稿金額" />
                                 <GenericBarChart data={filteredData} title="CV" dataKey="MCV" />
                                 <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
-                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey="Clicks" />
+                                <CostMetricChart data={filteredData} title="CPC" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                             </div>
                             <div className="h-4" />
                             {/* Row 2: IMP、CLICK、CTR、CPM */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <GenericBarChart data={filteredData} title="IMP" dataKey="Impressions" />
-                                <GenericBarChart data={filteredData} title="CLICK" dataKey="Clicks" />
-                                <GenericRateChart data={filteredData} title="CTR" numeratorKey="Clicks" denominatorKey="Impressions" />
+                                <GenericBarChart data={filteredData} title="CLICK" dataKey={isVersionFilterActive ? "PV" : "Clicks"} />
+                                <GenericRateChart data={filteredData} title="CTR" numeratorKey={isVersionFilterActive ? "PV" : "Clicks"} denominatorKey="Impressions" />
                                 <CostMetricChart data={filteredData} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
                             </div>
                         </>

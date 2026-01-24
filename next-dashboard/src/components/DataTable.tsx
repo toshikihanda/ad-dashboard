@@ -20,8 +20,7 @@ interface TableRow {
     cost: number;
     revenue: number;
     profit: number;
-    recoveryRate: number;
-    roas: number;
+    roas: number; // 旧回収率
     impressions: number;
     clicks: number;
     mcv: number;
@@ -103,35 +102,36 @@ function filterByCombination(
 }
 
 // 組み合わせごとの集計
-function aggregateByCombination(data: ProcessedRow[], filters: FilterSelection, viewMode: 'total' | 'meta' | 'beyond'): TableRow[] {
+// 組み合わせごとの集計
+function aggregateByCombination(data: ProcessedRow[], filters: FilterSelection, viewMode: 'total' | 'meta' | 'beyond', isVersionFilterActive: boolean): TableRow[] {
     const combinations = generateCombinations(filters);
 
     // フィルターがない場合はキャンペーン別表示
     if (combinations.length === 0) {
-        return aggregateByCampaign(data, viewMode);
+        return aggregateByCampaign(data, viewMode, isVersionFilterActive);
     }
 
     return combinations.map(combination => {
         const filteredData = filterByCombination(data, combination);
-        return aggregateData(filteredData, combination.label, viewMode);
+        return aggregateData(filteredData, combination.label, viewMode, isVersionFilterActive);
     });
 }
 
 // データの集計
-function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 'meta' | 'beyond'): TableRow {
+function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 'meta' | 'beyond', isVersionFilterActive: boolean): TableRow {
     const metaData = data.filter(row => row.Media === 'Meta');
     const beyondData = data.filter(row => row.Media === 'Beyond');
 
     // Meta aggregations
     const metaCost = metaData.reduce((sum, row) => sum + row.Cost, 0);
     const impressions = metaData.reduce((sum, row) => sum + row.Impressions, 0);
-    const metaClicks = metaData.reduce((sum, row) => sum + row.Clicks, 0);
+    const metaClicksRaw = metaData.reduce((sum, row) => sum + row.Clicks, 0);
     const mcv = metaData.reduce((sum, row) => sum + row.MCV, 0);
 
     // Beyond aggregations
     const beyondCost = beyondData.reduce((sum, row) => sum + row.Cost, 0);
     const pv = beyondData.reduce((sum, row) => sum + row.PV, 0);
-    const beyondClicks = beyondData.reduce((sum, row) => sum + row.Clicks, 0);
+    const beyondClicksRaw = beyondData.reduce((sum, row) => sum + row.Clicks, 0);
     const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
     const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
@@ -140,30 +140,32 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
     const beyondRevenue = beyondData.reduce((sum, row) => sum + row.Revenue, 0);
     const metaRevenue = metaData.reduce((sum, row) => sum + row.Revenue, 0);
     const revenue = beyondRevenue + metaRevenue;
-    // IHの場合は粗利=売上となるため、ProcessedRowのGross_Profitを使用
     const beyondProfit = beyondData.reduce((sum, row) => sum + row.Gross_Profit, 0);
     const metaProfit = metaData.reduce((sum, row) => sum + row.Gross_Profit, 0);
     const profit = beyondProfit + metaProfit;
 
     const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
 
+    // version_name フィルター時は PV をクリックとして扱う
+    const displayMetaClicks = isVersionFilterActive ? pv : metaClicksRaw;
+    const displayBeyondClicks = isVersionFilterActive ? pv : beyondClicksRaw;
+
     return {
         label,
         cost: displayCost,
         revenue,
         profit,
-        recoveryRate: safeDivide(revenue, displayCost) * 100,
-        roas: safeDivide(profit, revenue) * 100,
+        roas: Math.floor(safeDivide(revenue, displayCost) * 100), // 回収率ベースのROAS
         impressions,
-        clicks: viewMode === 'beyond' ? beyondClicks : metaClicks,
-        mcv: beyondClicks,
+        clicks: viewMode === 'beyond' ? displayBeyondClicks : displayMetaClicks,
+        mcv: displayBeyondClicks,
         cv,
-        ctr: safeDivide(metaClicks, impressions) * 100,
-        mcvr: safeDivide(beyondClicks, pv) * 100,
-        cvr: safeDivide(cv, beyondClicks) * 100,
+        ctr: safeDivide(displayMetaClicks, impressions) * 100,
+        mcvr: safeDivide(displayBeyondClicks, pv) * 100,
+        cvr: safeDivide(cv, displayBeyondClicks) * 100,
         cpm: safeDivide(metaCost, impressions) * 1000,
-        cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, metaClicks),
-        mcpa: safeDivide(beyondCost, beyondClicks),
+        cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, displayMetaClicks),
+        mcpa: safeDivide(beyondCost, displayBeyondClicks),
         cpa: safeDivide(beyondCost, cv),
         pv,
         fvExit,
@@ -174,12 +176,12 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
     };
 }
 
-function aggregateByCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): TableRow[] {
+function aggregateByCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond', isVersionFilterActive: boolean): TableRow[] {
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
 
     return campaigns.map(campaign => {
         const campaignData = data.filter(row => row.Campaign_Name === campaign);
-        return aggregateData(campaignData, campaign, viewMode);
+        return aggregateData(campaignData, campaign, viewMode, isVersionFilterActive);
     }).sort((a, b) => a.label.localeCompare(b.label));
 }
 
@@ -195,7 +197,8 @@ function formatPercent(value: number): string {
 
 export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
     const defaultFilters: FilterSelection = { beyondPageNames: [], versionNames: [], creatives: [] };
-    const rows = aggregateByCombination(data, filters || defaultFilters, viewMode);
+    const isVersionFilterActive = filters && filters.versionNames && filters.versionNames.length > 0;
+    const rows = aggregateByCombination(data, filters || defaultFilters, viewMode, isVersionFilterActive || false);
 
     if (rows.length === 0) {
         return (
@@ -213,8 +216,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
         cost: 'w-[75px]',
         revenue: 'w-[70px]',
         profit: 'w-[70px]',
-        recoveryRate: 'w-[55px]',
-        roas: 'w-[50px]',
+        roas: 'w-[60px]',
         imp: 'w-[50px]',
         clicks: 'w-[50px]',
         lpClick: 'w-[70px]',
@@ -250,6 +252,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                 <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}</th>
                                 <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
+                                <th className={`${thClass} ${colW.roas}`}>ROAS</th>
                                 <th className={`${thClass} ${colW.imp}`}>Imp</th>
                                 <th className={`${thClass} ${colW.clicks}`}>Clicks</th>
                                 <th className={`${thClass} ${colW.cv}`}>CV</th>
@@ -265,6 +268,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                     <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
                                     <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
+                                    <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
                                     <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                     <td className={`${tdClass} ${colW.cv}`}>{formatNumber(row.cv)}</td>
@@ -292,6 +296,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                 <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}</th>
                                 <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
+                                <th className={`${thClass} ${colW.roas}`}>ROAS</th>
                                 <th className={`${thClass} ${colW.pv}`}>PV</th>
                                 <th className={`${thClass} ${colW.clicks}`}>Clicks</th>
                                 <th className={`${thClass} ${colW.cv}`}>CV</th>
@@ -301,7 +306,6 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                 <th className={`${thClass} ${colW.cpa}`}>CPA</th>
                                 <th className={`${thClass} ${colW.fvExit}`}>FV離脱</th>
                                 <th className={`${thClass} ${colW.svExit}`}>SV離脱</th>
-                                <th className={`${thClass} ${colW.totalExit}`}>Total離脱</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -310,6 +314,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                     <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
                                     <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
+                                    <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
                                     <td className={`${tdClass} ${colW.pv}`}>{formatNumber(row.pv)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                     <td className={`${tdClass} ${colW.cv}`}>{formatNumber(row.cv)}</td>
@@ -319,7 +324,6 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                     <td className={`${tdClass} ${colW.cpa}`}>{formatNumber(row.cpa)}円</td>
                                     <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(row.fvExitRate)}</td>
                                     <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(row.svExitRate)}</td>
-                                    <td className={`${tdClass} ${colW.totalExit}`}>{formatPercent(row.totalExitRate)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -342,7 +346,6 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                             <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
                             <th className={`${thClass} ${colW.revenue}`}>売上</th>
                             <th className={`${thClass} ${colW.profit}`}>粗利</th>
-                            <th className={`${thClass} ${colW.recoveryRate}`}>回収率</th>
                             <th className={`${thClass} ${colW.roas}`}>ROAS</th>
                             <th className={`${thClass} ${colW.imp}`}>Imp</th>
                             <th className={`${thClass} ${colW.clicks}`}>Clicks</th>
@@ -367,8 +370,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                 <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                 <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
                                 <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>
-                                <td className={`${tdClass} ${colW.recoveryRate}`}>{formatPercent(row.recoveryRate)}</td>
-                                <td className={`${tdClass} ${colW.roas}`}>{formatPercent(row.roas)}</td>
+                                <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
                                 <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                 <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                 <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(row.mcv)}</td>

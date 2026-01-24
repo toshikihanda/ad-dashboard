@@ -9,6 +9,7 @@ interface ReportDailyDataTableProps {
     data: ProcessedRow[];
     title: string;
     viewMode: 'total' | 'meta' | 'beyond';
+    isVersionFilterActive?: boolean;
 }
 
 interface DailyTableRow {
@@ -32,7 +33,7 @@ interface DailyTableRow {
     svExitRate: number;
 }
 
-function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): DailyTableRow[] {
+function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond', isVersionFilterActive: boolean): DailyTableRow[] {
     // 日付とキャンペーンでグループ化
     const grouped = new Map<string, ProcessedRow[]>();
 
@@ -70,6 +71,10 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
 
         const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
 
+        // version_name フィルター時は PV をクリックとして扱う
+        const displayMetaClicks = isVersionFilterActive ? pv : metaClicks;
+        const displayBeyondClicks = isVersionFilterActive ? pv : beyondClicks;
+
         // 日付フォーマット
         const [year, month, day] = dateStr.split('-');
         const displayDate = `${year}/${month}/${day}`;
@@ -80,15 +85,15 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
             campaign,
             cost: displayCost,
             impressions,
-            clicks: viewMode === 'beyond' ? beyondClicks : metaClicks,
-            mcv: beyondClicks,
+            clicks: viewMode === 'beyond' ? displayBeyondClicks : displayMetaClicks,
+            mcv: displayBeyondClicks,
             cv,
-            ctr: safeDivide(metaClicks, impressions) * 100,
-            mcvr: safeDivide(beyondClicks, pv) * 100,
-            cvr: safeDivide(cv, beyondClicks) * 100,
+            ctr: safeDivide(displayMetaClicks, impressions) * 100,
+            mcvr: safeDivide(displayBeyondClicks, pv) * 100,
+            cvr: safeDivide(cv, displayBeyondClicks) * 100,
             cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, metaClicks),
-            mcpa: safeDivide(beyondCost, beyondClicks),
+            cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, displayMetaClicks),
+            mcpa: safeDivide(beyondCost, displayBeyondClicks),
             cpa: safeDivide(beyondCost, cv),
             pv,
             fvExitRate: safeDivide(fvExit, pv) * 100,
@@ -114,8 +119,8 @@ function formatPercent(value: number): string {
     return `${value.toFixed(1)}%`;
 }
 
-export function ReportDailyDataTable({ data, title, viewMode }: ReportDailyDataTableProps) {
-    const rows = aggregateByDateAndCampaign(data, viewMode);
+export function ReportDailyDataTable({ data, title, viewMode, isVersionFilterActive = false }: ReportDailyDataTableProps) {
+    const rows = aggregateByDateAndCampaign(data, viewMode, isVersionFilterActive);
 
     if (rows.length === 0) {
         return (

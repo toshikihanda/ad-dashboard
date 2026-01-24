@@ -6,6 +6,7 @@ import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
 interface RankingPanelProps {
     data: ProcessedRow[];
     selectedCampaign: string;
+    isVersionFilterActive?: boolean;
 }
 
 interface RankingItem {
@@ -15,7 +16,6 @@ interface RankingItem {
     cost: number;
     revenue: number;
     profit: number;
-    recoveryRate: number;
     roas: number;
     impressions: number;
     clicks: number;
@@ -101,16 +101,19 @@ function filterByPeriod(data: ProcessedRow[], period: PeriodType): ProcessedRow[
     });
 }
 
-function aggregateRows(rows: ProcessedRow[]): RankingItem {
+function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): RankingItem {
     const totalCost = rows.reduce((sum, row) => sum + row.Cost, 0);
     const totalRevenue = rows.reduce((sum, row) => sum + row.Revenue, 0);
     const totalProfit = rows.reduce((sum, row) => sum + row.Gross_Profit, 0);
     const totalPV = rows.reduce((sum, row) => sum + row.PV, 0);
-    const totalClicks = rows.reduce((sum, row) => sum + row.Clicks, 0);
+    const totalClicksRaw = rows.reduce((sum, row) => sum + row.Clicks, 0);
     const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
     const totalImpressions = rows.reduce((sum, row) => sum + row.Impressions, 0);
     const totalFvExit = rows.reduce((sum, row) => sum + row.FV_Exit, 0);
     const totalSvExit = rows.reduce((sum, row) => sum + row.SV_Exit, 0);
+
+    // version_name フィルター時は PV をクリックとして扱う
+    const displayClicks = isVersionFilterActive ? totalPV : totalClicksRaw;
 
     return {
         campaignName: rows[0]?.Campaign_Name || '(未設定)',
@@ -119,18 +122,17 @@ function aggregateRows(rows: ProcessedRow[]): RankingItem {
         cost: totalCost,
         revenue: totalRevenue,
         profit: totalProfit,
-        recoveryRate: safeDivide(totalRevenue, totalCost) * 100,
-        roas: safeDivide(totalProfit, totalRevenue) * 100,
+        roas: Math.floor(safeDivide(totalRevenue, totalCost) * 100),
         impressions: totalImpressions,
-        clicks: totalClicks,
-        mcv: totalClicks,
+        clicks: displayClicks,
+        mcv: displayClicks,
         cv: totalCV,
-        ctr: safeDivide(totalClicks, totalImpressions) * 100,
-        mcvr: safeDivide(totalClicks, totalPV) * 100,
-        cvr: safeDivide(totalCV, totalClicks) * 100,
+        ctr: safeDivide(displayClicks, totalImpressions) * 100,
+        mcvr: safeDivide(displayClicks, totalPV) * 100,
+        cvr: safeDivide(totalCV, displayClicks) * 100,
         cpm: safeDivide(totalCost, totalImpressions) * 1000,
         cpc: safeDivide(totalCost, totalPV),
-        mcpa: safeDivide(totalCost, totalClicks),
+        mcpa: safeDivide(totalCost, displayClicks),
         cpa: totalCV > 0 ? totalCost / totalCV : Infinity,
         fvExit: totalFvExit,
         svExit: totalSvExit,
@@ -139,11 +141,11 @@ function aggregateRows(rows: ProcessedRow[]): RankingItem {
     };
 }
 
-function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: SortType): RankingItem[] {
+function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: SortType, isVersionFilterActive: boolean): RankingItem[] {
     const beyondData = data.filter(row => row.Media === 'Beyond');
 
     if (period === 'bestday') {
-        return calculateBestDayRanking(beyondData, sortBy);
+        return calculateBestDayRanking(beyondData, sortBy, isVersionFilterActive);
     }
 
     const filteredData = filterByPeriod(beyondData, period);
@@ -157,7 +159,7 @@ function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: Sort
         grouped[key].push(row);
     }
 
-    const aggregated: RankingItem[] = Object.values(grouped).map(rows => aggregateRows(rows));
+    const aggregated: RankingItem[] = Object.values(grouped).map(rows => aggregateRows(rows, isVersionFilterActive));
     const filtered = aggregated.filter(item => item.cv >= 1);
 
     let sorted;
@@ -170,7 +172,7 @@ function calculateRanking(data: ProcessedRow[], period: PeriodType, sortBy: Sort
     return sorted.slice(0, 10);
 }
 
-function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): RankingItem[] {
+function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType, isVersionFilterActive: boolean): RankingItem[] {
     const grouped: Record<string, ProcessedRow[]> = {};
 
     for (const row of beyondData) {
@@ -184,7 +186,7 @@ function calculateBestDayRanking(beyondData: ProcessedRow[], sortBy: SortType): 
 
     const allRecords: RankingItem[] = Object.entries(grouped).map(([key, rows]) => {
         const [date] = key.split('|||');
-        const item = aggregateRows(rows);
+        const item = aggregateRows(rows, isVersionFilterActive);
         item.date = date;
         return item;
     });
@@ -242,8 +244,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
         cost: 'w-[75px]',
         revenue: 'w-[70px]',
         profit: 'w-[70px]',
-        recoveryRate: 'w-[55px]',
-        roas: 'w-[50px]',
+        roas: 'w-[60px]',
         imp: 'w-[50px]',
         clicks: 'w-[50px]',
         lpClick: 'w-[70px]',
@@ -273,7 +274,6 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                         <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
                         <th className={`${thClass} ${colW.revenue}`}>売上</th>
                         <th className={`${thClass} ${colW.profit}`}>粗利</th>
-                        <th className={`${thClass} ${colW.recoveryRate}`}>回収率</th>
                         <th className={`${thClass} ${colW.roas}`}>ROAS</th>
                         <th className={`${thClass} ${colW.imp}`}>Imp</th>
                         <th className={`${thClass} ${colW.clicks}`}>Clicks</th>
@@ -313,8 +313,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                             <td className={`${tdClass} ${colW.cost}`}>{formatNumber(item.cost)}円</td>
                             <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(item.revenue)}円</td>
                             <td className={`${tdClass} ${colW.profit}`}>{formatNumber(item.profit)}円</td>
-                            <td className={`${tdClass} ${colW.recoveryRate}`}>{formatPercent(item.recoveryRate)}</td>
-                            <td className={`${tdClass} ${colW.roas}`}>{formatPercent(item.roas)}</td>
+                            <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{item.roas}%</td>
                             <td className={`${tdClass} ${colW.imp}`}>{item.impressions > 0 ? formatNumber(item.impressions) : '-'}</td>
                             <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(item.clicks)}</td>
                             <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(item.mcv)}</td>
@@ -336,7 +335,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
     );
 }
 
-export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
+export function RankingPanel({ data, selectedCampaign, isVersionFilterActive = false }: RankingPanelProps) {
     const [sortBy, setSortBy] = useState<SortType>('cpa');
     const [period, setPeriod] = useState<PeriodType>('today');
 
@@ -348,8 +347,8 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
     }, [data, selectedCampaign]);
 
     const ranking = useMemo(() => {
-        return calculateRanking(filteredData, period, sortBy);
-    }, [filteredData, period, sortBy]);
+        return calculateRanking(filteredData, period, sortBy, isVersionFilterActive);
+    }, [filteredData, period, sortBy, isVersionFilterActive]);
 
     const isBestDay = period === 'bestday';
 
@@ -401,6 +400,7 @@ export function RankingPanel({ data, selectedCampaign }: RankingPanelProps) {
                 </div>
             </div>
 
+            {/* Ranking Table */}
             <RankingTable ranking={ranking} showDate={isBestDay} />
         </div>
     );

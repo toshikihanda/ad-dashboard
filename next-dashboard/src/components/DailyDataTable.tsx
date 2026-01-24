@@ -6,6 +6,7 @@ interface DailyDataTableProps {
     data: ProcessedRow[];
     title: string;
     viewMode: 'total' | 'meta' | 'beyond';
+    isVersionFilterActive?: boolean;
 }
 
 interface DailyTableRow {
@@ -15,7 +16,6 @@ interface DailyTableRow {
     cost: number;
     revenue: number;
     profit: number;
-    recoveryRate: number;
     roas: number;
     impressions: number;
     clicks: number;
@@ -35,7 +35,7 @@ interface DailyTableRow {
     svExitRate: number;
 }
 
-function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): DailyTableRow[] {
+function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond', isVersionFilterActive: boolean): DailyTableRow[] {
     // Group by date and campaign
     const grouped = new Map<string, ProcessedRow[]>();
 
@@ -76,6 +76,10 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
 
         const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
 
+        // version_name フィルター時は PV をクリックとして扱う
+        const displayMetaClicks = isVersionFilterActive ? pv : metaClicks;
+        const displayBeyondClicks = isVersionFilterActive ? pv : beyondClicks;
+
         // Format display date
         const [year, month, day] = dateStr.split('-');
         const displayDate = `${year}/${month}/${day}`;
@@ -87,18 +91,17 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
             cost: displayCost,
             revenue,
             profit,
-            recoveryRate: safeDivide(revenue, displayCost) * 100,
-            roas: safeDivide(profit, revenue) * 100,
+            roas: Math.floor(safeDivide(revenue, displayCost) * 100),
             impressions,
-            clicks: viewMode === 'beyond' ? beyondClicks : metaClicks,
-            mcv: beyondClicks,
+            clicks: viewMode === 'beyond' ? displayBeyondClicks : displayMetaClicks,
+            mcv: displayBeyondClicks,
             cv,
-            ctr: safeDivide(metaClicks, impressions) * 100,
-            mcvr: safeDivide(beyondClicks, pv) * 100,
-            cvr: safeDivide(cv, beyondClicks) * 100,
+            ctr: safeDivide(displayMetaClicks, impressions) * 100,
+            mcvr: safeDivide(displayBeyondClicks, pv) * 100,
+            cvr: safeDivide(cv, displayBeyondClicks) * 100,
             cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, metaClicks),
-            mcpa: safeDivide(beyondCost, beyondClicks),
+            cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, displayMetaClicks),
+            mcpa: safeDivide(beyondCost, displayBeyondClicks),
             cpa: safeDivide(beyondCost, cv),
             pv,
             fvExit,
@@ -126,8 +129,8 @@ function formatPercent(value: number): string {
     return `${value.toFixed(1)}%`;
 }
 
-export function DailyDataTable({ data, title, viewMode }: DailyDataTableProps) {
-    const rows = aggregateByDateAndCampaign(data, viewMode);
+export function DailyDataTable({ data, title, viewMode, isVersionFilterActive = false }: DailyDataTableProps) {
+    const rows = aggregateByDateAndCampaign(data, viewMode, isVersionFilterActive);
 
     if (rows.length === 0) {
         return (
@@ -146,8 +149,7 @@ export function DailyDataTable({ data, title, viewMode }: DailyDataTableProps) {
         cost: 'w-[75px]',
         revenue: 'w-[70px]',
         profit: 'w-[70px]',
-        recoveryRate: 'w-[55px]',
-        roas: 'w-[50px]',
+        roas: 'w-[60px]',
         imp: 'w-[50px]',
         clicks: 'w-[50px]',
         lpClick: 'w-[70px]',
@@ -181,7 +183,6 @@ export function DailyDataTable({ data, title, viewMode }: DailyDataTableProps) {
                                 <th className={`${thClass} ${colW.cost}`}>出稿金額</th>
                                 <th className={`${thClass} ${colW.revenue}`}>売上</th>
                                 <th className={`${thClass} ${colW.profit}`}>粗利</th>
-                                <th className={`${thClass} ${colW.recoveryRate}`}>回収率</th>
                                 <th className={`${thClass} ${colW.roas}`}>ROAS</th>
                                 <th className={`${thClass} ${colW.imp}`}>Imp</th>
                                 <th className={`${thClass} ${colW.clicks}`}>Clicks</th>
@@ -207,8 +208,7 @@ export function DailyDataTable({ data, title, viewMode }: DailyDataTableProps) {
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                     <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
                                     <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>
-                                    <td className={`${tdClass} ${colW.recoveryRate}`}>{formatPercent(row.recoveryRate)}</td>
-                                    <td className={`${tdClass} ${colW.roas}`}>{formatPercent(row.roas)}</td>
+                                    <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
                                     <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                     <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(row.mcv)}</td>
