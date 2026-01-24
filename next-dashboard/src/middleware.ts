@@ -3,6 +3,13 @@ import type { NextRequest } from 'next/server';
 import { verifySessionToken } from '@/lib/session';
 
 export async function middleware(request: NextRequest) {
+    const { pathname } = request.nextUrl;
+
+    // レポートページは認証不要
+    if (pathname.startsWith('/report/')) {
+        return NextResponse.next();
+    }
+
     // TEMPORARY: Skip auth for UI testing
     const skipAuth = process.env.SKIP_AUTH === 'true';
     if (skipAuth) {
@@ -12,7 +19,7 @@ export async function middleware(request: NextRequest) {
     const authSession = request.cookies.get('auth_session')?.value;
 
     // Login page access control
-    if (request.nextUrl.pathname === '/login') {
+    if (pathname === '/login') {
         if (authSession && await verifySessionToken(authSession)) {
             return NextResponse.redirect(new URL('/', request.url));
         }
@@ -24,7 +31,7 @@ export async function middleware(request: NextRequest) {
 
     if (!isValid) {
         // API requests should return 401 instead of redirect
-        if (request.nextUrl.pathname.startsWith('/api/')) {
+        if (pathname.startsWith('/api/')) {
             return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
         }
         return NextResponse.redirect(new URL('/login', request.url));
