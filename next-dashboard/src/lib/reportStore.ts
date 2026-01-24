@@ -1,7 +1,8 @@
 import { google } from 'googleapis';
 import { getGoogleAuth } from './googleAuth';
 
-const MASTER_ID = process.env.GOOGLE_SHEETS_MASTER_ID;
+// レポート専用のシートIDがあればそれを使う。なければ従来のMASTER_IDを使う。
+const REPORT_ID = process.env.GOOGLE_SHEETS_REPORT_ID || process.env.GOOGLE_SHEETS_MASTER_ID;
 const LIST_SHEET_NAME = 'Report_List';
 
 export interface ReportEntry {
@@ -21,15 +22,15 @@ export async function addReportToList(entry: ReportEntry) {
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    if (!MASTER_ID) throw new Error('MASTER_ID not set');
+    if (!REPORT_ID) throw new Error('REPORT_ID not set');
 
     // シートが存在するか確認
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: MASTER_ID });
+    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: REPORT_ID });
     const sheetExists = spreadsheet.data.sheets?.some(s => s.properties?.title === LIST_SHEET_NAME);
 
     if (!sheetExists) {
         await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: MASTER_ID,
+            spreadsheetId: REPORT_ID,
             requestBody: {
                 requests: [{
                     addSheet: {
@@ -40,7 +41,7 @@ export async function addReportToList(entry: ReportEntry) {
         });
         // ヘッダー行を追加
         await sheets.spreadsheets.values.update({
-            spreadsheetId: MASTER_ID,
+            spreadsheetId: REPORT_ID,
             range: `${LIST_SHEET_NAME}!A1`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
@@ -51,7 +52,7 @@ export async function addReportToList(entry: ReportEntry) {
 
     // データを追加
     await sheets.spreadsheets.values.append({
-        spreadsheetId: MASTER_ID,
+        spreadsheetId: REPORT_ID,
         range: `${LIST_SHEET_NAME}!A:G`,
         valueInputOption: 'USER_ENTERED',
         requestBody: {
@@ -76,11 +77,11 @@ export async function getReportByToken(token: string): Promise<{ entry: ReportEn
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    if (!MASTER_ID) throw new Error('MASTER_ID not set');
+    if (!REPORT_ID) throw new Error('REPORT_ID not set');
 
     try {
         const res = await sheets.spreadsheets.values.get({
-            spreadsheetId: MASTER_ID,
+            spreadsheetId: REPORT_ID,
             range: `${LIST_SHEET_NAME}!A:G`,
         });
 
@@ -137,11 +138,11 @@ export async function updateClientToken(adminToken: string, clientToken: string)
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    if (!MASTER_ID) throw new Error('MASTER_ID not set');
+    if (!REPORT_ID) throw new Error('REPORT_ID not set');
 
     try {
         const res = await sheets.spreadsheets.values.get({
-            spreadsheetId: MASTER_ID,
+            spreadsheetId: REPORT_ID,
             range: `${LIST_SHEET_NAME}!A:G`,
         });
 
@@ -154,7 +155,7 @@ export async function updateClientToken(adminToken: string, clientToken: string)
 
         // clientTokenカラム（B列）を更新
         await sheets.spreadsheets.values.update({
-            spreadsheetId: MASTER_ID,
+            spreadsheetId: REPORT_ID,
             range: `${LIST_SHEET_NAME}!B${rowIndex + 1}`,
             valueInputOption: 'USER_ENTERED',
             requestBody: {
@@ -173,7 +174,7 @@ export async function updateClientToken(adminToken: string, clientToken: string)
  * マスターシートのIDを取得
  */
 export function getMasterSpreadsheetId(): string {
-    return MASTER_ID || '';
+    return REPORT_ID || '';
 }
 
 /**
@@ -183,14 +184,14 @@ export async function getSheetUrl(sheetName: string): Promise<string> {
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    if (!MASTER_ID) throw new Error('MASTER_ID not set');
+    if (!REPORT_ID) throw new Error('REPORT_ID not set');
 
     try {
-        const res = await sheets.spreadsheets.get({ spreadsheetId: MASTER_ID });
+        const res = await sheets.spreadsheets.get({ spreadsheetId: REPORT_ID });
         const sheet = res.data.sheets?.find(s => s.properties?.title === sheetName);
         const sheetId = sheet?.properties?.sheetId || 0;
-        return `https://docs.google.com/spreadsheets/d/${MASTER_ID}/edit#gid=${sheetId}`;
+        return `https://docs.google.com/spreadsheets/d/${REPORT_ID}/edit#gid=${sheetId}`;
     } catch (e) {
-        return `https://docs.google.com/spreadsheets/d/${MASTER_ID}/edit`;
+        return `https://docs.google.com/spreadsheets/d/${REPORT_ID}/edit`;
     }
 }

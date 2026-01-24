@@ -55,9 +55,9 @@ export async function getGoogleAuth() {
  * 新規スプレッドシートの作成権限がない場合のワークアラウンド
  */
 export async function createReportSheet(sheetName: string): Promise<void> {
-    const masterId = process.env.GOOGLE_SHEETS_MASTER_ID;
-    if (!masterId) {
-        throw new Error('GOOGLE_SHEETS_MASTER_ID が設定されていません');
+    const reportId = process.env.GOOGLE_SHEETS_REPORT_ID || process.env.GOOGLE_SHEETS_MASTER_ID;
+    if (!reportId) {
+        throw new Error('GOOGLE_SHEETS_REPORT_ID または GOOGLE_SHEETS_MASTER_ID が設定されていません');
     }
 
     let auth;
@@ -72,7 +72,7 @@ export async function createReportSheet(sheetName: string): Promise<void> {
     // マスターシート内に新しいシート（タブ）を作成
     try {
         const res = await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: masterId,
+            spreadsheetId: reportId,
             requestBody: {
                 requests: [{
                     addSheet: {

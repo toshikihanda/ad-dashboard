@@ -70,8 +70,8 @@ export async function POST(req: NextRequest) {
         }));
         const sheetData = [headers, ...rows];
 
-        const masterId = process.env.GOOGLE_SHEETS_MASTER_ID!;
-        await writeDataToSheet(masterId, sheetName, sheetData);
+        const reportId = process.env.GOOGLE_SHEETS_REPORT_ID || process.env.GOOGLE_SHEETS_MASTER_ID!;
+        await writeDataToSheet(reportId, sheetName, sheetData);
 
         // 5. Report_Listに登録
         console.log(`[Phase1] Registering report to listing sheet...`);
