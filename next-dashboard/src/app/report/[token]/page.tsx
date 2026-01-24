@@ -2,7 +2,7 @@ import { Metadata } from 'next';
 import { notFound } from 'next/navigation';
 import { Suspense } from 'react';
 import ReportClient from '../ReportClient';
-import { getReportByToken, getSheetUrl, getMasterSpreadsheetId } from '@/lib/reportStore';
+import { findReportByToken, getSheetUrl, getMasterSpreadsheetId } from '@/lib/reportStore';
 import { getGoogleAuth } from '@/lib/googleAuth';
 import { google } from 'googleapis';
 import { ProcessedRow } from '@/lib/dataProcessor';
@@ -62,34 +62,46 @@ async function getReportData(sheetName: string) {
     }
 }
 
-export default async function Page({ params }: { params: { token: string } }) {
-    const { token } = params;
+export default async function Page({ params }: { params: Promise<{ token: string }> }) {
+    const { token } = await params;
+    const masterId = getMasterSpreadsheetId();
+
+    console.log(`[ReportPage] Rendering for token: "${token}"`);
+    console.log(`[ReportPage] Target Spreadsheet ID (from store): "${masterId}"`);
 
     // マスターIDのチェック
-    if (!getMasterSpreadsheetId()) {
+    if (!masterId) {
+        console.error('[ReportPage] ERROR: No Master Spreadsheet ID configured');
         return (
             <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-red-50 text-red-800">
                 <h1 className="text-xl font-bold mb-2">⚠️ 設定エラー</h1>
-                <p>GOOGLE_SHEETS_MASTER_ID が設定されていません。</p>
+                <p>GOOGLE_SHEETS_MASTER_ID または REPORT_ID が設定されていません。</p>
             </div>
         );
     }
 
     try {
-        const result = await getReportByToken(token);
+        console.log(`[ReportPage] Calling findReportByToken("${token}")...`);
+        const result = await findReportByToken(token);
 
         if (!result) {
+            console.warn(`[ReportPage] RESULT: No report found for token "${token}"`);
             return (
                 <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-50 text-slate-800">
                     <h1 className="text-xl font-bold mb-2">📊 レポートが見つかりません</h1>
                     <p className="text-sm opacity-70 mb-4">指定されたトークンが無効か、レポートがまだ作成されていない可能性があります。</p>
+                    <p className="text-[10px] text-slate-400 mb-4">(Token: {token})</p>
                     <a href="/" className="text-blue-600 hover:underline">ダッシュボードへ戻る</a>
                 </div>
             );
         }
 
         const { entry, isAdmin } = result;
+        console.log(`[ReportPage] RESULT: SUCCESS! Admin=${isAdmin}, SheetName=${entry.sheetName}`);
+
         const data = await getReportData(entry.sheetName);
+        console.log(`[ReportPage] Data fetched: ${data.length} rows`);
+
         const spreadsheetUrl = isAdmin ? await getSheetUrl(entry.sheetName) : undefined;
 
         return (
@@ -112,6 +124,7 @@ export default async function Page({ params }: { params: { token: string } }) {
             </div>
         );
     } catch (error: any) {
+        console.error('[ReportPage] UNEXPECTED ERROR:', error.message);
         return (
             <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-orange-50 text-orange-800">
                 <h1 className="text-xl font-bold mb-2">⚠️ データ取得エラー</h1>
