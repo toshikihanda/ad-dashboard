@@ -52,7 +52,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         spreadsheetUrl: string;
     } | null>(null);
     // レポート用期間選択
-    const [reportPeriodPreset, setReportPeriodPreset] = useState<'7days' | '14days' | '30days' | 'thisMonth' | 'custom'>('thisMonth');
+    const [reportPeriodPreset, setReportPeriodPreset] = useState<'7days' | '14days' | '30days' | 'thisMonth' | 'custom' | ''>('');
     const [reportStartDate, setReportStartDate] = useState('');
     const [reportEndDate, setReportEndDate] = useState('');
 
@@ -852,20 +852,26 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                                     setReportPeriodPreset(preset);
                                                     if (preset !== 'custom') {
                                                         const now = new Date();
-                                                        let start = new Date();
-                                                        if (preset === '7days') start.setDate(now.getDate() - 6);
-                                                        else if (preset === '14days') start.setDate(now.getDate() - 13);
-                                                        else if (preset === '30days') start.setDate(now.getDate() - 29);
-                                                        else if (preset === 'thisMonth') start = new Date(now.getFullYear(), now.getMonth(), 1);
+                                                        const yesterday = new Date(now);
+                                                        yesterday.setDate(yesterday.getDate() - 1);
 
-                                                        const formatDate = (d: Date) => d.toISOString().split('T')[0];
-                                                        setReportStartDate(formatDate(start));
-                                                        setReportEndDate(formatDate(now));
+                                                        let start = new Date(yesterday);
+                                                        let end = new Date(yesterday);
+
+                                                        if (preset === '7days') start.setDate(yesterday.getDate() - 6);
+                                                        else if (preset === '14days') start.setDate(yesterday.getDate() - 13);
+                                                        else if (preset === '30days') start.setDate(yesterday.getDate() - 29);
+                                                        else if (preset === 'thisMonth') {
+                                                            start = new Date(yesterday.getFullYear(), yesterday.getMonth(), 1);
+                                                        }
+
+                                                        setReportStartDate(formatDateForInput(start));
+                                                        setReportEndDate(formatDateForInput(end));
                                                     }
                                                 }}
                                                 className={`px-2 py-1.5 text-[10px] font-bold rounded transition-all ${reportPeriodPreset === preset
                                                     ? 'bg-blue-600 text-white shadow'
-                                                    : 'text-gray-600 hover:bg-gray-200'
+                                                    : 'bg-white text-gray-600 hover:bg-gray-200 shadow-sm border border-gray-100'
                                                     }`}
                                             >
                                                 {preset === '7days' ? '7日' : preset === '14days' ? '14日' : preset === '30days' ? '30日' : preset === 'thisMonth' ? '今月' : 'カスタム'}
@@ -992,13 +998,21 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                                 value={`${window.location.origin}${generatedReportInfo.adminUrl}`}
                                                 className="flex-1 p-2 border rounded-lg text-xs bg-gray-50 font-mono"
                                             />
+                                            <a
+                                                href={generatedReportInfo.adminUrl}
+                                                target="_blank"
+                                                rel="noopener noreferrer"
+                                                className="px-3 py-2 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm"
+                                            >
+                                                開く
+                                            </a>
                                             <button
                                                 onClick={() => {
                                                     navigator.clipboard.writeText(`${window.location.origin}${generatedReportInfo.adminUrl}`);
                                                     setReportCopied(true);
                                                     setTimeout(() => setReportCopied(false), 2000);
                                                 }}
-                                                className={`px-3 py-2 text-xs font-bold rounded-lg transition-all ${reportCopied ? 'bg-green-600 text-white' : 'bg-blue-600 text-white hover:bg-blue-700'}`}
+                                                className={`px-3 py-2 text-xs font-bold rounded-lg transition-all ${reportCopied ? 'bg-green-600 text-white' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
                                             >
                                                 {reportCopied ? 'コピー済' : 'コピー'}
                                             </button>

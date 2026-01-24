@@ -53,9 +53,6 @@ function ClientUrlButton({ adminToken }: { adminToken?: string }) {
                 <span>🔗</span>
                 <span>{copied ? 'コピーしました！' : 'シェア用（閲覧専用）URLを取得'}</span>
             </button>
-            <div className="text-[10px] text-gray-400 bg-gray-50 p-2 rounded border truncate max-w-[200px]">
-                {shareUrl}
-            </div>
         </div>
     );
 }
@@ -624,32 +621,11 @@ export default function ReportClient({
                                 <div className="flex items-center justify-between md:block">
                                     <span className="text-[10px] font-bold text-gray-500 tracking-wide hidden md:block">期間</span>
                                     <span className="text-[10px] font-bold text-gray-500 tracking-wide md:hidden mb-1 block">期間</span>
-                                    <div className="flex items-center gap-1 text-[9px] truncate md:float-right">
+                                    <div className="flex items-center gap-1 text-[9px] truncate md:float-right mt-1">
                                         <span className="text-blue-500">●</span>
                                         <span className="font-bold text-gray-700">{startDate.replace(/-/g, '/').slice(5)}〜{endDate.replace(/-/g, '/').slice(5)}</span>
                                     </div>
                                 </div>
-                                {!isShareMode && (
-                                    <div className="flex bg-white rounded-lg border border-gray-200 shadow-sm h-10 md:h-8 overflow-hidden">
-                                        {(['thisMonth', 'today', 'yesterday', '7days', 'custom'] as const).filter(p => availablePresets.includes(p)).map((preset) => (
-                                            <button
-                                                key={preset}
-                                                onClick={() => handlePresetChange(preset)}
-                                                className={cn(
-                                                    "flex-1 text-[10px] md:text-[9px] font-bold transition-all border-r last:border-r-0 border-gray-100 active:bg-blue-50",
-                                                    datePreset === preset
-                                                        ? "bg-blue-600 text-white border-blue-600"
-                                                        : "text-gray-500 hover:bg-gray-50"
-                                                )}
-                                            >
-                                                {preset === 'thisMonth' ? '今月' :
-                                                    preset === 'today' ? '今日' :
-                                                        preset === 'yesterday' ? '昨日' :
-                                                            preset === '7days' ? '7日' : '選択'}
-                                            </button>
-                                        ))}
-                                    </div>
-                                )}
                             </div>
                         </div>
                     </details>
