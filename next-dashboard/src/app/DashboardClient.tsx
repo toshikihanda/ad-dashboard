@@ -282,7 +282,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         // --- version_name フィルター有効時の切り替え ---
         // フィルター時は PV を Clicks として扱う
         const displayMetaClicks = isVersionFilterActive ? beyondPV : metaClicksRaw;
-        const displayBeyondClicks = isVersionFilterActive ? beyondPV : beyondClicksRaw;
+        const displayBeyondClicks = beyondClicksRaw; // 商品LPクリックは常に本来の遷移数を表示
 
         // MCV from Meta
         const metaMCV = metaData.reduce((sum, row) => sum + row.MCV, 0);

@@ -83,22 +83,22 @@ function aggregateData(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyon
 
     const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
 
-    // version_name フィルター時は PV をクリックとして扱う
-    const displayMetaClicks = isVersionFilterActive ? pv : metaClicks;
-    const displayBeyondClicks = isVersionFilterActive ? pv : beyondClicks;
+    // version_name フィルター時は PV を入口クリックとして扱う
+    const displayMetaEntry = isVersionFilterActive ? pv : metaClicks;
+    const displayBeyondTransition = beyondClicks; // 商品LPクリックは常に遷移数
 
     return {
         cost: displayCost,
         impressions,
-        clicks: viewMode === 'beyond' ? displayBeyondClicks : displayMetaClicks,
-        mcv: displayBeyondClicks,
+        clicks: viewMode === 'beyond' ? displayBeyondTransition : displayMetaEntry,
+        mcv: displayBeyondTransition,
         cv,
-        ctr: safeDivide(displayMetaClicks, impressions) * 100,
-        mcvr: safeDivide(displayBeyondClicks, pv) * 100,
-        cvr: safeDivide(cv, displayBeyondClicks) * 100,
+        ctr: safeDivide(displayMetaEntry, impressions) * 100,
+        mcvr: safeDivide(displayBeyondTransition, pv) * 100,
+        cvr: safeDivide(cv, displayBeyondTransition) * 100,
         cpm: safeDivide(metaCost, impressions) * 1000,
-        cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, displayMetaClicks),
-        mcpa: safeDivide(beyondCost, displayBeyondClicks),
+        cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, displayMetaEntry),
+        mcpa: safeDivide(beyondCost, displayBeyondTransition),
         cpa: safeDivide(beyondCost, cv),
         fvExitRate: safeDivide(fvExit, pv) * 100,
         svExitRate: safeDivide(svExit, pv - fvExit) * 100,

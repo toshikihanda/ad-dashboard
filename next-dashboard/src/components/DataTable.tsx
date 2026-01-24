@@ -148,7 +148,7 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
 
     // version_name フィルター時は PV をクリックとして扱う
     const displayMetaClicks = isVersionFilterActive ? pv : metaClicksRaw;
-    const displayBeyondClicks = isVersionFilterActive ? pv : beyondClicksRaw;
+    const displayBeyondClicks = beyondClicksRaw; // 商品LPクリック（遷移）は維持
 
     return {
         label,
@@ -157,7 +157,7 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
         profit,
         roas: Math.floor(safeDivide(revenue, displayCost) * 100), // 回収率ベースのROAS
         impressions,
-        clicks: viewMode === 'beyond' ? displayBeyondClicks : displayMetaClicks,
+        clicks: viewMode === 'beyond' ? beyondClicksRaw : displayMetaClicks,
         mcv: displayBeyondClicks,
         cv,
         ctr: safeDivide(displayMetaClicks, impressions) * 100,

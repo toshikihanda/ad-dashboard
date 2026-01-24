@@ -412,7 +412,7 @@ export default function ReportClient({
 
         // --- version_name フィルター有効時の切り替え ---
         const displayMetaClicks = isVersionFilterActive ? beyondPV : metaClicksRaw;
-        const displayBeyondClicks = isVersionFilterActive ? beyondPV : beyondClicksRaw;
+        const displayBeyondClicks = beyondClicksRaw; // 商品LPクリックは常に本来の遷移数
 
         // MetaからのMCV
         const metaMCV = metaData.reduce((sum, row) => sum + row.MCV, 0);

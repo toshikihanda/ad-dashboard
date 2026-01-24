@@ -121,8 +121,9 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
     const fvExit = rows.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = rows.reduce((sum, row) => sum + row.SV_Exit, 0);
 
-    // version_name フィルター時は PV をクリックとして扱う
-    const displayClicks = isVersionFilterActive ? totalPV : totalClicksRaw;
+    // version_name フィルター時は PV をクリック（入口）として扱う
+    const displayEntryClicks = isVersionFilterActive ? totalPV : totalClicksRaw;
+    const displayTransitionClicks = totalClicksRaw; // 商品LPクリックは維持
 
     return {
         campaignName: rows[0]?.Campaign_Name || '(未設定)',
@@ -130,15 +131,15 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
         creative: rows[0]?.creative_value || '(未設定)',
         cost: totalCost,
         impressions: totalImpressions,
-        clicks: displayClicks,
-        mcv: displayClicks,
+        clicks: displayEntryClicks,
+        mcv: displayTransitionClicks,
         cv: totalCV,
-        ctr: safeDivide(displayClicks, totalImpressions) * 100,
-        mcvr: safeDivide(displayClicks, totalPV) * 100,
-        cvr: safeDivide(totalCV, displayClicks) * 100,
+        ctr: safeDivide(displayEntryClicks, totalImpressions) * 100,
+        mcvr: safeDivide(displayTransitionClicks, totalPV) * 100,
+        cvr: safeDivide(totalCV, displayTransitionClicks) * 100,
         cpm: safeDivide(totalCost, totalImpressions) * 1000,
         cpc: safeDivide(totalCost, totalPV),
-        mcpa: safeDivide(totalCost, displayClicks),
+        mcpa: safeDivide(totalCost, displayTransitionClicks),
         cpa: totalCV > 0 ? totalCost / totalCV : Infinity,
         fvExitRate: safeDivide(fvExit, totalPV) * 100,
         svExitRate: safeDivide(svExit, totalPV - fvExit) * 100,
