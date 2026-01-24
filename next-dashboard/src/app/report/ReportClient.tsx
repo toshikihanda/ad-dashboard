@@ -140,7 +140,13 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
 
         // 制限チェック (initialDataの範囲内か)
         if (initialData.length > 0) {
-            const dataDates = initialData.map(r => r.Date.getTime());
+            const dataDates = initialData.map(r => {
+                const d = r.Date instanceof Date ? r.Date : new Date(r.Date);
+                return isNaN(d.getTime()) ? 0 : d.getTime();
+            }).filter(t => t > 0);
+
+            if (dataDates.length === 0) return;
+
             const minDate = Math.min(...dataDates);
             const maxDate = Math.max(...dataDates);
 
@@ -161,7 +167,13 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
     const availablePresets = useMemo(() => {
         if (initialData.length === 0) return ['custom'];
 
-        const dataDates = initialData.map(r => r.Date.getTime());
+        const dataDates = initialData.map(r => {
+            const d = r.Date instanceof Date ? r.Date : new Date(r.Date);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+        }).filter(t => t > 0);
+
+        if (dataDates.length === 0) return ['custom'];
+
         const minDate = Math.min(...dataDates);
         const maxDate = Math.max(...dataDates);
 
@@ -187,7 +199,13 @@ export default function ReportClient({ initialData, masterProjects, spreadsheetU
 
     const dataRange = useMemo(() => {
         if (initialData.length === 0) return { min: '', max: '' };
-        const dataDates = initialData.map(r => r.Date.getTime());
+        const dataDates = initialData.map(r => {
+            const d = r.Date instanceof Date ? r.Date : new Date(r.Date);
+            return isNaN(d.getTime()) ? 0 : d.getTime();
+        }).filter(t => t > 0);
+
+        if (dataDates.length === 0) return { min: '', max: '' };
+
         const minDate = new Date(Math.min(...dataDates));
         const maxDate = new Date(Math.max(...dataDates));
         return {

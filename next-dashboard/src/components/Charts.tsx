@@ -167,7 +167,8 @@ export function RateChart({ data, title, numeratorKey, denominatorKey, multiplie
     const dateMap = new Map<string, ChartDataPoint>();
 
     for (const row of data) {
-        const dateKey = row.Date.toISOString().split('T')[0];
+        const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+        const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
         if (!dateMap.has(dateKey)) {
             dateMap.set(dateKey, { date: dateKey });
         }
@@ -179,7 +180,8 @@ export function RateChart({ data, title, numeratorKey, denominatorKey, multiplie
         const campaignDateAgg = new Map<string, { num: number; den: number }>();
 
         for (const row of campaignData) {
-            const dateKey = row.Date.toISOString().split('T')[0];
+            const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+            const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
             const existing = campaignDateAgg.get(dateKey) || { num: 0, den: 0 };
             existing.num += row[numeratorKey] as number;
             existing.den += row[denominatorKey] as number;
@@ -235,7 +237,8 @@ export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }:
     const dateMap = new Map<string, ChartDataPoint>();
 
     for (const row of data) {
-        const dateKey = row.Date.toISOString().split('T')[0];
+        const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+        const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
         if (!dateMap.has(dateKey)) {
             dateMap.set(dateKey, { date: dateKey });
         }
@@ -246,7 +249,8 @@ export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }:
         const campaignDateAgg = new Map<string, { cost: number; divisor: number }>();
 
         for (const row of campaignData) {
-            const dateKey = row.Date.toISOString().split('T')[0];
+            const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+            const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
             const existing = campaignDateAgg.get(dateKey) || { cost: 0, divisor: 0 };
             existing.cost += row.Cost;
             existing.divisor += row[costDivisorKey] as number;

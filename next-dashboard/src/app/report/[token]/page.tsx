@@ -49,10 +49,14 @@ async function getReportData(sheetName: string) {
             const obj: any = {};
             headers.forEach((h: string, i: number) => {
                 let val = row[i];
-                if (val && !isNaN(Number(val)) && h !== 'Date') {
-                    val = Number(val);
+                if (h === 'Date' && val) {
+                    const parsedDate = new Date(val);
+                    obj[h] = isNaN(parsedDate.getTime()) ? val : parsedDate;
+                } else if (val && !isNaN(Number(val))) {
+                    obj[h] = Number(val);
+                } else {
+                    obj[h] = val ?? '';
                 }
-                obj[h] = val ?? '';
             });
             return obj;
         }) as ProcessedRow[];

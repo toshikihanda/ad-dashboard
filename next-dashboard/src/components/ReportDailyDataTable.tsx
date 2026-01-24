@@ -37,7 +37,8 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
     const grouped = new Map<string, ProcessedRow[]>();
 
     for (const row of data) {
-        const dateStr = row.Date.toISOString().split('T')[0];
+        const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+        const dateStr = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
         const key = `${dateStr}|||${row.Campaign_Name}`;
         if (!grouped.has(key)) {
             grouped.set(key, []);
