@@ -24,30 +24,45 @@ export async function addReportToList(entry: ReportEntry) {
 
     if (!REPORT_ID) throw new Error('REPORT_ID not set');
 
-    // シートが存在するか確認
-    const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: REPORT_ID });
-    const sheetExists = spreadsheet.data.sheets?.some(s => s.properties?.title === LIST_SHEET_NAME);
+    try {
+        // シートが存在するか確認し、なければ作成
+        const spreadsheet = await sheets.spreadsheets.get({ spreadsheetId: REPORT_ID });
+        const sheetExists = spreadsheet.data.sheets?.some(s => s.properties?.title === LIST_SHEET_NAME);
 
-    if (!sheetExists) {
-        await sheets.spreadsheets.batchUpdate({
-            spreadsheetId: REPORT_ID,
-            requestBody: {
-                requests: [{
-                    addSheet: {
-                        properties: { title: LIST_SHEET_NAME }
-                    }
-                }]
-            }
-        });
-        // ヘッダー行を追加
-        await sheets.spreadsheets.values.update({
+        if (!sheetExists) {
+            console.log(`[reportStore] Creating new "${LIST_SHEET_NAME}" sheet...`);
+            await sheets.spreadsheets.batchUpdate({
+                spreadsheetId: REPORT_ID,
+                requestBody: {
+                    requests: [{
+                        addSheet: {
+                            properties: { title: LIST_SHEET_NAME }
+                        }
+                    }]
+                }
+            });
+        }
+
+        // ヘッダーがあるか確認（A1セルを取得）
+        const headerRes = await sheets.spreadsheets.values.get({
             spreadsheetId: REPORT_ID,
             range: `${LIST_SHEET_NAME}!A1`,
-            valueInputOption: 'USER_ENTERED',
-            requestBody: {
-                values: [['adminToken', 'clientToken', 'projectName', 'startDate', 'endDate', 'sheetName', 'createdAt']],
-            },
         });
+
+        // A1が 'adminToken' でない場合は、新規または構造破壊とみなしてヘッダーを書き込む
+        if (!headerRes.data.values || headerRes.data.values.length === 0 || headerRes.data.values[0][0] !== 'adminToken') {
+            console.log(`[reportStore] Initializing header for "${LIST_SHEET_NAME}"`);
+            await sheets.spreadsheets.values.update({
+                spreadsheetId: REPORT_ID,
+                range: `${LIST_SHEET_NAME}!A1:G1`,
+                valueInputOption: 'USER_ENTERED',
+                requestBody: {
+                    values: [['adminToken', 'clientToken', 'projectName', 'startDate', 'endDate', 'sheetName', 'createdAt']],
+                },
+            });
+        }
+    } catch (e: any) {
+        console.error('[reportStore] Failed during sheet/header check:', e.message);
     }
 
     // データを追加
@@ -77,11 +92,10 @@ export async function findReportByToken(token: string): Promise<{ entry: ReportE
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    // 環境変数を関数内で取得し、ログに出力
     const targetId = process.env.GOOGLE_SHEETS_REPORT_ID || process.env.GOOGLE_SHEETS_MASTER_ID;
 
     if (!targetId) {
-        console.error('[reportStore] NO SPREADSHEET ID CONFIGURED (Check GOOGLE_SHEETS_REPORT_ID or MASTER_ID)');
+        console.error('[reportStore] NO SPREADSHEET ID CONFIGURED');
         return null;
     }
 
@@ -97,18 +111,26 @@ export async function findReportByToken(token: string): Promise<{ entry: ReportE
 
         const rows = res.data.values;
         if (!rows || rows.length === 0) {
-            console.log(`[reportStore] RESULT: No data found in "${LIST_SHEET_NAME}" sheet of ID: ${targetId}`);
+            console.log(`[reportStore] RESULT: No data found in "${LIST_SHEET_NAME}"`);
             return null;
         }
 
-        console.log(`[reportStore] Total rows scanned: ${rows.length}`);
+        console.log(`[reportStore] Total rows fetched: ${rows.length}`);
 
-        for (let i = 0; i < rows.length; i++) {
+        // 1行目はヘッダーとしてスキップし、2行目から全行チェック
+        for (let i = 1; i < rows.length; i++) {
             const row = rows[i];
+
+            // 安全なスキップ: 行が空、第1列(adminToken)が空の場合はスキップ
+            if (!row || row.length === 0 || !row[0]) {
+                continue;
+            }
+
             const adminToken = row[0];
             const clientToken = row[1];
 
-            if (adminToken === token && adminToken !== 'adminToken') {
+            // 管理者トークンマッチング
+            if (adminToken === token) {
                 console.log(`[reportStore] MATCH FOUND: Admin role at row ${i + 1}`);
                 return {
                     entry: {
@@ -124,7 +146,8 @@ export async function findReportByToken(token: string): Promise<{ entry: ReportE
                 };
             }
 
-            if (clientToken === token && clientToken !== 'clientToken') {
+            // クライアントトークンマッチング
+            if (clientToken === token) {
                 console.log(`[reportStore] MATCH FOUND: Client role at row ${i + 1}`);
                 return {
                     entry: {
@@ -141,11 +164,11 @@ export async function findReportByToken(token: string): Promise<{ entry: ReportE
             }
         }
 
-        console.log(`[reportStore] RESULT: No match found for "${token}" in ${rows.length} rows`);
+        console.log(`[reportStore] RESULT: No match found for "${token}" among ${rows.length - 1} data rows`);
         return null;
     } catch (e: any) {
         const details = e.response?.data?.error?.message || e.message;
-        console.error(`[reportStore] API ERROR for ID ${targetId}:`, details);
+        console.error(`[reportStore] API ERROR:`, details);
         return null;
     }
 }
