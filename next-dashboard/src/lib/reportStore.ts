@@ -73,63 +73,85 @@ export async function addReportToList(entry: ReportEntry) {
  * トークンからレポート情報を取得
  * adminTokenまたはclientTokenのどちらでも検索可能
  */
-export async function getReportByToken(token: string): Promise<{ entry: ReportEntry; isAdmin: boolean } | null> {
+export async function findReportByToken(token: string): Promise<{ entry: ReportEntry; isAdmin: boolean } | null> {
     const auth = await getGoogleAuth();
     const sheets = google.sheets({ version: 'v4', auth });
 
-    if (!REPORT_ID) throw new Error('REPORT_ID not set');
+    // 環境変数を関数内で取得し、ログに出力
+    const targetId = process.env.GOOGLE_SHEETS_REPORT_ID || process.env.GOOGLE_SHEETS_MASTER_ID;
+
+    if (!targetId) {
+        console.error('[reportStore] NO SPREADSHEET ID CONFIGURED (Check GOOGLE_SHEETS_REPORT_ID or MASTER_ID)');
+        return null;
+    }
+
+    console.log(`[reportStore] === TOKEN SEARCH START ===`);
+    console.log(`[reportStore] Target Spreadsheet ID: "${targetId}"`);
+    console.log(`[reportStore] Searching for Token: "${token}"`);
 
     try {
         const res = await sheets.spreadsheets.values.get({
-            spreadsheetId: REPORT_ID,
+            spreadsheetId: targetId,
             range: `${LIST_SHEET_NAME}!A:G`,
         });
 
         const rows = res.data.values;
-        if (!rows || rows.length < 2) return null;
-
-        const dataRows = rows.slice(1);
-
-        // adminTokenで検索
-        let foundRow = dataRows.find(r => r[0] === token);
-        if (foundRow) {
-            return {
-                entry: {
-                    adminToken: foundRow[0],
-                    clientToken: foundRow[1] || null,
-                    projectName: foundRow[2],
-                    startDate: foundRow[3],
-                    endDate: foundRow[4],
-                    sheetName: foundRow[5],
-                    createdAt: foundRow[6]
-                },
-                isAdmin: true
-            };
+        if (!rows || rows.length === 0) {
+            console.log(`[reportStore] RESULT: No data found in "${LIST_SHEET_NAME}" sheet of ID: ${targetId}`);
+            return null;
         }
 
-        // clientTokenで検索
-        foundRow = dataRows.find(r => r[1] === token);
-        if (foundRow) {
-            return {
-                entry: {
-                    adminToken: foundRow[0],
-                    clientToken: foundRow[1] || null,
-                    projectName: foundRow[2],
-                    startDate: foundRow[3],
-                    endDate: foundRow[4],
-                    sheetName: foundRow[5],
-                    createdAt: foundRow[6]
-                },
-                isAdmin: false
-            };
+        console.log(`[reportStore] Total rows scanned: ${rows.length}`);
+
+        for (let i = 0; i < rows.length; i++) {
+            const row = rows[i];
+            const adminToken = row[0];
+            const clientToken = row[1];
+
+            if (adminToken === token && adminToken !== 'adminToken') {
+                console.log(`[reportStore] MATCH FOUND: Admin role at row ${i + 1}`);
+                return {
+                    entry: {
+                        adminToken: row[0],
+                        clientToken: row[1] || null,
+                        projectName: row[2],
+                        startDate: row[3],
+                        endDate: row[4],
+                        sheetName: row[5],
+                        createdAt: row[6]
+                    },
+                    isAdmin: true
+                };
+            }
+
+            if (clientToken === token && clientToken !== 'clientToken') {
+                console.log(`[reportStore] MATCH FOUND: Client role at row ${i + 1}`);
+                return {
+                    entry: {
+                        adminToken: row[0],
+                        clientToken: row[1] || null,
+                        projectName: row[2],
+                        startDate: row[3],
+                        endDate: row[4],
+                        sheetName: row[5],
+                        createdAt: row[6]
+                    },
+                    isAdmin: false
+                };
+            }
         }
 
+        console.log(`[reportStore] RESULT: No match found for "${token}" in ${rows.length} rows`);
         return null;
-    } catch (e) {
-        console.error('Failed to get report by token', e);
+    } catch (e: any) {
+        const details = e.response?.data?.error?.message || e.message;
+        console.error(`[reportStore] API ERROR for ID ${targetId}:`, details);
         return null;
     }
 }
+
+// 互換性のためのエイリアス
+export const getReportByToken = findReportByToken;
 
 /**
  * クライアントトークンを追加
