@@ -171,34 +171,47 @@ function findProjectByBeyondKeyword(
 // Matches patterns like "bt054_004_004" in "campaign_SAC_成果_bt054_004_004_v1"
 // Extract creative value from Meta's Ad Name
 // Matches patterns like "bt054_004_004", "116_004_004", or raw IDs like "120237718661190172"
+// Extract creative value from Meta's Ad Name or Beyond's parameter
+// Objective: Normalize diverse naming patterns (e.g. "【16】116_配置変更", "2_116_c1") to a core ID (e.g. "116")
 function extractCreativeFromAdName(adName: string): string {
     if (!adName) return '';
 
-    // 1. btで始まるパターン (bt054_004_004)
-    const matchBt = adName.match(/bt\d+(?:_\d+)+/i);
-    if (matchBt) return matchBt[0];
+    // 1. Clean input (remove brackets and their content if used for labeling, or just brackets?)
+    // User case: "【16】116_..." -> The "16" in brackets might be a label, "116" is the ID.
+    // However, removing content inside brackets might remove the ID if valid ID is in brackets.
+    // Looking at the user image: "【16】" seems to be a label (date? batch?), "116" follows.
+    // "【10】 116_..." -> "10" is label.
+    // Strategy: Replace bracketed content with space to avoid false positives from labels.
+    let cleanName = adName.replace(/[【\[].*?[】\]]/g, ' ');
 
-    // 2. 英数字混合のアンダースコア区切りパターン (e.g., 2_116_c1, 116_004_004)
-    // 数字で始まり、アンダースコア＋英数字が2回以上続く
-    const matchMixed = adName.match(/\d+(?:_[a-zA-Z0-9]+){2,}/);
-    if (matchMixed) {
-        // 日付形式(2025_01_01)を除外
-        if (!matchMixed[0].match(/^20\d{2}_\d{2}_\d{2}$/)) {
-            return matchMixed[0];
+    // Also matching standard "bt" pattern first as it's specific
+    const matchBt = cleanName.match(/(bt\d+)/i);
+    if (matchBt) return matchBt[1];
+
+    // 2. Find sequence of 3 or more digits
+    // This allows "116" to be extracted from " 116_..." or "2_116_c1" (if 116 is the first 3-digit num)
+    // We iterate through all number matches to find a "valid" ID (skipping likely dates)
+    const numberMatches = cleanName.match(/\d{3,}/g);
+
+    if (numberMatches) {
+        for (const num of numberMatches) {
+            // Filter out likely dates (YYYYMMDD or YYMMDD)
+            // 8 digits starting with 20xx
+            if (num.length === 8 && (num.startsWith('20') || num.startsWith('19'))) continue;
+            // 6 digits starting with 24, 25, 26 (likely year 2024-2026)
+            if (num.length === 6 && ['23', '24', '25', '26', '27'].includes(num.substring(0, 2))) continue;
+
+            // If it passes date check, assume it's the Core ID
+            return num;
         }
     }
 
-    // 3. アンダースコア区切りの数字 (140_1 など短いものも許容)
-    // Modified to allow 1-3 digits to support "140_1"
+    // 3. Fallback: If no 3-digit number found, look for "2_c1" pattern? 
+    // Or just look for any number sequence that was part of the original logic
     const matchUnderscore = adName.match(/\d{2,}(?:_\d{1,3})+/);
-    if (matchUnderscore) {
-        // Exclude obvious date formats (YYYY_MM_DD) starting with 20xx
-        if (!matchUnderscore[0].match(/^20\d{2}_\d{2}_\d{2}$/)) {
-            return matchUnderscore[0];
-        }
-    }
+    if (matchUnderscore) return matchUnderscore[0];
 
-    // 4. 長い数字ID (15桁以上) - MetaのAd IDなどがそのまま使われている場合
+    // 4. Long ID fallback
     const matchLongId = adName.match(/\d{15,}/);
     if (matchLongId) return matchLongId[0];
 
@@ -365,7 +378,6 @@ function processBeyondData(
         // Skip if no matching project found
         if (!config) continue;
 
-        // Get parameter and filter by project's parameter type
         const parameter = (row['parameter'] || '').trim();
         const pType = config.parameterType || 'utm_creative';
 
@@ -374,7 +386,11 @@ function processBeyondData(
             continue;
         }
 
-        const creativeValue = parameter.replace(pType + '=', '');
+        const rawCreativeValue = parameter.replace(pType + '=', '');
+        // Normalize using the same logic as Meta (extract core ID like "116")
+        // Use extracted ID if possible, otherwise fallback to raw value
+        const creativeValue = extractCreativeFromAdName(rawCreativeValue) || rawCreativeValue;
+
         const versionName = (row['version_name'] || '').trim();
 
         const cost = parseNumber(row['cost']);
