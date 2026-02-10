@@ -30,6 +30,9 @@ export interface ProcessedRow {
     SV_Exit: number;
     Revenue: number;
     Gross_Profit: number;
+    // New Video Metrics
+    Video_3Sec_Views: number;
+    Cost_Per_Video_3Sec_View: number;
     // New fields for filters
     beyond_page_name: string;
     version_name: string;
@@ -166,11 +169,40 @@ function findProjectByBeyondKeyword(
 
 // Extract creative value from Meta's Ad Name
 // Matches patterns like "bt054_004_004" in "campaign_SAC_成果_bt054_004_004_v1"
+// Extract creative value from Meta's Ad Name
+// Matches patterns like "bt054_004_004", "116_004_004", or raw IDs like "120237718661190172"
 function extractCreativeFromAdName(adName: string): string {
     if (!adName) return '';
-    // Look for bt + digits pattern with underscores (e.g., bt054_004_004)
-    const match = adName.match(/bt\d{3}(?:_\d{3})+/);
-    return match ? match[0] : '';
+
+    // 1. btで始まるパターン (bt054_004_004)
+    const matchBt = adName.match(/bt\d+(?:_\d+)+/i);
+    if (matchBt) return matchBt[0];
+
+    // 2. 英数字混合のアンダースコア区切りパターン (e.g., 2_116_c1, 116_004_004)
+    // 数字で始まり、アンダースコア＋英数字が2回以上続く
+    const matchMixed = adName.match(/\d+(?:_[a-zA-Z0-9]+){2,}/);
+    if (matchMixed) {
+        // 日付形式(2025_01_01)を除外
+        if (!matchMixed[0].match(/^20\d{2}_\d{2}_\d{2}$/)) {
+            return matchMixed[0];
+        }
+    }
+
+    // 3. アンダースコア区切りの数字 (140_1 など短いものも許容)
+    // Modified to allow 1-3 digits to support "140_1"
+    const matchUnderscore = adName.match(/\d{2,}(?:_\d{1,3})+/);
+    if (matchUnderscore) {
+        // Exclude obvious date formats (YYYY_MM_DD) starting with 20xx
+        if (!matchUnderscore[0].match(/^20\d{2}_\d{2}_\d{2}$/)) {
+            return matchUnderscore[0];
+        }
+    }
+
+    // 4. 長い数字ID (15桁以上) - MetaのAd IDなどがそのまま使われている場合
+    const matchLongId = adName.match(/\d{15,}/);
+    if (matchLongId) return matchLongId[0];
+
+    return '';
 }
 
 function processMetaData(
@@ -204,6 +236,25 @@ function processMetaData(
     const combined = [...historyFiltered, ...liveFiltered];
 
     const results: ProcessedRow[] = [];
+
+    // Helper to find value with loose matching
+    const findColumnValue = (row: Record<string, string>, targets: string[]): string | undefined => {
+        // 1. Exact match
+        for (const t of targets) {
+            if (row[t] !== undefined) return row[t];
+        }
+        // 2. Case-insensitive & Trimmed match
+        const keys = Object.keys(row);
+        for (const t of targets) {
+            const normalizedTarget = t.trim().toLowerCase();
+            for (const k of keys) {
+                if (k.trim().toLowerCase() === normalizedTarget) {
+                    return row[k];
+                }
+            }
+        }
+        return undefined;
+    };
 
     for (const row of combined) {
         const adName = row['Ad Name'] || '';
@@ -239,11 +290,20 @@ function processMetaData(
         // Meta側のcreative_valueはAd Nameから抽出
         const metaCreativeValue = extractCreativeFromAdName(adName);
 
+        // 新規指標: 動画3秒再生数, 単価
+        // カラム名の揺らぎ（スペースや大文字小文字）に対応
+        // ユーザーから指定された列名: "3-Second Video Views", "Cost per 3-Second Video View"
+        const video3SecViewsVal = findColumnValue(row, ['3-Second Video Views', '3-Second Video', '3-Second Video Plays']);
+        const video3SecViews = parseNumber(video3SecViewsVal);
+
+        const video3SecCostVal = findColumnValue(row, ['Cost per 3-Second Video View']);
+        const video3SecCost = parseNumber(video3SecCostVal);
+
         results.push({
             Date: parseDate(row['Day']),
             Campaign_Name: config.projectName,
             Media: 'Meta',
-            Creative: adName,
+            Creative: metaCreativeValue || adName, // Use extracted ID if available
             Cost: cost,
             Impressions: parseNumber(row['Impressions']),
             Clicks: parseNumber(row['Link Clicks']),
@@ -254,6 +314,8 @@ function processMetaData(
             SV_Exit: 0,
             Revenue: revenue,
             Gross_Profit: profit,
+            Video_3Sec_Views: video3SecViews,
+            Cost_Per_Video_3Sec_View: video3SecCost,
             beyond_page_name: '',
             version_name: '',
             creative_value: metaCreativeValue,
@@ -349,6 +411,8 @@ function processBeyondData(
             SV_Exit: parseNumber(row['sv_exit']),
             Revenue: revenue,
             Gross_Profit: profit,
+            Video_3Sec_Views: 0,
+            Cost_Per_Video_3Sec_View: 0,
             beyond_page_name: beyondPageName,
             version_name: versionName,
             creative_value: creativeValue,
@@ -392,6 +456,8 @@ export function aggregateByDate(data: ProcessedRow[], media?: 'Meta' | 'Beyond')
             existing.SV_Exit += row.SV_Exit;
             existing.Revenue += row.Revenue;
             existing.Gross_Profit += row.Gross_Profit;
+            existing.Video_3Sec_Views += row.Video_3Sec_Views;
+            // Cost_Per_Video_3Sec_View is a rate, so we don't sum it.
         } else {
             map.set(dateKey, { ...row });
         }
@@ -410,37 +476,47 @@ export function filterByDateRange(data: ProcessedRow[], startDate: Date, endDate
     });
 }
 
-export function filterByCampaign(data: ProcessedRow[], campaignName: string): ProcessedRow[] {
-    if (campaignName === 'All') return data;
+export function filterByCampaign(data: ProcessedRow[], campaignName: string | string[]): ProcessedRow[] {
+    if (campaignName === 'All' || (Array.isArray(campaignName) && campaignName.length === 0)) return data;
+
+    if (Array.isArray(campaignName)) {
+        return data.filter(row => campaignName.includes(row.Campaign_Name));
+    }
+
     return data.filter(row => row.Campaign_Name === campaignName);
 }
 
 export function getUniqueCampaigns(data: ProcessedRow[]): string[] {
-    const campaigns = new Set(data.map(row => row.Campaign_Name));
+    // 実績（コスト、CV、Impression、売上）のいずれかがある案件のみ抽出
+    const activeData = data.filter(row => row.Cost > 0 || row.CV > 0 || row.Impressions > 0 || row.Revenue > 0);
+    const campaigns = new Set(activeData.map(row => row.Campaign_Name));
     return Array.from(campaigns);
 }
 
 export function getUniqueCreatives(data: ProcessedRow[], media?: 'Meta' | 'Beyond'): string[] {
-    const filtered = media ? data.filter(row => row.Media === media) : data;
+    let filtered = media ? data.filter(row => row.Media === media) : data;
+    // 実績があるものに絞る
+    filtered = filtered.filter(row => row.Cost > 0 || row.CV > 0 || row.Impressions > 0);
     const creatives = new Set(filtered.map(row => row.Creative).filter(c => c));
     return Array.from(creatives);
 }
 
 // New filter helpers
 export function getUniqueBeyondPageNames(data: ProcessedRow[]): string[] {
-    const beyondData = data.filter(row => row.Media === 'Beyond');
+    // 期間内に実績（コストまたはCV）があるページのみ抽出
+    const beyondData = data.filter(row => row.Media === 'Beyond' && (row.Cost > 0 || row.CV > 0));
     const pageNames = new Set(beyondData.map(row => row.beyond_page_name).filter(n => n));
     return Array.from(pageNames);
 }
 
 export function getUniqueVersionNames(data: ProcessedRow[]): string[] {
-    const beyondData = data.filter(row => row.Media === 'Beyond');
+    const beyondData = data.filter(row => row.Media === 'Beyond' && (row.Cost > 0 || row.CV > 0));
     const versionNames = new Set(beyondData.map(row => row.version_name).filter(n => n));
     return Array.from(versionNames);
 }
 
 export function getUniqueCreativeValues(data: ProcessedRow[]): string[] {
-    const beyondData = data.filter(row => row.Media === 'Beyond');
+    const beyondData = data.filter(row => row.Media === 'Beyond' && (row.Cost > 0 || row.CV > 0));
     const creativeValues = new Set(beyondData.map(row => row.creative_value).filter(v => v));
     return Array.from(creativeValues);
 }
@@ -451,4 +527,53 @@ export function getProjectNamesFromMasterSetting(masterSetting: Record<string, s
         .map(row => (row['管理用案件名'] || '').trim())
         .filter(name => name !== '')
         .sort();
+}
+
+// --- Creative Master Parsing ---
+
+// Helper for parsing Creative Master
+function findVal(row: Record<string, string>, targets: string[]): string | undefined {
+    // 1. Exact match
+    for (const t of targets) {
+        if (row[t] !== undefined) return row[t];
+    }
+    // 2. Case-insensitive & Trimmed match
+    const keys = Object.keys(row);
+    for (const t of targets) {
+        const normalizedTarget = t.trim().toLowerCase();
+        for (const k of keys) {
+            if (k.trim().toLowerCase() === normalizedTarget) {
+                return row[k];
+            }
+        }
+    }
+    return undefined;
+}
+
+export interface CreativeMasterItem {
+    campaign: string;
+    fileName: string;
+    creativeId: string;
+    url: string;
+    thumbnailUrl?: string;
+}
+
+export function parseCreativeMaster(rawData: Record<string, string>[]): CreativeMasterItem[] {
+    if (!rawData || rawData.length === 0) return [];
+
+    return rawData.map(row => {
+        const campaign = findVal(row, ['商材名', 'Project', 'Campaign', '商材']) || '';
+        const fileName = findVal(row, ['クリエイティブ名', 'ファイル名', 'Creative Name', 'File Name']) || '';
+        const creativeId = findVal(row, ['ダッシュボード名', 'utm_creative', 'Dashboard Name', 'ID']) || '';
+        const url = findVal(row, ['URL', 'Link', 'Google Drive URL']) || '';
+        const thumbnailUrl = findVal(row, ['サムネイルURL', 'サムネイル', 'Thumbnail', 'Thumbnail URL', 'Image']) || '';
+
+        return {
+            campaign: campaign.trim(),
+            fileName,
+            creativeId: creativeId.trim(),
+            url,
+            thumbnailUrl: thumbnailUrl || undefined // undefined if empty
+        };
+    }).filter(item => item.url && (item.creativeId || item.fileName));
 }

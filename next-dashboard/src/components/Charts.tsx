@@ -19,18 +19,41 @@ interface ChartProps {
     title: string;
 }
 
-const CAMPAIGN_COLORS: Record<string, string> = {
-    'SAC_成果': '#F5A623', // オレンジ: アクセントカラー
-    'SAC_予算': '#4A90D9', // 青: メインカラー
-    'ルーチェ_予算': '#7ED321', // 緑: サブカラー
-};
+// 視認性の高い配色（順番に使用）
+const COLOR_PALETTE = [
+    '#3b82f6', // Blue
+    '#f97316', // Orange
+    '#22c55e', // Green
+    '#ef4444', // Red
+    '#8b5cf6', // Violet
+    '#06b6d4', // Cyan
+    '#f59e0b', // Amber
+    '#ec4899', // Pink
+    '#14b8a6', // Teal
+    '#6366f1', // Indigo
+    '#84cc16', // Lime
+    '#a855f7', // Purple
+];
+
+// 商材リストに対して順番に色を割り当てる
+function getCampaignColorMap(campaigns: string[]): Map<string, string> {
+    const colorMap = new Map<string, string>();
+    campaigns.forEach((campaign, index) => {
+        colorMap.set(campaign, COLOR_PALETTE[index % COLOR_PALETTE.length]);
+    });
+    return colorMap;
+}
 
 function formatYAxis(value: number): string {
+    if (value >= 1000000) return (value / 1000000).toFixed(1) + 'M';
+    if (value >= 1000) return (value / 1000).toFixed(1) + 'K';
     return value.toLocaleString('ja-JP');
 }
 
 function formatDate(dateStr: string): string {
-    const [, month, day] = dateStr.split('-');
+    const parts = dateStr.split('-');
+    if (parts.length < 3) return dateStr;
+    const [, month, day] = parts;
     return `${month}/${day}`;
 }
 
@@ -40,11 +63,11 @@ interface ChartDataPoint {
 }
 
 function prepareChartData(data: ProcessedRow[], metricKey: keyof ProcessedRow): ChartDataPoint[] {
-    const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
     const dateMap = new Map<string, ChartDataPoint>();
 
     for (const row of data) {
-        const dateKey = row.Date.toISOString().split('T')[0];
+        const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+        const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
         if (!dateMap.has(dateKey)) {
             dateMap.set(dateKey, { date: dateKey });
         }
@@ -60,6 +83,7 @@ function prepareChartData(data: ProcessedRow[], metricKey: keyof ProcessedRow): 
 export function RevenueChart({ data, title }: ChartProps) {
     const chartData = prepareChartData(data, 'Revenue');
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const colorMap = getCampaignColorMap(campaigns);
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -70,18 +94,31 @@ export function RevenueChart({ data, title }: ChartProps) {
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
+                        contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            padding: '10px 14px',
+                        }}
                         formatter={(value: number | undefined) =>
                             value !== undefined ? value.toLocaleString('ja-JP') : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: 10, paddingTop: '8px' }}
+                        iconSize={10}
+                        layout="horizontal"
+                        align="center"
+                    />
                     {campaigns.map((campaign) => (
                         <Bar
                             key={campaign}
                             dataKey={campaign}
                             stackId="a"
-                            fill={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            fill={colorMap.get(campaign)}
+                            radius={[2, 2, 0, 0]}
                         />
                     ))}
                 </BarChart>
@@ -93,6 +130,7 @@ export function RevenueChart({ data, title }: ChartProps) {
 export function CostChart({ data, title }: ChartProps) {
     const chartData = prepareChartData(data, 'Cost');
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const colorMap = getCampaignColorMap(campaigns);
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -103,18 +141,31 @@ export function CostChart({ data, title }: ChartProps) {
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
+                        contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            padding: '10px 14px',
+                        }}
                         formatter={(value: number | undefined) =>
                             value !== undefined ? value.toLocaleString('ja-JP') : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: 10, paddingTop: '8px' }}
+                        iconSize={10}
+                        layout="horizontal"
+                        align="center"
+                    />
                     {campaigns.map((campaign) => (
                         <Bar
                             key={campaign}
                             dataKey={campaign}
                             stackId="a"
-                            fill={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            fill={colorMap.get(campaign)}
+                            radius={[2, 2, 0, 0]}
                         />
                     ))}
                 </BarChart>
@@ -126,6 +177,7 @@ export function CostChart({ data, title }: ChartProps) {
 export function CVChart({ data, title }: ChartProps) {
     const chartData = prepareChartData(data, 'CV');
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const colorMap = getCampaignColorMap(campaigns);
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -134,20 +186,33 @@ export function CVChart({ data, title }: ChartProps) {
                 <BarChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
-                    <YAxis tick={{ fontSize: 11 }} />
+                    <YAxis tick={{ fontSize: 11 }} tickFormatter={formatYAxis} />
                     <Tooltip
+                        contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            padding: '10px 14px',
+                        }}
                         formatter={(value: number | undefined) =>
                             value !== undefined ? value.toLocaleString('ja-JP') : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: 10, paddingTop: '8px' }}
+                        iconSize={10}
+                        layout="horizontal"
+                        align="center"
+                    />
                     {campaigns.map((campaign) => (
                         <Bar
                             key={campaign}
                             dataKey={campaign}
                             stackId="a"
-                            fill={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            fill={colorMap.get(campaign)}
+                            radius={[2, 2, 0, 0]}
                         />
                     ))}
                 </BarChart>
@@ -164,6 +229,7 @@ interface RateChartProps extends ChartProps {
 
 export function RateChart({ data, title, numeratorKey, denominatorKey, multiplier = 100 }: RateChartProps) {
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const colorMap = getCampaignColorMap(campaigns);
     const dateMap = new Map<string, ChartDataPoint>();
 
     for (const row of data) {
@@ -205,20 +271,33 @@ export function RateChart({ data, title, numeratorKey, denominatorKey, multiplie
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
                     <Tooltip
+                        contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            padding: '10px 14px',
+                        }}
                         formatter={(value: number | undefined) =>
                             value !== undefined ? `${value.toFixed(2)}%` : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: 10, paddingTop: '8px' }}
+                        iconSize={10}
+                        layout="horizontal"
+                        align="center"
+                    />
                     {campaigns.map((campaign) => (
                         <Line
                             key={campaign}
                             type="monotone"
                             dataKey={campaign}
-                            stroke={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            stroke={colorMap.get(campaign)}
                             strokeWidth={2}
                             dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
                         />
                     ))}
                 </LineChart>
@@ -234,6 +313,7 @@ interface CostMetricChartProps extends ChartProps {
 
 export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }: CostMetricChartProps) {
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const colorMap = getCampaignColorMap(campaigns);
     const dateMap = new Map<string, ChartDataPoint>();
 
     for (const row of data) {
@@ -274,20 +354,33 @@ export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }:
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tickFormatter={formatYAxis} tick={{ fontSize: 11 }} />
                     <Tooltip
+                        contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            padding: '10px 14px',
+                        }}
                         formatter={(value: number | undefined) =>
                             value !== undefined ? value.toLocaleString('ja-JP', { maximumFractionDigits: 0 }) : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: 10, paddingTop: '8px' }}
+                        iconSize={10}
+                        layout="horizontal"
+                        align="center"
+                    />
                     {campaigns.map((campaign) => (
                         <Line
                             key={campaign}
                             type="monotone"
                             dataKey={campaign}
-                            stroke={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            stroke={colorMap.get(campaign)}
                             strokeWidth={2}
                             dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
                         />
                     ))}
                 </LineChart>
@@ -304,6 +397,7 @@ interface GenericChartProps extends ChartProps {
 export function GenericBarChart({ data, title, dataKey, unit = '' }: GenericChartProps) {
     const chartData = prepareChartData(data, dataKey);
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const colorMap = getCampaignColorMap(campaigns);
 
     return (
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
@@ -314,18 +408,31 @@ export function GenericBarChart({ data, title, dataKey, unit = '' }: GenericChar
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
                     <YAxis tick={{ fontSize: 11 }} tickFormatter={unit === '%' ? (v) => `${v}%` : formatYAxis} />
                     <Tooltip
+                        contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            padding: '10px 14px',
+                        }}
                         formatter={(value: number | undefined) =>
                             value !== undefined ? `${value.toLocaleString('ja-JP', { maximumFractionDigits: unit === '%' ? 1 : 0 })}${unit}` : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: 10, paddingTop: '8px' }}
+                        iconSize={10}
+                        layout="horizontal"
+                        align="center"
+                    />
                     {campaigns.map((campaign) => (
                         <Bar
                             key={campaign}
                             dataKey={campaign}
                             stackId="a"
-                            fill={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            fill={colorMap.get(campaign)}
+                            radius={[2, 2, 0, 0]}
                         />
                     ))}
                 </BarChart>
@@ -343,10 +450,12 @@ interface GenericRateChartProps extends ChartProps {
 
 export function GenericRateChart({ data, title, numeratorKey, denominatorKey, multiplier = 100, unit = '%' }: GenericRateChartProps) {
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
+    const colorMap = getCampaignColorMap(campaigns);
     const dateMap = new Map<string, ChartDataPoint>();
 
     for (const row of data) {
-        const dateKey = row.Date.toISOString().split('T')[0];
+        const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+        const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
         if (!dateMap.has(dateKey)) {
             dateMap.set(dateKey, { date: dateKey });
         }
@@ -358,7 +467,8 @@ export function GenericRateChart({ data, title, numeratorKey, denominatorKey, mu
         const campaignDateAgg = new Map<string, { num: number; den: number }>();
 
         for (const row of campaignData) {
-            const dateKey = row.Date.toISOString().split('T')[0];
+            const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
+            const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
             const existing = campaignDateAgg.get(dateKey) || { num: 0, den: 0 };
             existing.num += row[numeratorKey] as number;
             existing.den += row[denominatorKey] as number;
@@ -380,22 +490,35 @@ export function GenericRateChart({ data, title, numeratorKey, denominatorKey, mu
                 <LineChart data={chartData}>
                     <CartesianGrid strokeDasharray="3 3" stroke="#E5E7EB" vertical={false} />
                     <XAxis dataKey="date" tickFormatter={formatDate} tick={{ fontSize: 11 }} />
-                    <YAxis tickFormatter={(v) => `${v.toFixed(1)}%`} tick={{ fontSize: 11 }} />
+                    <YAxis tickFormatter={(v) => `${v.toFixed(1)}${unit}`} tick={{ fontSize: 11 }} />
                     <Tooltip
+                        contentStyle={{
+                            borderRadius: '8px',
+                            border: '1px solid #e5e7eb',
+                            boxShadow: '0 4px 12px rgb(0 0 0 / 0.15)',
+                            backgroundColor: 'rgba(255, 255, 255, 0.98)',
+                            padding: '10px 14px',
+                        }}
                         formatter={(value: number | undefined) =>
-                            value !== undefined ? `${value.toFixed(2)}%` : ''
+                            value !== undefined ? `${value.toFixed(2)}${unit}` : ''
                         }
                         labelFormatter={(label) => `日付: ${label}`}
                     />
-                    <Legend wrapperStyle={{ fontSize: 11 }} />
+                    <Legend
+                        wrapperStyle={{ fontSize: 10, paddingTop: '8px' }}
+                        iconSize={10}
+                        layout="horizontal"
+                        align="center"
+                    />
                     {campaigns.map((campaign) => (
                         <Line
                             key={campaign}
                             type="monotone"
                             dataKey={campaign}
-                            stroke={CAMPAIGN_COLORS[campaign] || '#6B7280'}
+                            stroke={colorMap.get(campaign)}
                             strokeWidth={2}
                             dot={{ r: 3 }}
+                            activeDot={{ r: 5 }}
                         />
                     ))}
                 </LineChart>

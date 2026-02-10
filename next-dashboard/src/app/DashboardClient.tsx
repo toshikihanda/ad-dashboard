@@ -2,21 +2,28 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues, CreativeMasterItem } from '@/lib/dataProcessor';
 import { BaselineData } from '@/lib/aiAnalysis';
+
 import { KPICard, KPIGrid } from '@/components/KPICard';
 import { RevenueChart, CostChart, CVChart, RateChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
 import { DataTable } from '@/components/DataTable';
 import { DailyDataTable } from '@/components/DailyDataTable';
+import { CreativeMetricsTable } from '@/components/CreativeMetricsTable';
+import { VersionMetricsTable } from '@/components/VersionMetricsTable';
 import { RankingPanel } from '@/components/RankingPanel';
 import AIAnalysisModal from '@/components/AIAnalysisModal';
 import PeriodComparisonModal from '@/components/PeriodComparisonModal';
 import { MultiSelect } from '@/components/MultiSelect';
+import { ChatBot } from '@/components/ChatBot';
 
 interface DashboardClientProps {
     initialData: ProcessedRow[];
     baselineData: BaselineData;
     masterProjects: string[];
+    creativeMasterData?: CreativeMasterItem[]; // Add this
+    articleMasterData?: Record<string, string>[];
+    reportListData?: Record<string, string>[];
 }
 
 type TabType = 'total' | 'meta' | 'beyond';
@@ -33,9 +40,9 @@ function formatDateForInput(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-export default function DashboardClient({ initialData, baselineData, masterProjects }: DashboardClientProps) {
+export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
-    const [selectedCampaign, setSelectedCampaign] = useState('All');
+    const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
     // 複数選択対応（配列で管理）
     const [selectedBeyondPageNames, setSelectedBeyondPageNames] = useState<string[]>([]);
     const [selectedVersionNames, setSelectedVersionNames] = useState<string[]>([]);
@@ -65,6 +72,8 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     const [isRefreshing, setIsRefreshing] = useState(false);
     const [showRefreshSuccess, setShowRefreshSuccess] = useState(false);
 
+    // デモ用データの生成ロジックは削除 (Page側で処理)
+
     // Initialize dates on client-side only to avoid SSR/hydration mismatch
     useEffect(() => {
         if (!isClient) {
@@ -74,12 +83,19 @@ export default function DashboardClient({ initialData, baselineData, masterProje
             setEndDate(formatDateForInput(now));
             setIsClient(true);
 
-            // Check if this is a refresh callback
+            // 1. Check for demo mode in URL (Removed)
+
+
+
+            // 2. Check if this is a refresh callback
             const urlParams = new URLSearchParams(window.location.search);
             if (urlParams.get('refreshed') === 'true') {
                 setShowRefreshSuccess(true);
-                // Remove the query param from URL
-                window.history.replaceState({}, '', window.location.pathname);
+                // Remove the query param from URL (preserving mode=demo if it existed)
+                const newParams = new URLSearchParams(window.location.search);
+                newParams.delete('refreshed');
+                const newSearch = newParams.toString() ? `?${newParams.toString()}` : '';
+                window.history.replaceState({}, '', window.location.pathname + newSearch);
                 // Hide the message after 3 seconds
                 setTimeout(() => setShowRefreshSuccess(false), 3000);
             }
@@ -112,17 +128,18 @@ export default function DashboardClient({ initialData, baselineData, masterProje
 
         setStartDate(formatDateForInput(start));
         setEndDate(formatDateForInput(end));
-        // Note: Filters are NOT reset when date changes - user selections are preserved
+
+        // 期間変更時にフィルターを維持
+
     };
 
     // Filter data based on selections
-    const filteredData = useMemo(() => {
-        let data = initialData;
+    // Filter data based on selections
+    const currentBaseData = initialData;
 
-        // Date filter
-        if (startDate && endDate) {
-            data = filterByDateRange(data, new Date(startDate), new Date(endDate));
-        }
+    // 属性フィルター（商材・ページ等）のみを適用したデータ（日付フィルターなし）
+    const attributeFilteredData = useMemo(() => {
+        let data = currentBaseData;
 
         // Tab filter
         if (selectedTab === 'meta') {
@@ -132,102 +149,81 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         }
 
         // Campaign filter (商材)
-        if (selectedCampaign !== 'All') {
-            data = filterByCampaign(data, selectedCampaign);
+        if (selectedCampaigns.length > 0) {
+            data = filterByCampaign(data, selectedCampaigns);
         }
 
-        // beyond_page_name filter (複数選択対応)
+        // beyond_page_name filter
         if (selectedBeyondPageNames.length > 0) {
             data = data.filter(row => {
                 if (row.Media === 'Beyond') {
                     return selectedBeyondPageNames.includes(row.beyond_page_name);
                 } else {
-                    // Meta Linking: Check if Ad Name (stored in Creative) includes any selected beyond_page_name
                     return selectedBeyondPageNames.some(name => row.Creative && row.Creative.includes(name));
                 }
             });
         }
 
-        // version_name filter (複数選択対応)
+        // version_name filter
         if (selectedVersionNames.length > 0) {
             data = data.filter(row => selectedVersionNames.includes(row.version_name));
         }
 
-        // Creative filter (複数選択対応)
+        // Creative filter
         if (selectedCreatives.length > 0) {
             data = data.filter(row => {
                 if (row.Media === 'Beyond') {
                     return selectedCreatives.includes(row.creative_value);
                 } else {
-                    // Meta Linking: Check if Ad Name (stored in Creative) includes any selected creative value
                     return selectedCreatives.some(creative => row.Creative && row.Creative.includes(creative));
                 }
             });
         }
 
         return data;
-    }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageNames, selectedVersionNames, selectedCreatives, startDate, endDate]);
+    }, [currentBaseData, selectedTab, selectedCampaigns, selectedBeyondPageNames, selectedVersionNames, selectedCreatives]);
+
+    // さらに日付フィルターを適用したデータ（選択期間・グラフ・KPI用）
+    const filteredData = useMemo(() => {
+        if (!startDate || !endDate) return attributeFilteredData;
+        return filterByDateRange(attributeFilteredData, new Date(startDate), new Date(endDate));
+    }, [attributeFilteredData, startDate, endDate]);
 
     // --- Cascading Filter Logic ---
-    // Step 0: Filter by date range first
-    const dateFilteredData = useMemo(() => {
-        if (!startDate || !endDate) {
-            return initialData;
-        }
-        return filterByDateRange(initialData, new Date(startDate), new Date(endDate));
-    }, [initialData, startDate, endDate]);
+    // 1. まず期間でデータを絞る
+    const dataFilteredByPeriod = useMemo(() => {
+        if (!startDate || !endDate) return currentBaseData;
+        return filterByDateRange(currentBaseData, new Date(startDate), new Date(endDate));
+    }, [currentBaseData, startDate, endDate]);
 
-    // Step 1: Filter by campaign (商材)
-    const campaignFilteredData = useMemo(() => {
-        const beyondData = dateFilteredData.filter(row => row.Media === 'Beyond');
-        if (selectedCampaign === 'All') {
-            return beyondData;
-        }
-        return beyondData.filter(row => row.Campaign_Name === selectedCampaign);
-    }, [dateFilteredData, selectedCampaign]);
+    // 2. 期間内のデータから商材の選択肢を生成
+    const campaigns = useMemo(() => getUniqueCampaigns(dataFilteredByPeriod), [dataFilteredByPeriod]);
 
-    // Step 2: Filter by beyond_page_name (複数選択対応)
-    const pageNameFilteredData = useMemo(() => {
-        if (selectedBeyondPageNames.length === 0) {
-            return campaignFilteredData;
-        }
-        return campaignFilteredData.filter(row => selectedBeyondPageNames.includes(row.beyond_page_name));
-    }, [campaignFilteredData, selectedBeyondPageNames]);
+    // 3. 期間 + 商材で絞り込んだデータからbeyond_page_nameの選択肢を生成
+    const dataForBeyondPageFilter = useMemo(() => {
+        return filterByCampaign(dataFilteredByPeriod, selectedCampaigns);
+    }, [dataFilteredByPeriod, selectedCampaigns]);
+    const beyondPageNames = useMemo(() => getUniqueBeyondPageNames(dataForBeyondPageFilter), [dataForBeyondPageFilter]);
 
-    // Step 3: Filter by version_name (複数選択対応)
-    const versionFilteredData = useMemo(() => {
-        if (selectedVersionNames.length === 0) {
-            return pageNameFilteredData;
-        }
-        return pageNameFilteredData.filter(row => selectedVersionNames.includes(row.version_name));
-    }, [pageNameFilteredData, selectedVersionNames]);
+    // 4. 期間 + 商材 + beyond_page_nameで絞り込んだデータからversion_nameの選択肢を生成
+    const dataForVersionFilter = useMemo(() => {
+        if (selectedBeyondPageNames.length === 0) return dataForBeyondPageFilter;
+        return dataForBeyondPageFilter.filter(row =>
+            row.Media === 'Beyond' && selectedBeyondPageNames.includes(row.beyond_page_name)
+        );
+    }, [dataForBeyondPageFilter, selectedBeyondPageNames]);
+    const versionNames = useMemo(() => getUniqueVersionNames(dataForVersionFilter), [dataForVersionFilter]);
 
-    // Generate filter options - campaigns from Master_Setting (not dependent on data)
-    const campaigns = useMemo(() => {
-        return masterProjects;
-    }, [masterProjects]);
-
-    // beyond_page_name options: filtered by date + campaign
-    const beyondPageNames = useMemo(() => {
-        const uniqueNames = [...new Set(campaignFilteredData.map(row => row.beyond_page_name).filter(n => n))];
-        return uniqueNames.sort();
-    }, [campaignFilteredData]);
-
-    // version_name options: filtered by date + campaign + beyond_page_name
-    const versionNames = useMemo(() => {
-        const uniqueVersions = [...new Set(pageNameFilteredData.map(row => row.version_name).filter(n => n))];
-        return uniqueVersions.sort();
-    }, [pageNameFilteredData]);
-
-    // creative options: filtered by date + campaign + beyond_page_name + version_name
-    const creativeValues = useMemo(() => {
-        const uniqueCreatives = [...new Set(versionFilteredData.map(row => row.creative_value).filter(v => v))];
-        return uniqueCreatives.sort();
-    }, [versionFilteredData]);
+    // 5. 期間 + 商材 + beyond_page_name + version_nameで絞り込んだデータからクリエイティブの選択肢を生成
+    const dataForCreativeFilter = useMemo(() => {
+        if (selectedVersionNames.length === 0) return dataForVersionFilter;
+        return dataForVersionFilter.filter(row => selectedVersionNames.includes(row.version_name));
+    }, [dataForVersionFilter, selectedVersionNames]);
+    const creativeValues = useMemo(() => getUniqueCreativeValues(dataForCreativeFilter), [dataForCreativeFilter]);
 
     // Reset downstream filters when upstream filter changes
-    const handleCampaignChange = (value: string) => {
-        setSelectedCampaign(value);
+    const handleCampaignChange = (values: string[]) => {
+        setSelectedCampaigns(values);
         setSelectedBeyondPageNames([]);
         setSelectedVersionNames([]);
         setSelectedCreatives([]);
@@ -244,6 +240,19 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         setSelectedCreatives([]);
     };
 
+    // Helper for formatting possibly non-numeric metrics (when version_name filtered)
+    const fmtRate = (val: number | string | undefined) => {
+        if (typeof val === 'number') return val.toFixed(1);
+        if (typeof val === 'string') return val;
+        return '-';
+    };
+    const fmtAmt = (val: number | string | undefined) => {
+        if (typeof val === 'number') return Math.round(val).toLocaleString('ja-JP');
+        if (typeof val === 'string') return val;
+        return '-';
+    };
+
+    // Data refresh handler
     // Data refresh handler
     const handleRefreshData = async () => {
         setIsRefreshing(true);
@@ -259,8 +268,23 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         }
     };
 
-    // Calculate KPIs
     const isVersionFilterActive = selectedVersionNames.length > 0;
+
+    // --- 固定期間のテーブル用データ抽出 ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 2);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+    // 属性フィルターのみかかったデータから抽出するので、メインの日付選択に依存しない
+    const todayData = useMemo(() => filterByDateRange(attributeFilteredData, today, today), [attributeFilteredData]);
+    const yesterdayData = useMemo(() => filterByDateRange(attributeFilteredData, yesterday, yesterday), [attributeFilteredData]);
+    const threeDayData = useMemo(() => filterByDateRange(attributeFilteredData, threeDaysAgo, today), [attributeFilteredData]);
+    const sevenDayData = useMemo(() => filterByDateRange(attributeFilteredData, sevenDaysAgo, today), [attributeFilteredData]);
 
     const kpis = useMemo(() => {
         const metaData = filteredData.filter(row => row.Media === 'Meta');
@@ -291,47 +315,38 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         const revenue = filteredData.reduce((sum, row) => sum + row.Revenue, 0);
         const profit = filteredData.reduce((sum, row) => sum + row.Gross_Profit, 0);
 
-        const displayCost = selectedTab === 'meta' ? metaCost : beyondCost;
+        // CPC は常に Beyond出稿金額 / PV (or Clicks) で計算（ユーザー要望）
+        const displayCPC = isVersionFilterActive
+            ? safeDivide(beyondCost, beyondPV)
+            : (selectedTab === 'beyond' ? safeDivide(beyondCost, beyondPV) : safeDivide(metaCost, displayMetaClicks));
 
         return {
-            cost: displayCost,
+            cost: selectedTab === 'meta' ? metaCost : beyondCost,
             revenue,
             profit,
-            impressions,
+            impressions: isVersionFilterActive ? '-' : impressions,
             metaClicks: displayMetaClicks,
             beyondClicks: displayBeyondClicks,
             cv: beyondCV,
             metaMCV,
             pv: beyondPV,
-            fvExit,
-            svExit,
-            ctr: safeDivide(displayMetaClicks, impressions) * 100,
+            fvExit: fvExit,
+            svExit: svExit,
+            ctr: isVersionFilterActive ? '-' : (safeDivide(displayMetaClicks, impressions) * 100),
             mcvr: safeDivide(displayBeyondClicks, beyondPV) * 100,
             cvr: safeDivide(beyondCV, displayBeyondClicks) * 100,
-            cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: selectedTab === 'beyond' ? safeDivide(beyondCost, beyondPV) : safeDivide(metaCost, displayMetaClicks),
+            cpm: isVersionFilterActive ? '-' : (safeDivide(metaCost, impressions) * 1000),
+            cpc: displayCPC,
             mcpa: safeDivide(beyondCost, displayBeyondClicks),
             cpa: safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
             svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
             totalExitRate: safeDivide(fvExit + svExit, beyondPV) * 100,
-            roas: Math.floor(safeDivide(revenue, displayCost) * 100), // 回収率をROASとして扱う（切り捨て）
+            roas: Math.floor(safeDivide(revenue, selectedTab === 'meta' ? metaCost : beyondCost) * 100),
         };
     }, [filteredData, selectedTab, isVersionFilterActive]);
 
-    // Period data helpers
-    const today = new Date();
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const threeDaysAgo = new Date(today);
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 2);
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
 
-    const todayData = useMemo(() => filterByDateRange(filteredData, today, today), [filteredData]);
-    const yesterdayData = useMemo(() => filterByDateRange(filteredData, yesterday, yesterday), [filteredData]);
-    const threeDayData = useMemo(() => filterByDateRange(filteredData, threeDaysAgo, today), [filteredData]);
-    const sevenDayData = useMemo(() => filterByDateRange(filteredData, sevenDaysAgo, today), [filteredData]);
 
     return (
         <>
@@ -362,7 +377,9 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     <span className={isRefreshing ? 'animate-spin block text-xs' : 'text-xs'}>🔄</span>
                                 </button>
                                 <button
-                                    onClick={() => setIsReportModalOpen(true)}
+                                    onClick={() => {
+                                        setIsReportModalOpen(true);
+                                    }}
                                     className="p-1 text-orange-600 hover:text-orange-800 rounded-full hover:bg-orange-50"
                                     title="レポート作成"
                                 >
@@ -435,7 +452,9 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 <span>{isRefreshing ? '更新中...' : '更新'}</span>
                             </button>
                             <button
-                                onClick={() => setIsReportModalOpen(true)}
+                                onClick={() => {
+                                    setIsReportModalOpen(true);
+                                }}
                                 className="px-3 py-1.5 text-xs font-bold bg-orange-600 text-white rounded-lg hover:bg-orange-700 transition-all shadow-sm flex items-center gap-1.5"
                             >
                                 <span>📋</span>
@@ -458,12 +477,14 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                         </div>
                     </div>
 
+
+
                     {/* Filter Area: Collapsible on Mobile */}
                     <details className="group md:block" open>
                         <summary className="flex md:hidden items-center justify-between p-2 mb-2 bg-white rounded-lg border border-gray-200 shadow-sm text-xs font-medium list-none cursor-pointer">
                             <div className="flex items-center gap-2 truncate text-gray-600">
                                 <span className="mr-1">🔍 絞り込み:</span>
-                                {selectedCampaign === 'All' ? '全商材' : selectedCampaign}
+                                {selectedCampaigns.length === 0 ? '全商材' : selectedCampaigns.join(', ')}
                                 <span className="text-gray-300">|</span>
                                 {datePreset === 'thisMonth' ? '今月' :
                                     datePreset === 'today' ? '今日' :
@@ -475,18 +496,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
 
                         <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-2 md:p-0 bg-white md:bg-transparent rounded-lg md:rounded-none border md:border-none border-gray-100 shadow-sm md:shadow-none mb-2 md:mb-0">
                             {/* 商材 Column */}
-                            <div className="flex flex-col gap-1 col-span-2 md:col-span-1">
-                                <span className="text-[10px] font-bold text-gray-500 tracking-wide md:block hidden">商材</span>
-                                <div className="md:hidden text-[10px] font-bold text-gray-500 mb-1">商材を選択</div>
-                                <select
-                                    value={selectedCampaign}
-                                    onChange={(e) => handleCampaignChange(e.target.value)}
-                                    className="filter-select text-[10px] md:text-xs px-2 h-7 md:h-auto w-full truncate bg-white border md:border-gray-200 rounded-lg"
-                                    title={selectedCampaign}
-                                >
-                                    <option value="All">All</option>
-                                    {campaigns.map(c => <option key={c} value={c}>{c}</option>)}
-                                </select>
+                            <div className="col-span-2 md:col-span-1">
+                                <MultiSelect
+                                    label="商材"
+                                    options={campaigns}
+                                    selectedValues={selectedCampaigns}
+                                    onChange={handleCampaignChange}
+                                />
                             </div>
 
                             {/* beyond_page_name Column */}
@@ -563,7 +579,10 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                         <input
                                             type="date"
                                             value={startDate}
-                                            onChange={(e) => setStartDate(e.target.value)}
+                                            onChange={(e) => {
+                                                setStartDate(e.target.value);
+                                                // 日付変更時にフィルターを維持
+                                            }}
                                             className="date-input text-base p-2 border rounded-lg"
                                         />
                                     </div>
@@ -572,7 +591,10 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                         <input
                                             type="date"
                                             value={endDate}
-                                            onChange={(e) => setEndDate(e.target.value)}
+                                            onChange={(e) => {
+                                                setEndDate(e.target.value);
+                                                // 日付変更時にフィルターを維持
+                                            }}
                                             className="date-input text-base p-2 border rounded-lg"
                                         />
                                     </div>
@@ -601,10 +623,10 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     <div className="space-y-2">
                         {/* Always visible grid on all screens */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="売上" value={Math.round(kpis.revenue)} unit="円" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="粗利" value={Math.round(kpis.profit)} unit="円" colorClass="text-orange" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="出稿金額" value={fmtAmt(kpis.cost)} unit="円" colorClass="text-red" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="売上" value={fmtAmt(kpis.revenue)} unit="円" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="粗利" value={fmtAmt(kpis.profit)} unit="円" colorClass="text-orange" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CPA" value={fmtAmt(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="CV" value={kpis.cv} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="ROAS" value={kpis.roas} unit="%" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
@@ -614,14 +636,14 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             <KPICard label="IMP" value={kpis.impressions} source={selectedTab === 'total' ? 'Meta' : undefined} />
                             <KPICard label="CLICK" value={kpis.metaClicks} source={selectedTab === 'total' ? 'Meta' : undefined} />
                             <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="MCVR" value={fmtRate(kpis.mcvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CVR" value={fmtRate(kpis.cvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
                     </div>
                 )}
@@ -637,10 +659,10 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             <div className="space-y-3">
                                 {/* Priority KPIs */}
                                 <KPIGrid columns={4}>
-                                    <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
+                                    <KPICard label="出稿金額" value={fmtAmt(kpis.cost)} unit="円" colorClass="text-red" />
                                     <KPICard label="CV" value={kpis.metaMCV} unit="件" />
-                                    <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                                    <KPICard label="CPA" value={fmtAmt(kpis.cpa)} unit="円" />
+                                    <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" />
                                 </KPIGrid>
 
                                 {/* Toggle for Secondary */}
@@ -655,8 +677,8 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                             <KPIGrid columns={4}>
                                                 <KPICard label="IMP" value={kpis.impressions} />
                                                 <KPICard label="CLICK" value={kpis.metaClicks} />
-                                                <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                                                <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                                <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" />
+                                                <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" />
                                             </KPIGrid>
                                         </div>
                                     </details>
@@ -667,8 +689,8 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     <KPIGrid columns={4}>
                                         <KPICard label="IMP" value={kpis.impressions} />
                                         <KPICard label="CLICK" value={kpis.metaClicks} />
-                                        <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                                        <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
+                                        <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" />
+                                        <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" />
                                     </KPIGrid>
                                 </div>
                             </div>
@@ -676,11 +698,21 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     </>
                 )}
 
-                {/* CPA Ranking */}
-                <RankingPanel data={filteredData} selectedCampaign={selectedCampaign} isVersionFilterActive={isVersionFilterActive} />
+                {/* Ranking and Data Tables Section */}
+                <div className="mt-12 space-y-6">
+                    <RankingPanel data={filteredData} selectedCampaign={selectedCampaigns} isVersionFilterActive={isVersionFilterActive} />
 
-                {/* Data Tables */}
-                <div className="mt-8 space-y-4">
+                    <CreativeMetricsTable
+                        data={filteredData}
+                        title={`■クリエイティブ別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
+                        creativeMasterData={creativeMasterData}
+                    />
+
+                    <VersionMetricsTable
+                        data={filteredData}
+                        title={`■記事別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
+                    />
+
                     <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
                     <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
                     <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
@@ -1058,6 +1090,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     </div>
                 </div>
             )}
+            <ChatBot
+                data={initialData}
+                masterProjects={masterProjects}
+                articleMasterData={articleMasterData}
+                creativeMasterData={creativeMasterData}
+                reportListData={reportListData}
+            />
         </>
     );
 }

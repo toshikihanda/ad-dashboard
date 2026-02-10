@@ -13,12 +13,22 @@ interface MultiSelectProps {
 export function MultiSelect({ label, options, selectedValues, onChange, maxDisplayLength = 25 }: MultiSelectProps) {
     const [isOpen, setIsOpen] = useState(false);
     const containerRef = useRef<HTMLDivElement>(null);
+    const [searchText, setSearchText] = useState('');
+
+    // Sort options: Ascending (A->Z, 1->9)
+    const sortedOptions = [...options].sort((a, b) => a.localeCompare(b, 'ja', { numeric: true }));
+
+    // Filter options based on search text
+    const filteredOptions = sortedOptions.filter(option =>
+        String(option).toLowerCase().includes(searchText.toLowerCase())
+    );
 
     // Close dropdown when clicking outside
     useEffect(() => {
         function handleClickOutside(event: MouseEvent) {
             if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
                 setIsOpen(false);
+                setSearchText(''); // Reset search on close
             }
         }
         document.addEventListener('mousedown', handleClickOutside);
@@ -33,11 +43,17 @@ export function MultiSelect({ label, options, selectedValues, onChange, maxDispl
         }
     };
 
+    // Select All Logic for Filtered Options
+    const isAllFilteredSelected = filteredOptions.length > 0 && filteredOptions.every(opt => selectedValues.includes(opt));
+
     const handleSelectAll = () => {
-        if (selectedValues.length === options.length) {
-            onChange([]);
+        if (isAllFilteredSelected) {
+            // Unselect all filtered options
+            onChange(selectedValues.filter(v => !filteredOptions.includes(v)));
         } else {
-            onChange([...options]);
+            // Select all filtered options (merge with existing selections)
+            const newSelected = new Set([...selectedValues, ...filteredOptions]);
+            onChange(Array.from(newSelected));
         }
     };
 
@@ -69,40 +85,59 @@ export function MultiSelect({ label, options, selectedValues, onChange, maxDispl
                 </button>
 
                 {isOpen && (
-                    <div className="absolute z-[100] top-full left-0 mt-1 w-full min-w-[200px] max-h-60 overflow-auto bg-white border border-gray-200 rounded-lg shadow-xl">
-                        {/* Select All */}
-                        <label className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-100">
+                    <div className="absolute z-[100] top-full left-0 mt-1 w-full min-w-[200px] max-h-80 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col">
+                        {/* Search Box */}
+                        <div className="p-2 border-b border-gray-100 bg-gray-50">
                             <input
-                                type="checkbox"
-                                checked={selectedValues.length === options.length}
-                                onChange={handleSelectAll}
-                                className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                type="text"
+                                value={searchText}
+                                onChange={(e) => setSearchText(e.target.value)}
+                                placeholder="検索..."
+                                className="w-full text-xs px-2 py-1.5 border border-gray-300 rounded focus:outline-none focus:border-blue-500"
+                                autoFocus
                             />
-                            <span className="text-xs font-medium text-gray-700">
-                                {selectedValues.length === options.length ? '全て解除' : '全て選択'}
-                            </span>
-                        </label>
+                        </div>
 
-                        {options.map(option => (
-                            <label
-                                key={String(option)}
-                                className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer"
-                            >
+                        {/* Select All */}
+                        <div className="border-b border-gray-100">
+                            <label className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer">
                                 <input
                                     type="checkbox"
-                                    checked={selectedValues.includes(option)}
-                                    onChange={() => handleToggle(option)}
+                                    checked={isAllFilteredSelected}
+                                    onChange={handleSelectAll}
                                     className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                 />
-                                <span className="text-xs text-gray-600 truncate" title={String(option)}>
-                                    {String(option).substring(0, maxDisplayLength)}
+                                <span className="text-xs font-medium text-gray-700">
+                                    {isAllFilteredSelected ? '選択解除' : '全て選択'}
                                 </span>
                             </label>
-                        ))}
+                        </div>
 
-                        {options.length === 0 && (
-                            <div className="px-3 py-2 text-xs text-gray-400">選択肢なし</div>
-                        )}
+                        {/* Options List */}
+                        <div className="overflow-auto max-h-60">
+                            {filteredOptions.length > 0 ? (
+                                filteredOptions.map(option => (
+                                    <label
+                                        key={String(option)}
+                                        className="flex items-center gap-2 px-3 py-2 hover:bg-gray-50 cursor-pointer border-b border-gray-50 last:border-0"
+                                    >
+                                        <input
+                                            type="checkbox"
+                                            checked={selectedValues.includes(option)}
+                                            onChange={() => handleToggle(option)}
+                                            className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                                        />
+                                        <span className="text-xs text-gray-600 truncate" title={String(option)}>
+                                            {String(option)}
+                                        </span>
+                                    </label>
+                                ))
+                            ) : (
+                                <div className="px-3 py-4 text-xs text-gray-400 text-center">
+                                    一致する項目がありません
+                                </div>
+                            )}
+                        </div>
                     </div>
                 )}
             </div>

@@ -8,6 +8,7 @@ import { processData, getProjectNamesFromMasterSetting } from '@/lib/dataProcess
 import ReportClient from './ReportClient';
 
 export const revalidate = 300; // 5分ごとにデータを更新
+export const dynamic = 'force-dynamic';
 
 // ローディングコンポーネント
 function ReportLoadingFallback() {

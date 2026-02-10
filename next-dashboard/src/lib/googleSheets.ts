@@ -10,6 +10,9 @@ export interface SheetData {
   Beyond_History: Record<string, string>[];
   Master_Setting: Record<string, string>[];
   Baseline: Record<string, string>[];
+  Creative_Master: Record<string, string>[];
+  Article_Master: Record<string, string>[];
+  Report_List: Record<string, string>[];
 }
 
 // Sheet GID mapping (required for export endpoint which has no row limit)
@@ -21,6 +24,9 @@ const SHEET_GIDS: Record<string, number> = {
   'Beyond_History': 0,      // Will be updated with actual GID
   'Master_Setting': 0,      // Will be updated with actual GID
   'Baseline': 0,            // Will be updated with actual GID
+  'Creative_Master': 0,     // Will be updated with actual GID
+  'Article_Master': 0,      // Will be updated with actual GID
+  'Report_List': 0,         // Will be updated with actual GID
 };
 
 async function loadSheetData(sheetName: string): Promise<Record<string, string>[]> {
@@ -95,13 +101,16 @@ function parseCSVLine(line: string): string[] {
 }
 
 export async function loadDataFromSheets(): Promise<SheetData> {
-  const [metaLive, metaHistory, beyondLive, beyondHistory, masterSetting, baseline] = await Promise.all([
+  const [metaLive, metaHistory, beyondLive, beyondHistory, masterSetting, baseline, creativeMaster, articleMaster, reportList] = await Promise.all([
     loadSheetData("Meta_Live"),
     loadSheetData("Meta_History"),
     loadSheetData("Beyond_Live"),
     loadSheetData("Beyond_History"),
     loadSheetData("Master_Setting"),
     loadSheetData("Baseline"),
+    loadSheetData("Creative_Master"),
+    loadSheetData("Article_Master"),
+    loadSheetData("Report_List"),
   ]);
 
   return {
@@ -111,5 +120,8 @@ export async function loadDataFromSheets(): Promise<SheetData> {
     Beyond_History: beyondHistory,
     Master_Setting: masterSetting,
     Baseline: baseline,
+    Creative_Master: creativeMaster,
+    Article_Master: articleMaster,
+    Report_List: reportList, // Map the last result
   };
 }
