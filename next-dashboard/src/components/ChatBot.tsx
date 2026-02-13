@@ -318,14 +318,19 @@ ${(reportListData || []).slice(-5).map(r => `Date:${r.Date || r.CreatedAt || ''}
                     {/* Input Area */}
                     <div className="p-4 bg-white border-t border-gray-100 rounded-b-2xl">
                         <div className="flex gap-2">
-                            <input
-                                type="text"
+                            <textarea
                                 value={input}
                                 onChange={(e) => setInput(e.target.value)}
-                                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && handleSend()}
-                                placeholder="質問を入力..."
-                                className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+                                        e.preventDefault();
+                                        handleSend();
+                                    }
+                                }}
+                                placeholder="質問を入力... (Ctrl+Enterで送信)"
+                                className="flex-1 p-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm resize-none min-h-[40px] max-h-[150px]"
                                 disabled={isLoading}
+                                rows={1}
                             />
                             <button
                                 onClick={handleSend}
