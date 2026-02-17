@@ -1,9 +1,17 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
+from openai import OpenAI
 
 # Import custom modules
-from data.loader import load_data_from_sheets
+from data.loader import (
+    load_data_from_sheets, 
+    load_knowledge_data,
+    get_knowledge_by_category,
+    get_knowledge_categories,
+    get_knowledge_subcategories,
+    format_knowledge_for_ai
+)
 from data.processor import process_data
 from utils.styles import get_custom_css
 from components.metrics import display_kpi_metrics
@@ -14,7 +22,7 @@ st.set_page_config(
     page_title="運用分析用ダッシュボード",
     page_icon="📊",
     layout="wide",
-    initial_sidebar_state="collapsed"
+    initial_sidebar_state="expanded"  # AI機能へのアクセスを容易に
 )
 
 # --- SEO: Noindex Setting ---
@@ -145,7 +153,193 @@ password = "Allattain0301@"
     
     return False
 
+def get_ai_response(user_message, knowledge_text, chat_history):
+    """
+    OpenAI APIを使用してナレッジベースの回答を生成
+    """
+    try:
+        # OpenAI クライアントの初期化
+        api_key = st.secrets.get("openai", {}).get("api_key", "")
+        if not api_key:
+            return "⚠️ OpenAI APIキーが設定されていません。Streamlit CloudのSecretsで設定してください。"
+        
+        client = OpenAI(api_key=api_key)
+        
+        # システムプロンプト（ナレッジを含む）
+        system_prompt = f"""あなたはAllattainの広告運用アシスタントです。
+以下のナレッジベースを参照して、広告運用に関する質問に回答してください。
+
+ナレッジは実際の運用経験から得られた知見です。回答の際は：
+1. ナレッジの内容を元に具体的かつ実践的なアドバイスを提供してください
+2. 該当するナレッジがある場合は、そのカテゴリ/サブカテゴリを明示してください
+3. ナレッジにない内容については、一般的な広告運用の知識で補完してください
+4. 数値や具体例を含めて回答すると分かりやすくなります
+
+【ナレッジベース】
+{knowledge_text}
+
+回答は日本語で、簡潔かつ実用的に行ってください。"""
+
+        # メッセージの構築
+        messages = [{"role": "system", "content": system_prompt}]
+        
+        # チャット履歴を追加（直近5往復まで）
+        for msg in chat_history[-10:]:
+            messages.append(msg)
+        
+        # ユーザーの質問を追加
+        messages.append({"role": "user", "content": user_message})
+        
+        # API呼び出し
+        response = client.chat.completions.create(
+            model="gpt-4o-mini",
+            messages=messages,
+            max_tokens=1500,
+            temperature=0.7
+        )
+        
+        return response.choices[0].message.content
+    
+    except Exception as e:
+        return f"⚠️ エラーが発生しました: {str(e)}"
+
+
+def render_ai_sidebar():
+    """
+    サイドバーにAIチャットボット機能を表示
+    """
+    with st.sidebar:
+        st.markdown("### 🤖 AI アシスタント")
+        st.caption("広告運用のナレッジを元にアドバイスします")
+        
+        # ナレッジデータの読み込み
+        knowledge_df = load_knowledge_data()
+        
+        # ナレッジの統計表示
+        if not knowledge_df.empty:
+            st.info(f"📚 {len(knowledge_df)}件のナレッジを参照中")
+        else:
+            st.warning("ナレッジデータが読み込めませんでした")
+            return
+        
+        st.markdown("---")
+        
+        # カテゴリフィルター（オプション）
+        categories = ["All"] + get_knowledge_categories()
+        selected_category = st.selectbox(
+            "カテゴリで絞り込み（オプション）",
+            options=categories,
+            key="ai_category_filter"
+        )
+        
+        # 絞り込んだナレッジを取得
+        if selected_category != "All":
+            filtered_knowledge = get_knowledge_by_category(category=selected_category)
+            st.caption(f"選択カテゴリ: {len(filtered_knowledge)}件")
+        else:
+            filtered_knowledge = knowledge_df
+        
+        # ナレッジをAI用にフォーマット
+        knowledge_text = format_knowledge_for_ai(filtered_knowledge, max_items=100)
+        
+        st.markdown("---")
+        
+        # チャット履歴の初期化
+        if "ai_chat_history" not in st.session_state:
+            st.session_state.ai_chat_history = []
+        
+        # チャット履歴の表示
+        st.markdown("#### 💬 チャット")
+        
+        chat_container = st.container()
+        with chat_container:
+            for message in st.session_state.ai_chat_history:
+                if message["role"] == "user":
+                    st.markdown(f"**🧑 あなた:** {message['content']}")
+                else:
+                    st.markdown(f"**🤖 AI:** {message['content']}")
+                st.markdown("---")
+        
+        # 入力フォーム
+        with st.form(key="ai_chat_form", clear_on_submit=True):
+            user_input = st.text_area(
+                "質問を入力",
+                placeholder="例: CTRを改善するにはどうすればいいですか？",
+                height=100,
+                key="ai_user_input"
+            )
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                submit_button = st.form_submit_button("📤 送信", use_container_width=True)
+            with col2:
+                clear_button = st.form_submit_button("🗑️ クリア", use_container_width=True)
+        
+        if submit_button and user_input.strip():
+            # ユーザーメッセージを履歴に追加
+            st.session_state.ai_chat_history.append({
+                "role": "user",
+                "content": user_input.strip()
+            })
+            
+            # AI応答を生成
+            with st.spinner("回答を生成中..."):
+                ai_response = get_ai_response(
+                    user_input.strip(),
+                    knowledge_text,
+                    st.session_state.ai_chat_history
+                )
+            
+            # AI応答を履歴に追加
+            st.session_state.ai_chat_history.append({
+                "role": "assistant",
+                "content": ai_response
+            })
+            
+            st.rerun()
+        
+        if clear_button:
+            st.session_state.ai_chat_history = []
+            st.rerun()
+        
+        # クイックアクション（AI提案）
+        st.markdown("---")
+        st.markdown("#### ⚡ クイック提案")
+        
+        quick_actions = [
+            ("📈 CPA改善のヒント", "CPAを改善するためのアドバイスを教えてください。"),
+            ("🎨 クリエイティブ改善", "クリエイティブの改善ポイントを教えてください。"),
+            ("📊 配信最適化", "Meta広告の配信を最適化するコツを教えてください。"),
+            ("🎯 ターゲティング戦略", "効果的なターゲティング戦略について教えてください。"),
+        ]
+        
+        for label, prompt in quick_actions:
+            if st.button(label, key=f"quick_{label}", use_container_width=True):
+                # クイックアクションを実行
+                st.session_state.ai_chat_history.append({
+                    "role": "user",
+                    "content": prompt
+                })
+                
+                with st.spinner("回答を生成中..."):
+                    ai_response = get_ai_response(
+                        prompt,
+                        knowledge_text,
+                        st.session_state.ai_chat_history
+                    )
+                
+                st.session_state.ai_chat_history.append({
+                    "role": "assistant",
+                    "content": ai_response
+                })
+                
+                st.rerun()
+
+
 def main():
+    # --- AI Sidebar ---
+    render_ai_sidebar()
+    
     # --- 1. Data Loading ---
     raw_data = load_data_from_sheets()
     df = process_data(raw_data)
