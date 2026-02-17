@@ -141,11 +141,21 @@ def process_meta_data(df_live, df_history):
     return combined
 
 def process_beyond_data(df_live, df_history):
+    # 0. 必須カラムのチェック
+    required_cols = ['date_jst', 'folder_name', 'parameter']
+    
     # 1. Combine
-    if not df_live.empty:
+    if not df_live.empty and 'date_jst' in df_live.columns:
         df_live['date_jst'] = pd.to_datetime(df_live['date_jst']).dt.strftime('%Y-%m-%d')
-    if not df_history.empty:
+    elif not df_live.empty:
+        print(f"[WARNING] Beyond_Live: 必須カラムがありません。存在するカラム: {list(df_live.columns)}")
+        df_live = pd.DataFrame()
+        
+    if not df_history.empty and 'date_jst' in df_history.columns:
         df_history['date_jst'] = pd.to_datetime(df_history['date_jst']).dt.strftime('%Y-%m-%d')
+    elif not df_history.empty:
+        print(f"[WARNING] Beyond_History: 必須カラムがありません。存在するカラム: {list(df_history.columns)}")
+        df_history = pd.DataFrame()
         
     today = pd.Timestamp.now().strftime('%Y-%m-%d')
     history_filtered = df_history[df_history['date_jst'] < today] if not df_history.empty else pd.DataFrame()
@@ -153,15 +163,47 @@ def process_beyond_data(df_live, df_history):
     
     combined = pd.concat([history_filtered, live_filtered], ignore_index=True)
     if combined.empty: return pd.DataFrame()
-
-    # 2. Filter & Map
-    # 対象案件のフィルタリング
-    target_beyond_names = list(BEYOND_NAME_MAPPING.keys())
-    combined = combined[combined['folder_name'].isin(target_beyond_names)].copy()
     
-    # utm_creative で始まる parameter のみを抽出
-    if 'parameter' in combined.columns:
-        combined = combined[combined['parameter'].str.startswith('utm_creative=', na=False)].copy()
+    # 必須カラムの最終チェック
+    for col in required_cols:
+        if col not in combined.columns:
+            print(f"[ERROR] Beyond: 必須カラム '{col}' が見つかりません")
+            return pd.DataFrame()
+
+    # 2. Filter & Map (表記ゆれ対策: 全角スペース→半角、前後空白除去)
+    combined['folder_name'] = (
+        combined['folder_name'].astype(str).str.replace('\u3000', ' ').str.strip()
+    )
+    combined = combined[combined['folder_name'].isin(BEYOND_NAME_MAPPING.keys())].copy()
+    
+    if combined.empty:
+        print("[WARNING] Beyond: 対象案件(folder_name)に該当するデータがありません")
+        return pd.DataFrame()
+    
+    # 3. utm_creative= で始まる行のみ採用（必須フィルタ）
+    combined['parameter'] = combined['parameter'].astype(str).str.strip()
+    combined = combined[combined['parameter'].str.startswith('utm_creative=')]
+    
+    if combined.empty:
+        print("[WARNING] Beyond: utm_creative= に該当する行が0件です")
+        return pd.DataFrame()
+    
+    # 4. 監査ログ: 日付×案件別の取り込み行数を出力
+    audit_log = combined.groupby(['date_jst', 'folder_name']).size().reset_index(name='row_count')
+    print("\n[AUDIT LOG] Beyond取り込み行数 (日付×案件):")
+    for _, row in audit_log.iterrows():
+        status = "⚠️ 警告: 0行" if row['row_count'] == 0 else f"✓ {row['row_count']}行"
+        print(f"  {row['date_jst']} | {row['folder_name']} | {status}")
+    
+    # 欠落検知: 各日付で全案件のデータがあるかチェック
+    all_dates = audit_log['date_jst'].unique()
+    expected_folders = list(BEYOND_NAME_MAPPING.keys())
+    for date in all_dates:
+        date_data = audit_log[audit_log['date_jst'] == date]
+        existing_folders = date_data['folder_name'].tolist()
+        missing_folders = [f for f in expected_folders if f not in existing_folders]
+        if missing_folders:
+            print(f"[WARNING] {date}: 以下の案件データが欠落しています: {missing_folders}")
     
     combined['Campaign_Name'] = combined['folder_name'].map(BEYOND_NAME_MAPPING)
     

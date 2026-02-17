@@ -1,0 +1,137 @@
+import { Metadata } from 'next';
+import { notFound } from 'next/navigation';
+import { Suspense } from 'react';
+import ReportClient from '../../ReportClient';
+import { findReportByToken, getSheetUrl, getMasterSpreadsheetId } from '@/lib/reportStore';
+import { getGoogleAuth } from '@/lib/googleAuth';
+import { google } from 'googleapis';
+import { ProcessedRow } from '@/lib/dataProcessor';
+
+export const metadata: Metadata = {
+    title: '広告レポート (閲覧専用)',
+    robots: {
+        index: false,
+        follow: false,
+    },
+};
+
+/**
+ * マスターシート内の指定されたシートからデータを取得
+ */
+async function getReportData(sheetName: string) {
+    const masterId = getMasterSpreadsheetId();
+    if (!masterId) {
+        throw new Error('GOOGLE_SHEETS_MASTER_ID が設定されていません。Vercelの設定を確認してください。');
+    }
+
+    let auth;
+    try {
+        auth = await getGoogleAuth();
+    } catch (e: any) {
+        throw new Error(`認証に失敗しました: ${e.message}`);
+    }
+
+    const sheets = google.sheets({ version: 'v4', auth });
+
+    try {
+        const res = await sheets.spreadsheets.values.get({
+            spreadsheetId: masterId,
+            range: `${sheetName}!A:Z`,
+        });
+
+        const rows = res.data.values;
+        if (!rows || rows.length < 2) return [];
+
+        const headers = rows[0];
+        const dataRows = rows.slice(1);
+
+        return dataRows.map(row => {
+            const obj: any = {};
+            // 数値に変換すべき列名のリスト
+            const numericHeaders = ['Cost', 'Impressions', 'Clicks', 'CV', 'MCV', 'PV', 'FV_Exit', 'SV_Exit', 'Revenue', 'Gross_Profit', 'cost', 'click', 'pv', 'cv', 'fv_exit', 'sv_exit'];
+
+            headers.forEach((h: string, i: number) => {
+                let val = row[i];
+                if (h === 'Date' && val) {
+                    const parsedDate = new Date(val);
+                    obj[h] = isNaN(parsedDate.getTime()) ? val : parsedDate;
+                } else if (numericHeaders.includes(h.toLowerCase()) || numericHeaders.includes(h)) {
+                    if (val && !isNaN(Number(val))) {
+                        obj[h] = Number(val);
+                    } else {
+                        obj[h] = 0;
+                    }
+                } else {
+                    obj[h] = val ?? '';
+                }
+            });
+            return obj;
+        }) as ProcessedRow[];
+    } catch (e: any) {
+        const details = e.response?.data?.error?.message || e.message;
+        throw new Error(`シート「${sheetName}」からのデータ取得に失敗しました: ${details}`);
+    }
+}
+
+export default async function Page({ params }: { params: Promise<{ token: string }> }) {
+    const { token } = await params;
+    const masterId = getMasterSpreadsheetId();
+
+    console.log(`[SharePage] Rendering for token: "${token}"`);
+
+    if (!masterId) {
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-red-50 text-red-800">
+                <h1 className="text-xl font-bold mb-2">⚠️ 設定エラー</h1>
+                <p>システム設定が不完全です。</p>
+            </div>
+        );
+    }
+
+    try {
+        // シェア用ページでも管理トークンまたはクライアントトークンのどちらでもアクセス可能とするが、
+        // 常に isAdmin=false として扱う
+        const result = await findReportByToken(token);
+
+        if (!result) {
+            console.warn(`[SharePage] RESULT: No report found for token "${token}"`);
+            return (
+                <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-slate-50 text-slate-800">
+                    <h1 className="text-xl font-bold mb-2">📊 レポートが見つかりません</h1>
+                    <p className="text-sm opacity-70">リンクが正しくないか、レポートが削除された可能性があります。</p>
+                </div>
+            );
+        }
+
+        const { entry } = result;
+        const data = await getReportData(entry.sheetName);
+
+        return (
+            <div className="min-h-screen bg-slate-100 p-4 md:p-6">
+                <Suspense fallback={
+                    <div className="flex items-center justify-center min-h-[60vh]">
+                        <div className="animate-spin text-4xl text-blue-600">📊</div>
+                    </div>
+                }>
+                    <ReportClient
+                        initialData={data}
+                        masterProjects={entry.projectName.split(', ')}
+                        createdAt={entry.createdAt}
+                        isAdmin={false} // シェア用は常に管理者権限なし
+                        isShareMode={true} // シェアモードを有効化
+                        defaultStartDate={entry.startDate}
+                        defaultEndDate={entry.endDate}
+                    />
+                </Suspense>
+            </div>
+        );
+    } catch (error: any) {
+        console.error('[SharePage] ERROR:', error.message);
+        return (
+            <div className="flex flex-col items-center justify-center min-h-screen p-4 bg-orange-50 text-orange-800">
+                <h1 className="text-xl font-bold mb-2">⚠️ データ取得エラー</h1>
+                <p className="text-sm">レポートデータの読み込み中にエラーが発生しました。</p>
+            </div>
+        );
+    }
+}

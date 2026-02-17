@@ -1,0 +1,93 @@
+@import "tailwindcss";
+
+:root {
+  --background: #f8fafc;
+  --foreground: #1e293b;
+}
+
+body {
+  background: #e2e8f0;
+  color: var(--foreground);
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  min-height: 100vh;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #f1f5f9;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* Tab button styles */
+.tab-button {
+  @apply px-4 py-2 rounded-lg text-sm font-medium transition-all duration-200;
+}
+
+.tab-button.active {
+  @apply bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md;
+}
+
+.tab-button:not(.active) {
+  @apply bg-white text-gray-600 hover:bg-gray-100 border border-gray-200;
+}
+
+/* Filter select styles */
+.filter-select {
+  @apply block w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+  min-width: 0;
+  text-overflow: ellipsis;
+  min-height: 2.5rem;
+  /* 40px */
+  line-height: normal;
+  /* テキストの垂直位置を自然にする */
+}
+
+/* Date input styles */
+.date-input {
+  @apply block w-full px-3 py-2 text-sm border border-gray-200 rounded-lg bg-white focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent;
+}
+
+/* Text color utilities */
+.text-red {
+  color: #ef4444;
+}
+
+.text-blue {
+  color: #3b82f6;
+}
+
+.text-orange {
+  color: #f59e0b;
+}
+
+.text-green {
+  color: #22c55e;
+}
+
+.text-purple {
+  color: #8b5cf6;
+}
+
+/* Scrollbar utilities */
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
