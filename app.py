@@ -1,7 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
-from openai import OpenAI
+import google.generativeai as genai
 
 # Import custom modules
 from data.loader import (
@@ -155,17 +155,24 @@ password = "Allattain0301@"
 
 def get_ai_response(user_message, knowledge_text, chat_history):
     """
-    OpenAI APIを使用してナレッジベースの回答を生成
+    Gemini APIを使用してナレッジベースの回答を生成
     """
     try:
-        # OpenAI クライアントの初期化
-        api_key = st.secrets.get("openai", {}).get("api_key", "")
+        # Gemini APIキーの取得（複数の場所から探す）
+        api_key = st.secrets.get("gemini", {}).get("api_key", "")
         if not api_key:
-            return "⚠️ OpenAI APIキーが設定されていません。Streamlit CloudのSecretsで設定してください。"
+            api_key = st.secrets.get("GEMINI_API_KEY", "")
+        if not api_key:
+            api_key = st.secrets.get("google", {}).get("api_key", "")
         
-        client = OpenAI(api_key=api_key)
+        if not api_key:
+            return "⚠️ Gemini APIキーが設定されていません。Streamlit CloudのSecretsで設定してください。"
         
-        # システムプロンプト（ナレッジを含む）
+        # Gemini クライアントの初期化
+        genai.configure(api_key=api_key)
+        model = genai.GenerativeModel('gemini-1.5-flash')
+        
+        # プロンプトの構築
         system_prompt = f"""あなたはAllattainの広告運用アシスタントです。
 以下のナレッジベースを参照して、広告運用に関する質問に回答してください。
 
@@ -180,25 +187,19 @@ def get_ai_response(user_message, knowledge_text, chat_history):
 
 回答は日本語で、簡潔かつ実用的に行ってください。"""
 
-        # メッセージの構築
-        messages = [{"role": "system", "content": system_prompt}]
-        
-        # チャット履歴を追加（直近5往復まで）
+        # チャット履歴をテキスト形式で構築
+        history_text = ""
         for msg in chat_history[-10:]:
-            messages.append(msg)
+            role = "ユーザー" if msg["role"] == "user" else "アシスタント"
+            history_text += f"{role}: {msg['content']}\n\n"
         
-        # ユーザーの質問を追加
-        messages.append({"role": "user", "content": user_message})
+        # 完全なプロンプトを構築
+        full_prompt = f"{system_prompt}\n\n【これまでの会話】\n{history_text}\n【新しい質問】\nユーザー: {user_message}\n\nアシスタント:"
         
         # API呼び出し
-        response = client.chat.completions.create(
-            model="gpt-4o-mini",
-            messages=messages,
-            max_tokens=1500,
-            temperature=0.7
-        )
+        response = model.generate_content(full_prompt)
         
-        return response.choices[0].message.content
+        return response.text
     
     except Exception as e:
         return f"⚠️ エラーが発生しました: {str(e)}"
