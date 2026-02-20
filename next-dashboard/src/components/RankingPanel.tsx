@@ -302,7 +302,7 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
 
     const colW = {
         rank: 'w-[24px]',
-        label: 'w-[110px]',
+        label: 'w-[140px]',
         date: 'w-[70px]',
         cost: 'w-[75px]',
         revenue: 'w-[70px]',
@@ -359,9 +359,9 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
                             <td className={`px-1 py-1 text-center border-r border-gray-100 sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 font-medium ${colW.rank}`}>
                                 {getRankIcon(idx + 1)}
                             </td>
-                            <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100 ${colW.label}`}>
-                                <div className="font-bold truncate text-blue-600 mb-0.5">{item.campaignName}</div>
-                                <div className="text-[9px] text-gray-500 truncate">{item.versionName} × {item.creative}</div>
+                            <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] border-r border-gray-100 ${colW.label}`}>
+                                <div className="font-bold text-blue-600 mb-0.5 break-words">{item.campaignName}</div>
+                                <div className="text-[9px] text-gray-500 break-words">{item.versionName} × {item.creative}</div>
                             </td>
                             {showDate && <td className={`${tdClass} text-left ${colW.date}`}>{item.date?.replace(/-/g, '/')}</td>}
                             <td className={`${tdClass} ${colW.cost} font-bold`}>{formatNumber(item.cost)}円</td>
