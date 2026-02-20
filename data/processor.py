@@ -23,7 +23,8 @@ PROJECT_SETTINGS = {
 }
 
 def safe_divide(numerator, denominator):
-    if denominator == 0 or pd.isna(denominator):
+    """0除算を防ぐ関数"""
+    if denominator == 0 or pd.isna(denominator) or denominator is None:
         return 0
     return numerator / denominator
 

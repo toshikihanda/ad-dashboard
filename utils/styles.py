@@ -66,6 +66,57 @@ def get_custom_css():
         .text-green { color: #84CC16 !important; } /* 指定: ライムグリーン */
         .text-orange { color: #F59E0B !important; }
         
+        /* タブ風ボタンのスタイル */
+        div[data-testid="column"] button {
+            background-color: #FFFFFF;
+            color: #1F2937;
+            padding: 0;
+            border: 1px solid #E5E7EB;
+            border-radius: 8px;
+            transition: all 0.2s ease;
+            cursor: pointer;
+            font-weight: 600;
+            font-size: 14px;
+            white-space: nowrap;
+            min-width: 70px;
+            height: 38.4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 2px;
+            line-height: 1;
+        }
+        
+        div[data-testid="column"] button:hover {
+            background-color: #F9FAFB;
+            border-color: #D1D5DB;
+        }
+        
+        /* プライマリボタン（選択中）のスタイル */
+        div[data-testid="column"] button[kind="primary"] {
+            background-color: #DC3545 !important;
+            color: #FFFFFF !important;
+            border-color: #DC3545 !important;
+        }
+        
+        div[data-testid="column"] button[kind="primary"]:hover {
+            background-color: #C82333 !important;
+            border-color: #C82333 !important;
+        }
+        
+        /* セカンダリボタン（未選択）のスタイル */
+        div[data-testid="column"] button[kind="secondary"] {
+            background-color: #FFFFFF !important;
+            color: #1F2937 !important;
+            border-color: #E5E7EB !important;
+        }
+        
+        /* ボタンコンテナのスタイル */
+        div[data-testid="column"] {
+            gap: 4px;
+            padding: 0;
+        }
+        
         /* タブ風ラジオボタンのスタイル */
         div[role="radiogroup"] {
             display: flex;
