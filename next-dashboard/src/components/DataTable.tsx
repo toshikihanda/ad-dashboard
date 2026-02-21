@@ -266,7 +266,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
     // 固定列幅定義（RankingPanelと統一）
     const colW = {
         rank: 'w-[24px]',
-        label: 'w-[110px]',
+        label: 'w-[140px]',
         cost: 'w-[75px]',
         revenue: 'w-[70px]',
         profit: 'w-[70px]',
@@ -320,7 +320,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                             {rows.map((row, idx) => (
                                 <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
                                     <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
+                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                     <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
                                     <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
@@ -366,7 +366,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                             {rows.map((row, idx) => (
                                 <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
                                     <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
+                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                     <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
                                     <td className={`${tdClass} ${colW.pv}`}>{formatNumber(row.pv)}</td>
@@ -420,7 +420,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                         {rows.map((row, idx) => (
                             <tr key={`${row.label}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
                                 <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
+                                <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                 <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                 <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
                                 <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>

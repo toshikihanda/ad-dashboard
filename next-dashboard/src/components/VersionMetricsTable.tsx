@@ -211,8 +211,8 @@ export function VersionMetricsTable({ data, title = '記事別数値' }: Version
                             {sortedRows.map((row, idx) => (
                                 <tr key={`${row.id}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
                                     <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.version}`} title={row.version}>
-                                        <div className="truncate w-full font-medium">{row.version}</div>
+                                    <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.version}`} title={row.version}>
+                                        <div className="break-words w-full font-medium">{row.version}</div>
                                     </td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
                                     <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>

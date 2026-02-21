@@ -315,9 +315,9 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
                                 return (
                                     <tr key={`${row.id}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
                                         <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                        <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.creative}`} title={row.creative}>
+                                        <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.creative}`} title={row.creative}>
                                             <div
-                                                className={`truncate w-full ${hasLink ? 'text-blue-600 cursor-pointer hover:underline font-medium' : ''}`}
+                                                className={`break-words w-full ${hasLink ? 'text-blue-600 cursor-pointer hover:underline font-medium' : ''}`}
                                                 onClick={() => hasLink && masterItem && handleCreativeClick(masterItem.fileName, masterItem.url, masterItem.thumbnailUrl)}
                                                 onMouseEnter={(e) => {
                                                     if (hasLink && masterItem?.thumbnailUrl) {
