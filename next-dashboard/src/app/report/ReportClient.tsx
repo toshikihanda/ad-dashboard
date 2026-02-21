@@ -10,9 +10,11 @@ import { cn } from '@/lib/utils';
 import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign } from '@/lib/dataProcessor';
 import { KPICard, KPIGrid } from '@/components/KPICard';
 import { CostChart, CVChart, CostMetricChart, GenericBarChart, GenericRateChart } from '@/components/Charts';
+import { DataTable } from '@/components/DataTable';
 import { ReportDailyDataTable } from '@/components/ReportDailyDataTable';
+import { CreativeMetricsTable } from '@/components/CreativeMetricsTable';
+import { VersionMetricsTable } from '@/components/VersionMetricsTable';
 import { ReportRankingPanel } from '@/components/ReportRankingPanel';
-import { ReportSummaryTable } from '@/components/ReportSummaryTable';
 import { MultiSelect } from '@/components/MultiSelect';
 
 interface ReportClientProps {
@@ -254,18 +256,25 @@ export default function ReportClient({
         };
     }, [initialData]);
 
-    // 選択に基づいてデータをフィルタリング
-    const filteredData = useMemo(() => {
+    // Helper for formatting possibly non-numeric metrics (when version_name filtered)
+    const fmtRate = (val: number | string | undefined) => {
+        if (typeof val === 'number') return val.toFixed(1);
+        if (typeof val === 'string') return val;
+        return '-';
+    };
+    const fmtAmt = (val: number | string | undefined) => {
+        if (typeof val === 'number') return Math.round(val).toLocaleString('ja-JP');
+        if (typeof val === 'string') return val;
+        return '-';
+    };
+
+    // 属性フィルター（商材・タブ等）のみを適用したデータ（日付フィルターなし）
+    const attributeFilteredData = useMemo(() => {
         let data = initialData;
 
         // ★ allowedCampaignsによる強制フィルター（URLで指定された商材のみ表示）
         if (allowedCampaigns.length > 0) {
             data = data.filter(row => allowedCampaigns.includes(row.Campaign_Name));
-        }
-
-        // 日付フィルター
-        if (startDate && endDate) {
-            data = filterByDateRange(data, new Date(startDate), new Date(endDate));
         }
 
         // タブフィルター
@@ -308,7 +317,13 @@ export default function ReportClient({
         }
 
         return data;
-    }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageNames, selectedVersionNames, selectedCreatives, startDate, endDate, allowedCampaigns]);
+    }, [initialData, selectedTab, selectedCampaign, selectedBeyondPageNames, selectedVersionNames, selectedCreatives, allowedCampaigns]);
+
+    // 選択に基づいてデータをフィルタリング
+    const filteredData = useMemo(() => {
+        if (!startDate || !endDate) return attributeFilteredData;
+        return filterByDateRange(attributeFilteredData, new Date(startDate), new Date(endDate));
+    }, [attributeFilteredData, startDate, endDate]);
 
     // --- カスケードフィルターロジック ---
     // Step 0: 日付範囲でフィルター
@@ -392,17 +407,32 @@ export default function ReportClient({
 
     const isVersionFilterActive = selectedVersionNames.length > 0;
 
+    // --- 固定期間のテーブル用データ抽出 ---
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const yesterday = new Date(today);
+    yesterday.setDate(yesterday.getDate() - 1);
+    const threeDaysAgo = new Date(today);
+    threeDaysAgo.setDate(threeDaysAgo.getDate() - 2);
+    const sevenDaysAgo = new Date(today);
+    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+
+    const todayData = useMemo(() => filterByDateRange(attributeFilteredData, today, today), [attributeFilteredData]);
+    const yesterdayData = useMemo(() => filterByDateRange(attributeFilteredData, yesterday, yesterday), [attributeFilteredData]);
+    const threeDayData = useMemo(() => filterByDateRange(attributeFilteredData, threeDaysAgo, today), [attributeFilteredData]);
+    const sevenDayData = useMemo(() => filterByDateRange(attributeFilteredData, sevenDaysAgo, today), [attributeFilteredData]);
+
     // KPIを計算
     const kpis = useMemo(() => {
         const metaData = filteredData.filter(row => row.Media === 'Meta');
         const beyondData = filteredData.filter(row => row.Media === 'Beyond');
 
-        // Meta集計
+        // Meta aggregations
         const impressions = metaData.reduce((sum, row) => sum + row.Impressions, 0);
         const metaClicksRaw = metaData.reduce((sum, row) => sum + row.Clicks, 0);
         const metaCost = metaData.reduce((sum, row) => sum + row.Cost, 0);
 
-        // Beyond集計
+        // Beyond aggregations
         const beyondCost = beyondData.reduce((sum, row) => sum + row.Cost, 0);
         const beyondPV = beyondData.reduce((sum, row) => sum + row.PV, 0);
         const beyondClicksRaw = beyondData.reduce((sum, row) => sum + row.Clicks, 0);
@@ -411,33 +441,42 @@ export default function ReportClient({
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
 
         // --- version_name フィルター有効時の切り替え ---
+        // フィルター時は PV を Clicks として扱う
         const displayMetaClicks = isVersionFilterActive ? beyondPV : metaClicksRaw;
-        const displayBeyondClicks = beyondClicksRaw; // 商品LPクリックは常に本来の遷移数
+        const displayBeyondClicks = beyondClicksRaw; // 商品LPクリックは常に本来の遷移数を表示
 
-        // MetaからのMCV
+        // MCV from Meta
         const metaMCV = metaData.reduce((sum, row) => sum + row.MCV, 0);
 
-        const displayCost = selectedTab === 'meta' ? metaCost : beyondCost;
+        // Revenue and Profit
+        const revenue = filteredData.reduce((sum, row) => sum + row.Revenue, 0);
+        const profit = filteredData.reduce((sum, row) => sum + row.Gross_Profit, 0);
+
+        // CPC は常に Beyond出稿金額 / PV (or Clicks) で計算
+        const displayCPC = isVersionFilterActive
+            ? safeDivide(beyondCost, beyondPV)
+            : (selectedTab === 'beyond' ? safeDivide(beyondCost, beyondPV) : safeDivide(metaCost, displayMetaClicks));
 
         return {
-            cost: displayCost,
-            impressions,
+            cost: selectedTab === 'meta' ? metaCost : beyondCost,
+            impressions: isVersionFilterActive ? '-' : impressions,
             metaClicks: displayMetaClicks,
             beyondClicks: displayBeyondClicks,
             cv: beyondCV,
             metaMCV,
             pv: beyondPV,
-            fvExit,
-            svExit,
-            ctr: safeDivide(displayMetaClicks, impressions) * 100,
+            fvExit: fvExit,
+            svExit: svExit,
+            ctr: isVersionFilterActive ? '-' : (safeDivide(displayMetaClicks, impressions) * 100),
             mcvr: safeDivide(displayBeyondClicks, beyondPV) * 100,
             cvr: safeDivide(beyondCV, displayBeyondClicks) * 100,
-            cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: selectedTab === 'beyond' ? safeDivide(beyondCost, beyondPV) : safeDivide(metaCost, displayMetaClicks),
+            cpm: isVersionFilterActive ? '-' : (safeDivide(metaCost, impressions) * 1000),
+            cpc: displayCPC,
             mcpa: safeDivide(beyondCost, displayBeyondClicks),
             cpa: safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
             svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
+            totalExitRate: safeDivide(fvExit + svExit, beyondPV) * 100,
         };
     }, [filteredData, selectedTab, isVersionFilterActive]);
 
@@ -684,33 +723,33 @@ export default function ReportClient({
                     )}
                 </div>
 
-                {/* KPIカード（売上・粗利・回収率・ROASを除外） */}
+                {/* KPI Cards */}
                 {(selectedTab === 'total' || selectedTab === 'beyond') && (
                     <div className="space-y-2">
-                        {/* プライマリKPI */}
+                        {/* Always visible grid on all screens */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="出稿金額" value={fmtAmt(kpis.cost)} unit="円" colorClass="text-red" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="IMP" value={kpis.impressions} source={selectedTab === 'total' ? 'Meta' : undefined} />
                             <KPICard label="CLICK" value={kpis.metaClicks} source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Meta' : undefined} />
                             <KPICard label="CV" value={kpis.cv} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CVR" value={kpis.cvr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CVR" value={fmtRate(kpis.cvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
 
-                        {/* セカンダリKPI */}
+                        {/* Secondary Metrics - Also always visible in compact grid */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="CPA" value={fmtAmt(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
                             <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="MCVR" value={kpis.mcvr.toFixed(1)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="MCPA" value={Math.round(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="MCVR" value={fmtRate(kpis.mcvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
 
                         {/* 離脱率KPI - 左寄せで2カラムのみ使用 */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            <KPICard label="FV離脱率" value={kpis.fvExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="SV離脱率" value={kpis.svExitRate.toFixed(1)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
                     </div>
                 )}
@@ -724,56 +763,84 @@ export default function ReportClient({
                             </div>
                         ) : (
                             <div className="space-y-3">
-                                {/* プライマリKPI */}
+                                {/* Priority KPIs */}
                                 <KPIGrid columns={4}>
-                                    <KPICard label="出稿金額" value={Math.round(kpis.cost)} unit="円" colorClass="text-red" />
+                                    <KPICard label="出稿金額" value={fmtAmt(kpis.cost)} unit="円" colorClass="text-red" />
                                     <KPICard label="CV" value={kpis.metaMCV} unit="件" />
-                                    <KPICard label="CPA" value={Math.round(kpis.cpa)} unit="円" />
-                                    <KPICard label="CPC" value={Math.round(kpis.cpc)} unit="円" />
+                                    <KPICard label="CPA" value={fmtAmt(kpis.cpa)} unit="円" />
+                                    <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" />
                                 </KPIGrid>
 
-                                {/* セカンダリKPI */}
-                                <KPIGrid columns={4}>
-                                    <KPICard label="IMP" value={kpis.impressions} />
-                                    <KPICard label="CLICK" value={kpis.metaClicks} />
-                                    <KPICard label="CTR" value={kpis.ctr.toFixed(1)} unit="%" colorClass="text-green" />
-                                    <KPICard label="CPM" value={Math.round(kpis.cpm)} unit="円" />
-                                </KPIGrid>
+                                {/* Toggle for Secondary */}
+                                <div className="md:hidden">
+                                    <details className="group">
+                                        <summary className="flex items-center justify-center p-2 text-xs font-bold text-gray-500 bg-gray-50 hover:bg-gray-100 rounded-lg cursor-pointer list-none select-none transition-colors">
+                                            <span className="group-open:hidden">▼ 詳細指標を表示</span>
+                                            <span className="hidden group-open:inline">▲ 詳細指標を隠す</span>
+                                        </summary>
+
+                                        <div className="mt-3 animate-in fade-in slide-in-from-top-2 duration-200">
+                                            <KPIGrid columns={4}>
+                                                <KPICard label="IMP" value={kpis.impressions} />
+                                                <KPICard label="CLICK" value={kpis.metaClicks} />
+                                                <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" />
+                                                <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" />
+                                            </KPIGrid>
+                                        </div>
+                                    </details>
+                                </div>
+
+                                {/* Desktop: Always show secondary KPIs */}
+                                <div className="hidden md:block mt-3">
+                                    <KPIGrid columns={4}>
+                                        <KPICard label="IMP" value={kpis.impressions} />
+                                        <KPICard label="CLICK" value={kpis.metaClicks} />
+                                        <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" />
+                                        <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" />
+                                    </KPIGrid>
+                                </div>
                             </div>
                         )}
                     </>
                 )}
 
-                {/* 期間別サマリーテーブル（当日・前日・3日・7日・選択期間） */}
-                <div className="mt-6">
-                    <ReportSummaryTable
+                {/* Ranking and Data Tables Section */}
+                <div className="mt-12 space-y-6">
+                    {(() => {
+                        let reportDays = 365;
+                        if (startDate && endDate) {
+                            const start = new Date(startDate);
+                            const end = new Date(endDate);
+                            reportDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+                        }
+                        return <ReportRankingPanel data={filteredData} selectedCampaign={selectedCampaign} reportDays={reportDays} isVersionFilterActive={isVersionFilterActive} />;
+                    })()}
+
+                    <CreativeMetricsTable
                         data={filteredData}
-                        startDate={startDate}
-                        endDate={endDate}
-                        viewMode={selectedTab}
-                        allowedCampaigns={allowedCampaigns}
-                        isVersionFilterActive={isVersionFilterActive}
+                        title={`■クリエイティブ別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
+                        isReport={true}
                     />
+
+                    <VersionMetricsTable
+                        data={filteredData}
+                        title={`■記事別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
+                        isReport={true}
+                    />
+
+                    <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={sevenDayData} title="■案件別数値（直近7日間）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
                 </div>
 
-                {/* ランキング - レポート期間に応じてボタンをフィルタリング */}
-                {(() => {
-                    // レポート期間の日数を計算
-                    let reportDays = 365; // デフォルトは大きな値
-                    if (startDate && endDate) {
-                        const start = new Date(startDate);
-                        const end = new Date(endDate);
-                        reportDays = Math.ceil((end.getTime() - start.getTime()) / (1000 * 60 * 60 * 24)) + 1;
-                    }
-                    return <ReportRankingPanel data={filteredData} selectedCampaign={selectedCampaign} reportDays={reportDays} isVersionFilterActive={isVersionFilterActive} />;
-                })()}
-
-                {/* 日別データテーブル */}
+                {/* Daily Data Table - placed above Charts */}
                 <div className="mt-8">
                     <ReportDailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={selectedTab} isVersionFilterActive={isVersionFilterActive} />
                 </div>
 
-                {/* グラフ（売上・粗利・回収率・ROASを除外） */}
+                {/* Charts */}
                 <div className="mt-8">
                     {selectedTab === 'total' && (
                         <>
@@ -807,7 +874,7 @@ export default function ReportClient({
 
                     {selectedTab === 'meta' && (
                         <>
-                            {/* Row 1: 出稿金額、CV、CPA、CPC */}
+                            {/* Row 1: 出稿金額、CV、CPA、CPC - same order as KPI cards */}
                             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                                 <CostChart data={filteredData} title="出稿金額" />
                                 <GenericBarChart data={filteredData} title="CV" dataKey="MCV" />
@@ -838,8 +905,8 @@ export default function ReportClient({
                             <div className="grid grid-cols-3 gap-4">
                                 <GenericBarChart data={filteredData} title="PV" dataKey="PV" />
                                 <GenericBarChart data={filteredData} title="商品LP CLICK" dataKey={isVersionFilterActive ? "PV" : "Clicks"} />
-                                <GenericRateChart data={filteredData} title="MCVR" numeratorKey={isVersionFilterActive ? "PV" : "Clicks"} denominatorKey="PV" />
-                                <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey={isVersionFilterActive ? "PV" : "Clicks"} />
+                                <GenericRateChart data={filteredData} title="MCVR" numeratorKey="Clicks" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="CVR" numeratorKey="CV" denominatorKey="Clicks" />
                                 <CostMetricChart data={filteredData} title="CPC" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                                 <CostMetricChart data={filteredData} title="MCPA" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                             </div>

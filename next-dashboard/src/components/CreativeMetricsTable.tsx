@@ -7,6 +7,7 @@ interface CreativeMetricsTableProps {
     data: ProcessedRow[];
     title?: string;
     creativeMasterData?: CreativeMasterItem[];
+    isReport?: boolean;
 }
 
 interface CreativeRow {
@@ -128,7 +129,7 @@ function aggregateByCreative(data: ProcessedRow[]): CreativeRow[] {
     return rows;
 }
 
-export function CreativeMetricsTable({ data, title = 'クリエイティブ別数値', creativeMasterData }: CreativeMetricsTableProps) {
+export function CreativeMetricsTable({ data, title = 'クリエイティブ別数値', creativeMasterData, isReport = false }: CreativeMetricsTableProps) {
     const [sortKey, setSortKey] = useState<SortType>('cost');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     // Preview Modal State
@@ -280,15 +281,15 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
 
             <div className="overflow-x-auto -mx-4 px-4">
                 <div className="max-h-[330px] overflow-y-auto">
-                    <table className="w-full text-sm table-fixed" style={{ minWidth: '1400px' }}>
+                    <table className="w-full text-sm table-fixed" style={{ minWidth: isReport ? '1200px' : '1400px' }}>
                         <thead className="bg-gray-50 sticky top-0 z-30">
                             <tr>
                                 <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th onClick={() => handleSort('creative')} className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.creative}`}>クリエイティブ{getSortIcon('creative')}</th>
                                 <th onClick={() => handleSort('cost')} className={`${thClass} ${colW.cost}`}>出稿金額{getSortIcon('cost')}</th>
-                                <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>
-                                <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>
-                                <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>
+                                {!isReport && <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>}
+                                {!isReport && <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>}
+                                {!isReport && <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>}
                                 <th onClick={() => handleSort('impressions')} className={`${thClass} ${colW.imp}`}>IMP{getSortIcon('impressions')}</th>
                                 <th onClick={() => handleSort('clicks')} className={`${thClass} ${colW.clicks}`}>Clicks{getSortIcon('clicks')}</th>
                                 <th onClick={() => handleSort('mcv')} className={`${thClass} ${colW.lpClick}`}>商品LP Click{getSortIcon('mcv')}</th>
@@ -332,9 +333,9 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
                                             </div>
                                         </td>
                                         <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
-                                        <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
-                                        <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>
-                                        <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>
+                                        {!isReport && <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>}
+                                        {!isReport && <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>}
+                                        {!isReport && <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>}
                                         <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                         <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                         <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(row.mcv)}</td>

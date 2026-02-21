@@ -14,6 +14,7 @@ interface DataTableProps {
     title: string;
     viewMode: 'total' | 'meta' | 'beyond';
     filters?: FilterSelection;
+    isReport?: boolean;
 }
 
 interface TableRow {
@@ -201,7 +202,7 @@ function formatPercent(value: number): string {
     return `${value.toFixed(1)}%`;
 }
 
-export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
+export function DataTable({ data, title, viewMode, filters, isReport = false }: DataTableProps) {
     const defaultFilters: FilterSelection = { beyondPageNames: [], versionNames: [], creatives: [] };
     const isVersionFilterActive = filters && filters.versionNames && filters.versionNames.length > 0;
     const rawRows = aggregateByCombination(data, filters || defaultFilters, viewMode, isVersionFilterActive || false);
@@ -300,13 +301,13 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
                 <div className="overflow-x-auto -mx-4 px-4">
-                    <table className="w-full text-sm table-fixed" style={{ minWidth: '700px' }}>
+                    <table className="w-full text-sm table-fixed" style={{ minWidth: isReport ? '640px' : '700px' }}>
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th onClick={() => handleSort('label')} className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}{getSortIcon('label')}</th>
                                 <th onClick={() => handleSort('cost')} className={`${thClass} ${colW.cost}`}>出稿金額{getSortIcon('cost')}</th>
-                                <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>
+                                {!isReport && <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>}
                                 <th onClick={() => handleSort('impressions')} className={`${thClass} ${colW.imp}`}>Imp{getSortIcon('impressions')}</th>
                                 <th onClick={() => handleSort('clicks')} className={`${thClass} ${colW.clicks}`}>Clicks{getSortIcon('clicks')}</th>
                                 <th onClick={() => handleSort('cv')} className={`${thClass} ${colW.cv}`}>CV{getSortIcon('cv')}</th>
@@ -322,7 +323,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                     <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
                                     <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
-                                    <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
+                                    {!isReport && <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>}
                                     <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                     <td className={`${tdClass} ${colW.cv}`}>{formatNumber(row.cv)}</td>
@@ -344,13 +345,13 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
             <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
                 <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
                 <div className="overflow-x-auto -mx-4 px-4">
-                    <table className="w-full text-sm table-fixed" style={{ minWidth: '850px' }}>
+                    <table className="w-full text-sm table-fixed" style={{ minWidth: isReport ? '790px' : '850px' }}>
                         <thead className="bg-gray-50">
                             <tr>
                                 <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th onClick={() => handleSort('label')} className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}{getSortIcon('label')}</th>
                                 <th onClick={() => handleSort('cost')} className={`${thClass} ${colW.cost}`}>出稿金額{getSortIcon('cost')}</th>
-                                <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>
+                                {!isReport && <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>}
                                 <th onClick={() => handleSort('pv')} className={`${thClass} ${colW.pv}`}>PV{getSortIcon('pv')}</th>
                                 <th onClick={() => handleSort('clicks')} className={`${thClass} ${colW.clicks}`}>Clicks{getSortIcon('clicks')}</th>
                                 <th onClick={() => handleSort('cv')} className={`${thClass} ${colW.cv}`}>CV{getSortIcon('cv')}</th>
@@ -368,7 +369,7 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                     <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
                                     <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
-                                    <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>
+                                    {!isReport && <td className={`${tdClass} ${colW.roas} font-bold text-blue-600`}>{row.roas}%</td>}
                                     <td className={`${tdClass} ${colW.pv}`}>{formatNumber(row.pv)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                     <td className={`${tdClass} ${colW.cv}`}>{formatNumber(row.cv)}</td>
@@ -392,15 +393,15 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
         <div className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
             <div className="overflow-x-auto -mx-4 px-4">
-                <table className="w-full text-sm table-fixed" style={{ minWidth: '1150px' }}>
+                <table className="w-full text-sm table-fixed" style={{ minWidth: isReport ? '950px' : '1150px' }}>
                     <thead className="bg-gray-50">
                         <tr>
                             <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                             <th onClick={() => handleSort('label')} className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{labelHeader}{getSortIcon('label')}</th>
                             <th onClick={() => handleSort('cost')} className={`${thClass} ${colW.cost}`}>出稿金額{getSortIcon('cost')}</th>
-                            <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>
-                            <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>
-                            <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>
+                            {!isReport && <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>}
+                            {!isReport && <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>}
+                            {!isReport && <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>}
                             <th onClick={() => handleSort('impressions')} className={`${thClass} ${colW.imp}`}>Imp{getSortIcon('impressions')}</th>
                             <th onClick={() => handleSort('clicks')} className={`${thClass} ${colW.clicks}`}>Clicks{getSortIcon('clicks')}</th>
                             <th onClick={() => handleSort('mcv')} className={`${thClass} ${colW.lpClick}`}>商品LPクリック{getSortIcon('mcv')}</th>
@@ -422,9 +423,9 @@ export function DataTable({ data, title, viewMode, filters }: DataTableProps) {
                                 <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
                                 <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.label}</td>
                                 <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
-                                <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
-                                <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>
-                                <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>
+                                {!isReport && <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>}
+                                {!isReport && <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>}
+                                {!isReport && <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>}
                                 <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                 <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                 <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(row.mcv)}</td>

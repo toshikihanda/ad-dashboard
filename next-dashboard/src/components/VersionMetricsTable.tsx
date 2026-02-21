@@ -6,6 +6,7 @@ import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
 interface VersionMetricsTableProps {
     data: ProcessedRow[];
     title?: string;
+    isReport?: boolean;
 }
 
 interface VersionRow {
@@ -109,7 +110,7 @@ function aggregateByVersion(data: ProcessedRow[]): VersionRow[] {
     return rows;
 }
 
-export function VersionMetricsTable({ data, title = '記事別数値' }: VersionMetricsTableProps) {
+export function VersionMetricsTable({ data, title = '記事別数値', isReport = false }: VersionMetricsTableProps) {
     const [sortKey, setSortKey] = useState<SortType>('cost');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -183,15 +184,15 @@ export function VersionMetricsTable({ data, title = '記事別数値' }: Version
 
             <div className="overflow-x-auto -mx-4 px-4">
                 <div className="max-h-[330px] overflow-y-auto">
-                    <table className="w-full text-sm table-fixed" style={{ minWidth: '1200px' }}>
+                    <table className="w-full text-sm table-fixed" style={{ minWidth: isReport ? '1000px' : '1200px' }}>
                         <thead className="bg-gray-50 sticky top-0 z-30">
                             <tr>
                                 <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th onClick={() => handleSort('version')} className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.version}`}>記事名{getSortIcon('version')}</th>
                                 <th onClick={() => handleSort('cost')} className={`${thClass} ${colW.cost}`}>出稿金額{getSortIcon('cost')}</th>
-                                <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>
-                                <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>
-                                <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>
+                                {!isReport && <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>}
+                                {!isReport && <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>}
+                                {!isReport && <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>}
                                 <th onClick={() => handleSort('impressions')} className={`${thClass} ${colW.imp}`}>IMP{getSortIcon('impressions')}</th>
                                 <th onClick={() => handleSort('clicks')} className={`${thClass} ${colW.clicks}`}>Clicks{getSortIcon('clicks')}</th>
                                 <th onClick={() => handleSort('mcv')} className={`${thClass} ${colW.lpClick}`}>商品LP Click{getSortIcon('mcv')}</th>
@@ -215,9 +216,9 @@ export function VersionMetricsTable({ data, title = '記事別数値' }: Version
                                         <div className="break-words w-full font-medium">{row.version}</div>
                                     </td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
-                                    <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
-                                    <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>
-                                    <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>
+                                    {!isReport && <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>}
+                                    {!isReport && <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>}
+                                    {!isReport && <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>}
                                     <td className={`${tdClass} ${colW.imp}`}>{row.hasMetaData ? formatNumber(row.impressions) : '-'}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{row.hasMetaData ? formatNumber(row.clicks) : '-'}</td>
                                     <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(row.mcv)}</td>
