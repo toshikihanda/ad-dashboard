@@ -47,6 +47,7 @@ export default async function Home({ searchParams }: PageProps) {
         creativeMasterData={creativeMasterData}
         articleMasterData={articleMasterData}
         reportListData={reportListData}
+        isDemo={isDemo}
       />
     </main>
   );

@@ -24,6 +24,7 @@ interface DashboardClientProps {
     creativeMasterData?: CreativeMasterItem[]; // Add this
     articleMasterData?: Record<string, string>[];
     reportListData?: Record<string, string>[];
+    isDemo?: boolean;
 }
 
 type TabType = 'total' | 'meta' | 'beyond';
@@ -40,7 +41,7 @@ function formatDateForInput(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
-export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData }: DashboardClientProps) {
+export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData, isDemo }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
     // 複数選択対応（配列で管理）
@@ -255,6 +256,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     // Data refresh handler
     // Data refresh handler
     const handleRefreshData = async () => {
+        if (isDemo) return;
         setIsRefreshing(true);
         try {
             const response = await fetch('/api/revalidate', { method: 'POST' });
@@ -370,9 +372,12 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             <div className="flex md:hidden gap-2">
                                 <button
                                     onClick={handleRefreshData}
-                                    disabled={isRefreshing}
-                                    className="p-1 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-200 transition-colors disabled:opacity-50"
-                                    title="更新"
+                                    disabled={isRefreshing || isDemo}
+                                    className={cn(
+                                        "p-1 text-gray-600 rounded-full transition-colors",
+                                        isDemo ? "opacity-50 cursor-not-allowed" : "hover:text-gray-800 hover:bg-gray-200 disabled:opacity-50"
+                                    )}
+                                    title={isDemo ? "デモ版では更新できません" : "更新"}
                                 >
                                     <span className={isRefreshing ? 'animate-spin block text-xs' : 'text-xs'}>🔄</span>
                                 </button>
@@ -445,8 +450,12 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                         <div className="hidden md:flex gap-2 ml-auto">
                             <button
                                 onClick={handleRefreshData}
-                                disabled={isRefreshing}
-                                className="px-3 py-1.5 text-xs font-bold bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-all shadow-sm flex items-center gap-1.5 disabled:opacity-50"
+                                disabled={isRefreshing || isDemo}
+                                className={cn(
+                                    "px-3 py-1.5 text-xs font-bold text-white rounded-lg shadow-sm flex items-center gap-1.5 transition-all",
+                                    isDemo ? "bg-gray-400 cursor-not-allowed opacity-80" : "bg-gray-600 hover:bg-gray-700 disabled:opacity-50"
+                                )}
+                                title={isDemo ? "デモ版では更新できません" : "更新"}
                             >
                                 <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
                                 <span>{isRefreshing ? '更新中...' : '更新'}</span>
