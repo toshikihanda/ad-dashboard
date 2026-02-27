@@ -66,12 +66,12 @@ export function buildKnowledgeText(rows: Record<string, string>[]): string {
     return lines.length ? lines.join('\n\n') : '（ナレッジシートに本文がありません）';
 }
 
-/** Creative_Master: クリエイティブ名・ダッシュボード名と台本。campaign 指定時はその商材のみ、未指定時は全件（長さ制限付き） */
+/** Creative_Master: クリエイティブ名・ダッシュボード名と台本。priorityCreativeIds 指定時は該当行を先頭に必ず含める */
 export function buildCreativeScriptsSummary(
     rows: Record<string, string>[],
-    options: { campaign?: string; maxPerScript?: number }
+    options: { campaign?: string; maxPerScript?: number; priorityCreativeIds?: string[] }
 ): string {
-    const { campaign, maxPerScript = MAX_SCRIPT_CHARS } = options;
+    const { campaign, maxPerScript = MAX_SCRIPT_CHARS, priorityCreativeIds = [] } = options;
     if (!rows?.length) return '（クリエイティブマスターにデータがありません）';
     let filtered = rows;
     if (campaign?.trim()) {
@@ -82,10 +82,23 @@ export function buildCreativeScriptsSummary(
         });
     }
     if (!filtered.length) return campaign ? `（商材「${campaign}」に紐づくクリエイティブがありません）` : '（台本データがありません）';
+
+    const prioritySet = new Set(priorityCreativeIds.map(s => (s || '').trim()).filter(Boolean));
+    const keyForRow = (row: Record<string, string>) =>
+        getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID').trim() ||
+        getCol(row, 'クリエイティブ名', 'Creative Name', 'ファイル名').trim();
+    const isPriority = (row: Record<string, string>) => {
+        const id = keyForRow(row);
+        return id && (prioritySet.has(id) || [...prioritySet].some(p => id.includes(p) || p.includes(id)));
+    };
+    const priorityRows = filtered.filter(isPriority);
+    const restRows = filtered.filter(row => !isPriority(row));
+    const ordered = [...priorityRows, ...restRows];
+
     const lines: string[] = [];
-    const limit = campaign ? filtered.length : Math.min(filtered.length, 40);
+    const limit = campaign ? ordered.length : Math.min(ordered.length, 40);
     for (let i = 0; i < limit; i++) {
-        const row = filtered[i];
+        const row = ordered[i];
         const name = getCol(row, 'クリエイティブ名', 'Creative Name', 'ファイル名');
         const id = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID');
         const script = getScriptFromRow(row);
@@ -100,12 +113,12 @@ export function buildCreativeScriptsSummary(
     return lines.length ? lines.join('\n\n') : '（クリエイティブがありません）';
 }
 
-/** Article_Master: 記事名と原稿（F列）。前半=FV詳細分析、以降=本文文字起こし */
+/** Article_Master: 記事名と原稿（F列）。priorityVersionNames 指定時は該当行を先頭に必ず含める（versionName＝ダッシュボード名） */
 export function buildArticleManuscriptsSummary(
     rows: Record<string, string>[],
-    options: { campaign?: string; maxPerManuscript?: number }
+    options: { campaign?: string; maxPerManuscript?: number; priorityVersionNames?: string[] }
 ): string {
-    const { campaign, maxPerManuscript = MAX_MANUSCRIPT_CHARS } = options;
+    const { campaign, maxPerManuscript = MAX_MANUSCRIPT_CHARS, priorityVersionNames = [] } = options;
     if (!rows?.length) return '（記事マスターにデータがありません）';
     let filtered = rows;
     if (campaign?.trim()) {
@@ -116,10 +129,23 @@ export function buildArticleManuscriptsSummary(
         });
     }
     if (!filtered.length) return campaign ? `（商材「${campaign}」に紐づく記事がありません）` : '（原稿データがありません）';
+
+    const prioritySet = new Set(priorityVersionNames.map(s => (s || '').trim()).filter(Boolean));
+    const keyForRow = (row: Record<string, string>) =>
+        getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID').trim() ||
+        getCol(row, '記事名', 'Article Name', 'Subject').trim();
+    const isPriority = (row: Record<string, string>) => {
+        const id = keyForRow(row);
+        return id && (prioritySet.has(id) || [...prioritySet].some(p => id.includes(p) || p.includes(id)));
+    };
+    const priorityRows = filtered.filter(isPriority);
+    const restRows = filtered.filter(row => !isPriority(row));
+    const ordered = [...priorityRows, ...restRows];
+
     const lines: string[] = [];
-    const limit = campaign ? filtered.length : Math.min(filtered.length, 25);
+    const limit = campaign ? ordered.length : Math.min(ordered.length, 25);
     for (let i = 0; i < limit; i++) {
-        const row = filtered[i];
+        const row = ordered[i];
         const name = getCol(row, '記事名', 'Article Name', 'Subject');
         const manuscript = getManuscriptFromRow(row);
         const text = (manuscript || '').slice(0, maxPerManuscript);

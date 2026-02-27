@@ -165,6 +165,18 @@ export async function POST(request: NextRequest) {
             );
         }
 
+        // ランキング・トレンドに登場するクリエイティブID・バージョン名を抽出（台本・原稿で該当を先頭に含めるため）
+        const priorityCreativeIds = new Set<string>();
+        const priorityVersionNames = new Set<string>();
+        for (const r of rankingData || []) {
+            if (r?.creative && r.creative !== '(未設定)') priorityCreativeIds.add(String(r.creative).trim());
+            if (r?.versionName && r.versionName !== '(未設定)') priorityVersionNames.add(String(r.versionName).trim());
+        }
+        for (const t of trendData || []) {
+            if (t?.creative && t.creative !== '(未設定)') priorityCreativeIds.add(String(t.creative).trim());
+            if (t?.versionName && t.versionName !== '(未設定)') priorityVersionNames.add(String(t.versionName).trim());
+        }
+
         // 4. Load Knowledge + Creative_Master + Article_Master (every request)
         let knowledgeText = '（ナレッジを取得できませんでした）';
         let creativeScriptsSummary = '';
@@ -172,8 +184,14 @@ export async function POST(request: NextRequest) {
         try {
             const { knowledge, creativeMaster, articleMaster } = await loadKnowledgeAndMasters();
             knowledgeText = buildKnowledgeText(knowledge);
-            creativeScriptsSummary = buildCreativeScriptsSummary(creativeMaster, { campaign });
-            articleManuscriptsSummary = buildArticleManuscriptsSummary(articleMaster, { campaign });
+            creativeScriptsSummary = buildCreativeScriptsSummary(creativeMaster, {
+                campaign,
+                priorityCreativeIds: [...priorityCreativeIds],
+            });
+            articleManuscriptsSummary = buildArticleManuscriptsSummary(articleMaster, {
+                campaign,
+                priorityVersionNames: [...priorityVersionNames],
+            });
         } catch (e) {
             console.error('AI Analysis: loadKnowledgeAndMasters failed', (e as Error).message);
         }

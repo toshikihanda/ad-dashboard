@@ -53,8 +53,9 @@ function parseCSV(csvText: string): Record<string, string>[] {
   const lines = csvText.split('\n').filter(line => line.trim() !== '');
   if (lines.length === 0) return [];
 
-  // Parse header (handle quoted values)
-  const headers = parseCSVLine(lines[0]);
+  // BOM除去（Google Sheets等のCSVで「台本」「原稿」等のヘッダーが一致しないのを防ぐ）
+  const headerLine = lines[0].replace(/^\uFEFF/, '').trim();
+  const headers = parseCSVLine(headerLine).map(h => h.trim());
 
   // Parse rows
   const rows: Record<string, string>[] = [];
