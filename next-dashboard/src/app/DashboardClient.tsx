@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import { cn } from '@/lib/utils';
-import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues, CreativeMasterItem } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign, getUniqueCampaigns, getUniqueCreatives, getUniqueBeyondPageNames, getUniqueVersionNames, getUniqueCreativeValues, getUniqueMetaCampaignNames, getUniqueMetaAdSetNames, getUniqueMetaAdNames, CreativeMasterItem } from '@/lib/dataProcessor';
 import { BaselineData } from '@/lib/aiAnalysis';
 
 import { KPICard, KPIGrid } from '@/components/KPICard';
@@ -41,6 +41,13 @@ function formatDateForInput(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
+/** 案件別数値タイトル用: 日付を MM/DD で表示 */
+function formatDateForTitle(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${month}/${day}`;
+}
+
 export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData, isDemo }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
@@ -48,6 +55,9 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     const [selectedBeyondPageNames, setSelectedBeyondPageNames] = useState<string[]>([]);
     const [selectedVersionNames, setSelectedVersionNames] = useState<string[]>([]);
     const [selectedCreatives, setSelectedCreatives] = useState<string[]>([]);
+    const [selectedMetaCampaignNames, setSelectedMetaCampaignNames] = useState<string[]>([]);
+    const [selectedMetaAdSetNames, setSelectedMetaAdSetNames] = useState<string[]>([]);
+    const [selectedMetaAdNames, setSelectedMetaAdNames] = useState<string[]>([]);
     const [isAnalysisModalOpen, setIsAnalysisModalOpen] = useState(false);
     const [isComparisonModalOpen, setIsComparisonModalOpen] = useState(false);
     const [isReportModalOpen, setIsReportModalOpen] = useState(false);
@@ -181,8 +191,41 @@ export default function DashboardClient({ initialData, baselineData, masterProje
             });
         }
 
+        // Meta Campaign filter（完全一致 or プレフィックス一致で同一キャンペーンとみなす＝Metaシートの長い名前とBeyondマップの短い名のずれを吸収）
+        if (selectedMetaCampaignNames.length > 0) {
+            data = data.filter(row => {
+                if (!row.meta_campaign_name) return false;
+                if (selectedMetaCampaignNames.includes(row.meta_campaign_name)) return true;
+                return selectedMetaCampaignNames.some(sel =>
+                    row.meta_campaign_name!.startsWith(sel) || sel.startsWith(row.meta_campaign_name!)
+                );
+            });
+        }
+
+        // Meta Ad Set filter（同上）
+        if (selectedMetaAdSetNames.length > 0) {
+            data = data.filter(row => {
+                if (!row.meta_adset_name) return false;
+                if (selectedMetaAdSetNames.includes(row.meta_adset_name)) return true;
+                return selectedMetaAdSetNames.some(sel =>
+                    row.meta_adset_name!.startsWith(sel) || sel.startsWith(row.meta_adset_name!)
+                );
+            });
+        }
+
+        // Meta Ad filter（同上）
+        if (selectedMetaAdNames.length > 0) {
+            data = data.filter(row => {
+                if (!row.meta_ad_name) return false;
+                if (selectedMetaAdNames.includes(row.meta_ad_name)) return true;
+                return selectedMetaAdNames.some(sel =>
+                    row.meta_ad_name!.startsWith(sel) || sel.startsWith(row.meta_ad_name!)
+                );
+            });
+        }
+
         return data;
-    }, [currentBaseData, selectedTab, selectedCampaigns, selectedBeyondPageNames, selectedVersionNames, selectedCreatives]);
+    }, [currentBaseData, selectedTab, selectedCampaigns, selectedBeyondPageNames, selectedVersionNames, selectedCreatives, selectedMetaCampaignNames, selectedMetaAdSetNames, selectedMetaAdNames]);
 
     // さらに日付フィルターを適用したデータ（選択期間・グラフ・KPI用）
     const filteredData = useMemo(() => {
@@ -215,30 +258,94 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     }, [dataForBeyondPageFilter, selectedBeyondPageNames]);
     const versionNames = useMemo(() => getUniqueVersionNames(dataForVersionFilter), [dataForVersionFilter]);
 
-    // 5. 期間 + 商材 + beyond_page_name + version_nameで絞り込んだデータからクリエイティブの選択肢を生成
+    // 5. (from Version) -> クリエイティブの選択肢（BeyondとMetaの紐づけは creative_value / Meta の同一プロジェクトで表示）
     const dataForCreativeFilter = useMemo(() => {
         if (selectedVersionNames.length === 0) return dataForVersionFilter;
-        return dataForVersionFilter.filter(row => selectedVersionNames.includes(row.version_name));
+        return dataForVersionFilter.filter(row =>
+            row.Media === 'Beyond' ? selectedVersionNames.includes(row.version_name) : true
+        );
     }, [dataForVersionFilter, selectedVersionNames]);
     const creativeValues = useMemo(() => getUniqueCreativeValues(dataForCreativeFilter), [dataForCreativeFilter]);
+
+    // 6. 選択クリエイティブに紐づくMetaを表示（Beyond側の creative_value と紐づいた meta_* で絞り込み）
+    const dataForMetaCampaignFilter = useMemo(() => {
+        if (selectedCreatives.length === 0) return dataForCreativeFilter;
+        const linkedMetaKeys = new Set(
+            dataForCreativeFilter
+                .filter(r => r.Media === 'Beyond' && r.creative_value && selectedCreatives.includes(r.creative_value))
+                .map(r => `${r.meta_campaign_name ?? ''}|${r.meta_adset_name ?? ''}|${r.meta_ad_name ?? ''}`)
+                .filter(s => s !== '||')
+        );
+        return dataForCreativeFilter.filter(row =>
+            row.Media === 'Beyond'
+                ? selectedCreatives.includes(row.creative_value)
+                : (row.meta_campaign_name != null && linkedMetaKeys.has(`${row.meta_campaign_name}|${row.meta_adset_name ?? ''}|${row.meta_ad_name ?? ''}`))
+        );
+    }, [dataForCreativeFilter, selectedCreatives]);
+    const metaCampaignNames = useMemo(() => getUniqueMetaCampaignNames(dataForMetaCampaignFilter), [dataForMetaCampaignFilter]);
+
+    // 7. -> meta_adset_names
+    const dataForMetaAdSetFilter = useMemo(() => {
+        if (selectedMetaCampaignNames.length === 0) return dataForMetaCampaignFilter;
+        return dataForMetaCampaignFilter.filter(row => row.meta_campaign_name && selectedMetaCampaignNames.includes(row.meta_campaign_name));
+    }, [dataForMetaCampaignFilter, selectedMetaCampaignNames]);
+    const metaAdSetNames = useMemo(() => getUniqueMetaAdSetNames(dataForMetaAdSetFilter), [dataForMetaAdSetFilter]);
+
+    // 8. -> meta_ad_names
+    const dataForMetaAdNameFilter = useMemo(() => {
+        if (selectedMetaAdSetNames.length === 0) return dataForMetaAdSetFilter;
+        return dataForMetaAdSetFilter.filter(row => row.meta_adset_name && selectedMetaAdSetNames.includes(row.meta_adset_name));
+    }, [dataForMetaAdSetFilter, selectedMetaAdSetNames]);
+    const metaAdNames = useMemo(() => getUniqueMetaAdNames(dataForMetaAdNameFilter), [dataForMetaAdNameFilter]);
 
     // Reset downstream filters when upstream filter changes
     const handleCampaignChange = (values: string[]) => {
         setSelectedCampaigns(values);
         setSelectedBeyondPageNames([]);
         setSelectedVersionNames([]);
+        setSelectedMetaCampaignNames([]);
+        setSelectedMetaAdSetNames([]);
+        setSelectedMetaAdNames([]);
         setSelectedCreatives([]);
     };
 
     const handleBeyondPageNamesChange = (values: string[]) => {
         setSelectedBeyondPageNames(values);
         setSelectedVersionNames([]);
+        setSelectedMetaCampaignNames([]);
+        setSelectedMetaAdSetNames([]);
+        setSelectedMetaAdNames([]);
         setSelectedCreatives([]);
     };
 
     const handleVersionNamesChange = (values: string[]) => {
         setSelectedVersionNames(values);
+        setSelectedMetaCampaignNames([]);
+        setSelectedMetaAdSetNames([]);
+        setSelectedMetaAdNames([]);
         setSelectedCreatives([]);
+    };
+
+    const handleCreativesChange = (values: string[]) => {
+        setSelectedCreatives(values);
+        setSelectedMetaCampaignNames([]);
+        setSelectedMetaAdSetNames([]);
+        setSelectedMetaAdNames([]);
+    };
+
+    const handleMetaCampaignNamesChange = (values: string[]) => {
+        setSelectedMetaCampaignNames(values);
+        setSelectedMetaAdSetNames([]);
+        setSelectedMetaAdNames([]);
+    };
+
+    const handleMetaAdSetNamesChange = (values: string[]) => {
+        setSelectedMetaAdSetNames(values);
+        setSelectedMetaAdNames([]);
+    };
+
+    const handleMetaAdNamesChange = (values: string[]) => {
+        setSelectedMetaAdNames(values);
     };
 
     // Helper for formatting possibly non-numeric metrics (when version_name filtered)
@@ -503,9 +610,9 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             <span className="text-gray-400 group-open:rotate-180 transition-transform">▼</span>
                         </summary>
 
-                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-5 gap-3 p-2 md:p-0 bg-white md:bg-transparent rounded-lg md:rounded-none border md:border-none border-gray-100 shadow-sm md:shadow-none mb-2 md:mb-0">
-                            {/* 商材 Column */}
-                            <div className="col-span-2 md:col-span-1">
+                        <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3 p-2 md:p-0 bg-white md:bg-transparent rounded-lg md:rounded-none border md:border-none border-gray-100 shadow-sm md:shadow-none mb-2 md:mb-0">
+                            {/* 1. 商材 */}
+                            <div className="col-span-2 md:col-span-1 border-r border-gray-200/50 pr-2">
                                 <MultiSelect
                                     label="商材"
                                     options={campaigns}
@@ -514,38 +621,71 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 />
                             </div>
 
-                            {/* beyond_page_name Column */}
-                            <div className="col-span-2 md:col-span-1">
+                            {/* 2. Beyondページネーム */}
+                            <div className="col-span-2 md:col-span-1 border-r border-gray-200/50 pr-2">
                                 <MultiSelect
-                                    label="beyond_page_name"
+                                    label="Beyond_page_Name"
                                     options={beyondPageNames}
                                     selectedValues={selectedBeyondPageNames}
                                     onChange={handleBeyondPageNamesChange}
                                 />
                             </div>
 
-                            {/* version_name Column */}
-                            <div className="col-span-2 md:col-span-1">
+                            {/* 3. バージョンネーム */}
+                            <div className="col-span-2 md:col-span-1 border-r border-gray-200/50 pr-2">
                                 <MultiSelect
-                                    label="version_name"
+                                    label="version_Name"
                                     options={versionNames}
                                     selectedValues={selectedVersionNames}
                                     onChange={handleVersionNamesChange}
                                 />
                             </div>
 
-                            {/* クリエイティブ Column */}
-                            <div className="col-span-2 md:col-span-1">
+                            {/* 4. クリエイティブ */}
+                            <div className="col-span-2 md:col-span-1 border-r border-gray-200/50 pr-2">
                                 <MultiSelect
-                                    label="クリエイティブ"
+                                    label="creative"
                                     options={creativeValues}
                                     selectedValues={selectedCreatives}
-                                    onChange={setSelectedCreatives}
+                                    onChange={handleCreativesChange}
+                                />
+                            </div>
+
+                            {/* 5. Meta_Campaign（ドロップダウン幅を広く表示） */}
+                            <div className="col-span-2 md:col-span-1 border-r border-gray-200/50 pr-2">
+                                <MultiSelect
+                                    label="Meta_Campaign"
+                                    options={metaCampaignNames}
+                                    selectedValues={selectedMetaCampaignNames}
+                                    onChange={handleMetaCampaignNamesChange}
+                                    maxDisplayLength={70}
+                                />
+                            </div>
+
+                            {/* 6. Meta_Adset */}
+                            <div className="col-span-2 md:col-span-1 border-r border-gray-200/50 pr-2">
+                                <MultiSelect
+                                    label="Meta_Adset"
+                                    options={metaAdSetNames}
+                                    selectedValues={selectedMetaAdSetNames}
+                                    onChange={handleMetaAdSetNamesChange}
+                                    maxDisplayLength={70}
+                                />
+                            </div>
+
+                            {/* 7. Meta_Ad */}
+                            <div className="col-span-2 md:col-span-1 border-r border-gray-200/50 pr-2">
+                                <MultiSelect
+                                    label="Meta_Ad"
+                                    options={metaAdNames}
+                                    selectedValues={selectedMetaAdNames}
+                                    onChange={handleMetaAdNamesChange}
+                                    maxDisplayLength={70}
                                 />
                             </div>
 
                             {/* 期間 Column */}
-                            <div className="flex flex-col gap-1 col-span-2 md:col-span-1 lg:col-span-1">
+                            <div className="flex flex-col gap-1 col-span-2 md:col-span-4 lg:col-span-1">
                                 <div className="flex items-center justify-between md:block">
                                     <span className="text-[10px] font-bold text-gray-500 tracking-wide hidden md:block">期間</span>
                                     <span className="text-[10px] font-bold text-gray-500 tracking-wide md:hidden mb-1 block">期間を選択</span>
@@ -722,11 +862,11 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                         title={`■記事別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
                     />
 
-                    <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={sevenDayData} title="■案件別数値（直近7日間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    <DataTable data={todayData} title={`■案件別数値（${formatDateForTitle(today)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={yesterdayData} title={`■案件別数値（${formatDateForTitle(yesterday)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={threeDayData} title={`■案件別数値（${formatDateForTitle(threeDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={sevenDayData} title={`■案件別数値（${formatDateForTitle(sevenDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={filteredData} title={`■案件別数値（${formatDateForTitle(new Date(startDate))}〜${formatDateForTitle(new Date(endDate))}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
                 </div>
 
                 {/* Daily Data Table - placed above Charts */}

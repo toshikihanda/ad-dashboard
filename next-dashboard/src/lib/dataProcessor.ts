@@ -37,6 +37,9 @@ export interface ProcessedRow {
     beyond_page_name: string;
     version_name: string;
     creative_value: string; // utm_creative= value only
+    meta_campaign_name?: string;
+    meta_adset_name?: string;
+    meta_ad_name?: string;
 }
 
 export function safeDivide(numerator: number, denominator: number): number {
@@ -332,6 +335,9 @@ function processMetaData(
             beyond_page_name: '',
             version_name: '',
             creative_value: metaCreativeValue,
+            meta_campaign_name: row['Campaign Name'] || '',
+            meta_adset_name: row['Ad Set Name'] || '',
+            meta_ad_name: row['Ad Name'] || '',
         });
     }
 
@@ -341,7 +347,8 @@ function processMetaData(
 function processBeyondData(
     beyondLive: Record<string, string>[],
     beyondHistory: Record<string, string>[],
-    configs: ProjectConfig[]
+    configs: ProjectConfig[],
+    metaData: ProcessedRow[]
 ): ProcessedRow[] {
     // 日本時間で今日の日付を取得（VercelはUTCで動作するため）
     const jstOffset = 9 * 60 * 60 * 1000;
@@ -370,6 +377,18 @@ function processBeyondData(
 
     const results: ProcessedRow[] = [];
 
+    // Create a matching map for Meta campaigns/adsets/ads -> Beyond creatives
+    const creativeToMetaMap = new Map<string, { campaign: string, adset: string, ad: string }>();
+    for (const row of metaData) {
+        if (row.creative_value && !creativeToMetaMap.has(row.creative_value)) {
+            creativeToMetaMap.set(row.creative_value, {
+                campaign: row.meta_campaign_name || '',
+                adset: row.meta_adset_name || '',
+                ad: row.meta_ad_name || ''
+            });
+        }
+    }
+
     for (const row of combined) {
         // Use beyond_page_name, or fallback to folder_name for Beyond_History
         const beyondPageName = (row['beyond_page_name'] || row['folder_name'] || '').trim();
@@ -390,6 +409,9 @@ function processBeyondData(
         // Normalize using the same logic as Meta (extract core ID like "116")
         // Use extracted ID if possible, otherwise fallback to raw value
         const creativeValue = extractCreativeFromAdName(rawCreativeValue) || rawCreativeValue;
+
+        // Lookup meta mapping
+        const metaInfo = creativeToMetaMap.get(creativeValue) || { campaign: '', adset: '', ad: '' };
 
         const versionName = (row['version_name'] || '').trim();
 
@@ -432,6 +454,9 @@ function processBeyondData(
             beyond_page_name: beyondPageName,
             version_name: versionName,
             creative_value: creativeValue,
+            meta_campaign_name: metaInfo.campaign,
+            meta_adset_name: metaInfo.adset,
+            meta_ad_name: metaInfo.ad,
         });
     }
 
@@ -443,7 +468,7 @@ export function processData(data: SheetData): ProcessedRow[] {
     const configs = parseMasterSetting(data.Master_Setting);
 
     const metaData = processMetaData(data.Meta_Live, data.Meta_History, configs);
-    const beyondData = processBeyondData(data.Beyond_Live, data.Beyond_History, configs);
+    const beyondData = processBeyondData(data.Beyond_Live, data.Beyond_History, configs, metaData);
     return [...metaData, ...beyondData];
 }
 
@@ -537,6 +562,24 @@ export function getUniqueCreativeValues(data: ProcessedRow[]): string[] {
     return Array.from(creativeValues);
 }
 
+export function getUniqueMetaCampaignNames(data: ProcessedRow[]): string[] {
+    const activeData = data.filter(row => row.Cost > 0 || row.CV > 0 || row.Impressions > 0 || row.Revenue > 0);
+    const names = new Set(activeData.map(row => row.meta_campaign_name).filter((n): n is string => typeof n === 'string' && n.length > 0));
+    return Array.from(names);
+}
+
+export function getUniqueMetaAdSetNames(data: ProcessedRow[]): string[] {
+    const activeData = data.filter(row => row.Cost > 0 || row.CV > 0 || row.Impressions > 0 || row.Revenue > 0);
+    const names = new Set(activeData.map(row => row.meta_adset_name).filter((n): n is string => typeof n === 'string' && n.length > 0));
+    return Array.from(names);
+}
+
+export function getUniqueMetaAdNames(data: ProcessedRow[]): string[] {
+    const activeData = data.filter(row => row.Cost > 0 || row.CV > 0 || row.Impressions > 0 || row.Revenue > 0);
+    const names = new Set(activeData.map(row => row.meta_ad_name).filter((n): n is string => typeof n === 'string' && n.length > 0));
+    return Array.from(names);
+}
+
 // Get project names from Master_Setting for campaign filter
 export function getProjectNamesFromMasterSetting(masterSetting: Record<string, string>[]): string[] {
     return masterSetting
@@ -572,6 +615,8 @@ export interface CreativeMasterItem {
     creativeId: string;
     url: string;
     thumbnailUrl?: string;
+    /** H列 台本（Script）。関数で参照している場合は値が入っている行のみ */
+    script?: string;
 }
 
 export function parseCreativeMaster(rawData: Record<string, string>[]): CreativeMasterItem[] {
@@ -583,13 +628,15 @@ export function parseCreativeMaster(rawData: Record<string, string>[]): Creative
         const creativeId = findVal(row, ['ダッシュボード名', 'utm_creative', 'Dashboard Name', 'ID']) || '';
         const url = findVal(row, ['URL', 'Link', 'Google Drive URL']) || '';
         const thumbnailUrl = findVal(row, ['サムネイルURL', 'サムネイル', 'Thumbnail', 'Thumbnail URL', 'Image']) || '';
+        const script = findVal(row, ['台本', 'Script']) || undefined;
 
         return {
             campaign: campaign.trim(),
             fileName,
             creativeId: creativeId.trim(),
             url,
-            thumbnailUrl: thumbnailUrl || undefined // undefined if empty
+            thumbnailUrl: thumbnailUrl || undefined,
+            script: script?.trim() || undefined
         };
     }).filter(item => item.url && (item.creativeId || item.fileName));
 }

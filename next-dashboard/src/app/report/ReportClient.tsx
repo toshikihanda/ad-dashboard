@@ -73,6 +73,13 @@ function formatDateForInput(date: Date): string {
     return `${year}-${month}-${day}`;
 }
 
+/** 案件別数値タイトル用: 日付を MM/DD で表示（レポートはデータ範囲基準で表示） */
+function formatDateForTitle(date: Date): string {
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${month}/${day}`;
+}
+
 export default function ReportClient({
     initialData,
     masterProjects,
@@ -407,20 +414,36 @@ export default function ReportClient({
 
     const isVersionFilterActive = selectedVersionNames.length > 0;
 
-    // --- 固定期間のテーブル用データ抽出 ---
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const yesterday = new Date(today);
-    yesterday.setDate(yesterday.getDate() - 1);
-    const threeDaysAgo = new Date(today);
-    threeDaysAgo.setDate(threeDaysAgo.getDate() - 2);
-    const sevenDaysAgo = new Date(today);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 6);
+    // --- レポート用: データ範囲（startDate〜endDate）基準で「昨日」「直近3日間」「直近7日間」を算出（閲覧日ではなくシートの日付で表示） ---
+    const reportPeriodDates = useMemo(() => {
+        if (!startDate || !endDate) return null;
+        const reportStart = new Date(startDate);
+        reportStart.setHours(0, 0, 0, 0);
+        const reportEnd = new Date(endDate);
+        reportEnd.setHours(0, 0, 0, 0);
+        const yesterdayInReport = new Date(reportEnd);
+        yesterdayInReport.setDate(yesterdayInReport.getDate() - 1);
+        const threeDayStart = new Date(reportEnd);
+        threeDayStart.setDate(threeDayStart.getDate() - 2);
+        if (threeDayStart.getTime() < reportStart.getTime()) threeDayStart.setTime(reportStart.getTime());
+        const sevenDayStart = new Date(reportEnd);
+        sevenDayStart.setDate(sevenDayStart.getDate() - 6);
+        if (sevenDayStart.getTime() < reportStart.getTime()) sevenDayStart.setTime(reportStart.getTime());
+        return { reportStart, reportEnd, yesterdayInReport, threeDayStart, sevenDayStart };
+    }, [startDate, endDate]);
 
-    const todayData = useMemo(() => filterByDateRange(attributeFilteredData, today, today), [attributeFilteredData]);
-    const yesterdayData = useMemo(() => filterByDateRange(attributeFilteredData, yesterday, yesterday), [attributeFilteredData]);
-    const threeDayData = useMemo(() => filterByDateRange(attributeFilteredData, threeDaysAgo, today), [attributeFilteredData]);
-    const sevenDayData = useMemo(() => filterByDateRange(attributeFilteredData, sevenDaysAgo, today), [attributeFilteredData]);
+    const yesterdayData = useMemo(() => {
+        if (!reportPeriodDates) return [];
+        return filterByDateRange(attributeFilteredData, reportPeriodDates.yesterdayInReport, reportPeriodDates.yesterdayInReport);
+    }, [attributeFilteredData, reportPeriodDates]);
+    const threeDayData = useMemo(() => {
+        if (!reportPeriodDates) return [];
+        return filterByDateRange(attributeFilteredData, reportPeriodDates.threeDayStart, reportPeriodDates.reportEnd);
+    }, [attributeFilteredData, reportPeriodDates]);
+    const sevenDayData = useMemo(() => {
+        if (!reportPeriodDates) return [];
+        return filterByDateRange(attributeFilteredData, reportPeriodDates.sevenDayStart, reportPeriodDates.reportEnd);
+    }, [attributeFilteredData, reportPeriodDates]);
 
     // KPIを計算
     const kpis = useMemo(() => {
@@ -828,11 +851,14 @@ export default function ReportClient({
                         isReport={true}
                     />
 
-                    <DataTable data={todayData} title="■案件別数値（当日）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={yesterdayData} title="■案件別数値（昨日）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={threeDayData} title="■案件別数値（直近3日間）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={sevenDayData} title="■案件別数値（直近7日間）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
-                    <DataTable data={filteredData} title="■案件別数値（選択期間）" viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                    {reportPeriodDates && (
+                        <>
+                            <DataTable data={yesterdayData} title={`■案件別数値（${formatDateForTitle(reportPeriodDates.yesterdayInReport)}）`} viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                            <DataTable data={threeDayData} title={`■案件別数値（${formatDateForTitle(reportPeriodDates.threeDayStart)}〜${formatDateForTitle(reportPeriodDates.reportEnd)}）`} viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                            <DataTable data={sevenDayData} title={`■案件別数値（${formatDateForTitle(reportPeriodDates.sevenDayStart)}〜${formatDateForTitle(reportPeriodDates.reportEnd)}）`} viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
+                        </>
+                    )}
+                    <DataTable data={filteredData} title={startDate && endDate ? `■案件別数値（${formatDateForTitle(new Date(startDate))}〜${formatDateForTitle(new Date(endDate))}）` : '■案件別数値（選択期間）'} viewMode={selectedTab} isReport={true} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives }} />
                 </div>
 
                 {/* Daily Data Table - placed above Charts */}

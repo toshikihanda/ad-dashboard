@@ -13,6 +13,7 @@ export interface SheetData {
   Creative_Master: Record<string, string>[];
   Article_Master: Record<string, string>[];
   Report_List: Record<string, string>[];
+  Knowledge: Record<string, string>[];
 }
 
 // Sheet GID mapping (required for export endpoint which has no row limit)
@@ -29,16 +30,13 @@ const SHEET_GIDS: Record<string, number> = {
   'Report_List': 0,         // Will be updated with actual GID
 };
 
-async function loadSheetData(sheetName: string): Promise<Record<string, string>[]> {
+/** APIルートからも呼べるよう export。シート名を指定してCSVで取得。 */
+export async function loadSheetData(sheetName: string, options?: { cache?: RequestCache }): Promise<Record<string, string>[]> {
   const encodedName = encodeURIComponent(sheetName);
-
-  // Try export endpoint first (no row limit), fallback to gviz if GID not configured
-  // For now, use gviz with higher limit query
-  // Note: gviz/tq has a limit, so we use tq parameter to request more rows
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}&tq=${encodeURIComponent('SELECT * LIMIT 50000')}`;
 
   try {
-    const response = await fetch(url, { next: { revalidate: 600, tags: ['sheets-data'] } }); // Cache for 10 min, tagged for revalidation
+    const response = await fetch(url, options?.cache !== undefined ? { cache: options.cache } : { next: { revalidate: 600, tags: ['sheets-data'] } });
     if (!response.ok) {
       console.error(`Sheet fetch failed: ${response.status}`);
       return [];
@@ -101,7 +99,7 @@ function parseCSVLine(line: string): string[] {
 }
 
 export async function loadDataFromSheets(): Promise<SheetData> {
-  const [metaLive, metaHistory, beyondLive, beyondHistory, masterSetting, baseline, creativeMaster, articleMaster, reportList] = await Promise.all([
+  const [metaLive, metaHistory, beyondLive, beyondHistory, masterSetting, baseline, creativeMaster, articleMaster, reportList, knowledge] = await Promise.all([
     loadSheetData("Meta_Live"),
     loadSheetData("Meta_History"),
     loadSheetData("Beyond_Live"),
@@ -111,6 +109,7 @@ export async function loadDataFromSheets(): Promise<SheetData> {
     loadSheetData("Creative_Master"),
     loadSheetData("Article_Master"),
     loadSheetData("Report_List"),
+    loadSheetData("Knowledge"),
   ]);
 
   return {
@@ -122,6 +121,21 @@ export async function loadDataFromSheets(): Promise<SheetData> {
     Baseline: baseline,
     Creative_Master: creativeMaster,
     Article_Master: articleMaster,
-    Report_List: reportList, // Map the last result
+    Report_List: reportList,
+    Knowledge: knowledge,
   };
+}
+
+/** AI分析・チャット用: Knowledge / Creative_Master / Article_Master を毎回取得（キャッシュなし） */
+export async function loadKnowledgeAndMasters(): Promise<{
+  knowledge: Record<string, string>[];
+  creativeMaster: Record<string, string>[];
+  articleMaster: Record<string, string>[];
+}> {
+  const [knowledge, creativeMaster, articleMaster] = await Promise.all([
+    loadSheetData("Knowledge", { cache: 'no-store' }),
+    loadSheetData("Creative_Master", { cache: 'no-store' }),
+    loadSheetData("Article_Master", { cache: 'no-store' }),
+  ]);
+  return { knowledge, creativeMaster, articleMaster };
 }

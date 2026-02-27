@@ -1,70 +1,11 @@
 import { GoogleGenerativeAI } from '@google/generative-ai';
 import { NextRequest, NextResponse } from 'next/server';
+import { loadKnowledgeAndMasters } from '@/lib/googleSheets';
+import { buildKnowledgeText, buildCreativeScriptsSummary, buildArticleManuscriptsSummary } from '@/lib/aiContextHelpers';
 
 // --- In-memory cache for analysis results ---
 const analysisCache = new Map<string, { result: string; timestamp: number }>();
 const CACHE_TTL = 10 * 60 * 1000; // 10 minutes
-
-// --- Knowledge for Analysis ---
-const ANALYSIS_KNOWLEDGE = `
-# 広告運用AI：判断ロジック
-
-## 指標の評価方向
-- CPM: 低い方が良い
-- CTR: 高い方が良い
-- CPC: 低い方が良い
-- MCVR: 高い方が良い
-- MCPA: 低い方が良い
-- CVR: 高い方が良い
-- CPA: 低い方が良い
-- FV離脱率: 低い方が良い
-- SV離脱率: 低い方が良い
-
-## ボトルネック特定ルール
-1. 各指標のズレ量を計算（現在値と基準値の差）
-2. 最もズレが大きい指標をボトルネックとする
-3. ただし、上流（Meta）の問題が下流（記事LP）に影響している可能性を考慮
-
-## 確度の判定
-- Low: CV < 10、または費用急変（±30%以上）、または整合性ズレ
-- High: 母数OK、整合性OK、費用安定、ズレが明確
-- それ以外: Medium
-
-## 提案ルール
-### CTRが低い場合
-- クリエイティブの角度追加（UGC/レビュー）
-- 冒頭強化（最初の1秒で結論）
-- 型変更（動画↔静止画）
-
-### CPMが高い場合
-- ターゲット拡張
-- 配置見直し
-- クリエイティブ刷新
-
-### MCVRが低い場合
-- CTA回数・配置の見直し
-- CTA文言の具体化
-- 不安解消セクション追加
-
-### CVRが低い場合（Meta・記事が正常な場合）
-- 商品LP/オファー/フォームの確認を推奨
-- 在庫/ページ速度/計測の確認
-
-## 商材別の特徴
-### SAC_成果
-- CTR基準が高い（1.48%〜2.45%）
-- CPM高騰をCTRでカバーできているかチェック
-- CVが多い「爆発日」の条件を参考に
-
-### SAC_予算
-- CTR 1.5%以下は「不調」
-- CPM 15,000円超えは要注意
-
-### ルーチェ_予算
-- 高単価商材、CV頻度が低い
-- MCVR 18%以上が目標
-- MCPA 4,000円以下なら静観可
-`;
 
 // --- Prompt Builder ---
 function buildPrompt(
@@ -73,15 +14,29 @@ function buildPrompt(
     currentMetrics: Record<string, number>,
     baseline: Record<string, { lower: number; upper: number; median: number }>,
     rankingData: any[],
-    trendData: any[]
+    trendData: any[],
+    knowledgeText: string,
+    creativeScriptsSummary: string,
+    articleManuscriptsSummary: string
 ): string {
     return `
 あなたは広告運用の専門コンサルタントAIです。
 データを分析し、具体的な「次の打ち手」を提案してください。
+**必ず以下で渡す「信頼ナレッジ」を参照し、その方針に沿って分析してください。**
+**クリエイティブの台本・記事の原稿を踏まえ、「なぜこのクリエイティブ／記事が効いているか」を具体的に考察し、ネクストアクションを示してください。**
 
 ## 分析対象
 - 商材: ${campaign}
 - 分析期間: ${period}
+
+## 信頼ナレッジ（必ず参照し、判断の頭脳として使ってください）
+${knowledgeText}
+
+## 該当商材のクリエイティブ台本（参考: なぜこのCRが効いているか考察に利用）
+${creativeScriptsSummary}
+
+## 該当商材の記事原稿（参考: 前半=FV詳細分析、以降=本文文字起こし。なぜこの記事が効いているか考察に利用）
+${articleManuscriptsSummary}
 
 ## 基準値（過去の勝ち帯）
 ${JSON.stringify(baseline, null, 2)}
@@ -95,15 +50,11 @@ ${JSON.stringify(rankingData, null, 2)}
 ## トレンドデータ（週次比較）
 ${JSON.stringify(trendData, null, 2)}
 
-## 判断ロジック（必ず従ってください）
-
-${ANALYSIS_KNOWLEDGE}
-
 ## あなたの役割
 
-1. **勝ちパターンを見つける**: CPAが良い組み合わせを特定し、なぜ良いのか仮説を立てる
+1. **勝ちパターンを見つける**: CPAが良い組み合わせを特定し、**台本・原稿の内容を踏まえて**なぜ良いのか仮説を立てる
 2. **危険信号を検知する**: CPAが悪化している組み合わせを警告する
-3. **具体的な打ち手を提案する**: 「〇〇を△△する」という形で具体的に
+3. **具体的な打ち手を提案する**: ナレッジと台本・原稿を反映した「〇〇を△△する」という形で具体的に
 4. **継続/撤退/横展開の判断を示す**: 各組み合わせに対してアクションを提示
 
 ## 提案のルール
@@ -214,23 +165,39 @@ export async function POST(request: NextRequest) {
             );
         }
 
-        // 4. Prompt Construction & Length Check
+        // 4. Load Knowledge + Creative_Master + Article_Master (every request)
+        let knowledgeText = '（ナレッジを取得できませんでした）';
+        let creativeScriptsSummary = '';
+        let articleManuscriptsSummary = '';
+        try {
+            const { knowledge, creativeMaster, articleMaster } = await loadKnowledgeAndMasters();
+            knowledgeText = buildKnowledgeText(knowledge);
+            creativeScriptsSummary = buildCreativeScriptsSummary(creativeMaster, { campaign });
+            articleManuscriptsSummary = buildArticleManuscriptsSummary(articleMaster, { campaign });
+        } catch (e) {
+            console.error('AI Analysis: loadKnowledgeAndMasters failed', (e as Error).message);
+        }
+
+        // 5. Prompt Construction & Length Check
         const prompt = buildPrompt(
             campaign,
             period,
             currentMetrics,
             baseline,
             rankingData || [],
-            trendData || []
+            trendData || [],
+            knowledgeText,
+            creativeScriptsSummary,
+            articleManuscriptsSummary
         );
-        if (prompt.length > 15000) {
+        if (prompt.length > 45000) {
             return NextResponse.json(
                 { error: '入力データが多すぎます' },
                 { status: 400 }
             );
         }
 
-        // 5. Initialize Gemini with Timeout
+        // 6. Initialize Gemini with Timeout
         const genAI = new GoogleGenerativeAI(apiKey);
         const model = genAI.getGenerativeModel({ model: 'models/gemini-3-flash-preview' });
 
@@ -247,7 +214,7 @@ export async function POST(request: NextRequest) {
 
         const text = await Promise.race([generateWithTimeout(), timeoutPromise]) as string;
 
-        // 6. Save to Cache
+        // 7. Save to Cache
         analysisCache.set(cacheKey, { result: text, timestamp: Date.now() });
 
         return NextResponse.json({ analysis: text });

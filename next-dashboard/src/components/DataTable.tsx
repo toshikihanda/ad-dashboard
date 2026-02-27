@@ -7,6 +7,9 @@ interface FilterSelection {
     beyondPageNames: string[];
     versionNames: string[];
     creatives: string[];
+    metaCampaignNames?: string[];
+    metaAdSetNames?: string[];
+    metaAdNames?: string[];
 }
 
 interface DataTableProps {
@@ -47,36 +50,59 @@ function generateCombinations(filters: FilterSelection): Array<{
     beyondPageName: string | null;
     versionName: string | null;
     creative: string | null;
+    metaCampaignName: string | null;
+    metaAdSetName: string | null;
+    metaAdName: string | null;
     label: string;
 }> {
-    const { beyondPageNames, versionNames, creatives } = filters;
+    const { beyondPageNames, versionNames, creatives, metaCampaignNames, metaAdSetNames, metaAdNames } = filters;
+
+    const hasAnyFilter = beyondPageNames.length > 0 || versionNames.length > 0 || creatives.length > 0 ||
+        (metaCampaignNames && metaCampaignNames.length > 0) ||
+        (metaAdSetNames && metaAdSetNames.length > 0) ||
+        (metaAdNames && metaAdNames.length > 0);
 
     // 何も選択されていない場合は空（キャンペーン別表示を使用）
-    if (beyondPageNames.length === 0 && versionNames.length === 0 && creatives.length === 0) {
+    if (!hasAnyFilter) {
         return [];
     }
 
     const pages = beyondPageNames.length > 0 ? beyondPageNames : [null];
     const versions = versionNames.length > 0 ? versionNames : [null];
     const creativesArr = creatives.length > 0 ? creatives : [null];
+    const metaCamp = metaCampaignNames && metaCampaignNames.length > 0 ? metaCampaignNames : [null];
+    const metaAdS = metaAdSetNames && metaAdSetNames.length > 0 ? metaAdSetNames : [null];
+    const metaAdN = metaAdNames && metaAdNames.length > 0 ? metaAdNames : [null];
 
     const combinations: Array<{
         beyondPageName: string | null;
         versionName: string | null;
         creative: string | null;
+        metaCampaignName: string | null;
+        metaAdSetName: string | null;
+        metaAdName: string | null;
         label: string;
     }> = [];
 
     for (const page of pages) {
         for (const version of versions) {
-            for (const creative of creativesArr) {
-                const parts = [page, version, creative].filter(Boolean);
-                combinations.push({
-                    beyondPageName: page,
-                    versionName: version,
-                    creative: creative,
-                    label: parts.join(' × ') || '合計'
-                });
+            for (const mC of metaCamp) {
+                for (const mA of metaAdS) {
+                    for (const mN of metaAdN) {
+                        for (const creative of creativesArr) {
+                            const parts = [page, version, mC, mA, mN, creative].filter(Boolean);
+                            combinations.push({
+                                beyondPageName: page,
+                                versionName: version,
+                                metaCampaignName: mC,
+                                metaAdSetName: mA,
+                                metaAdName: mN,
+                                creative: creative,
+                                label: parts.join(' × ') || '合計'
+                            });
+                        }
+                    }
+                }
             }
         }
     }
@@ -87,7 +113,14 @@ function generateCombinations(filters: FilterSelection): Array<{
 // 組み合わせでデータをフィルタリング
 function filterByCombination(
     data: ProcessedRow[],
-    combination: { beyondPageName: string | null; versionName: string | null; creative: string | null }
+    combination: {
+        beyondPageName: string | null;
+        versionName: string | null;
+        creative: string | null;
+        metaCampaignName: string | null;
+        metaAdSetName: string | null;
+        metaAdName: string | null;
+    }
 ): ProcessedRow[] {
     return data.filter(row => {
         if (combination.beyondPageName) {
@@ -99,6 +132,10 @@ function filterByCombination(
             if (row.Media === 'Beyond' && row.creative_value !== combination.creative) return false;
             if (row.Media === 'Meta' && !row.Creative.includes(combination.creative)) return false;
         }
+        if (combination.metaCampaignName && row.meta_campaign_name !== combination.metaCampaignName) return false;
+        if (combination.metaAdSetName && row.meta_adset_name !== combination.metaAdSetName) return false;
+        if (combination.metaAdName && row.meta_ad_name !== combination.metaAdName) return false;
+
         return true;
     });
 }
@@ -203,7 +240,7 @@ function formatPercent(value: number): string {
 }
 
 export function DataTable({ data, title, viewMode, filters, isReport = false }: DataTableProps) {
-    const defaultFilters: FilterSelection = { beyondPageNames: [], versionNames: [], creatives: [] };
+    const defaultFilters: FilterSelection = { beyondPageNames: [], versionNames: [], creatives: [], metaCampaignNames: [], metaAdSetNames: [], metaAdNames: [] };
     const isVersionFilterActive = filters && filters.versionNames && filters.versionNames.length > 0;
     const rawRows = aggregateByCombination(data, filters || defaultFilters, viewMode, isVersionFilterActive || false);
 
@@ -293,7 +330,14 @@ export function DataTable({ data, title, viewMode, filters, isReport = false }: 
     const tdClass = "px-1.5 py-1 text-right text-[10px] text-gray-700 whitespace-nowrap";
 
     // ラベル列のヘッダーを動的に設定
-    const hasCombinationFilter = filters && (filters.beyondPageNames.length > 0 || filters.versionNames.length > 0 || filters.creatives.length > 0);
+    const hasCombinationFilter = filters && (
+        filters.beyondPageNames.length > 0 ||
+        filters.versionNames.length > 0 ||
+        filters.creatives.length > 0 ||
+        (filters.metaCampaignNames && filters.metaCampaignNames.length > 0) ||
+        (filters.metaAdSetNames && filters.metaAdSetNames.length > 0) ||
+        (filters.metaAdNames && filters.metaAdNames.length > 0)
+    );
     const labelHeader = hasCombinationFilter ? '組み合わせ' : '商材';
 
     if (viewMode === 'meta') {

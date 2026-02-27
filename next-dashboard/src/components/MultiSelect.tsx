@@ -85,7 +85,7 @@ export function MultiSelect({ label, options, selectedValues, onChange, maxDispl
                 </button>
 
                 {isOpen && (
-                    <div className="absolute z-[100] top-full left-0 mt-1 w-full min-w-[200px] max-h-80 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col">
+                    <div className="absolute z-[100] top-full left-0 mt-1 min-w-[600px] max-w-[min(90vw,800px)] w-max max-h-80 overflow-hidden bg-white border border-gray-200 rounded-lg shadow-xl flex flex-col">
                         {/* Search Box */}
                         <div className="p-2 border-b border-gray-100 bg-gray-50">
                             <input
@@ -127,7 +127,7 @@ export function MultiSelect({ label, options, selectedValues, onChange, maxDispl
                                             onChange={() => handleToggle(option)}
                                             className="w-3.5 h-3.5 rounded border-gray-300 text-blue-600 focus:ring-blue-500"
                                         />
-                                        <span className="text-xs text-gray-600 truncate" title={String(option)}>
+                                        <span className="text-xs text-gray-600 break-words whitespace-normal" title={String(option)}>
                                             {String(option)}
                                         </span>
                                     </label>
