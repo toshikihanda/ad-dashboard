@@ -211,9 +211,10 @@ export async function POST(request: NextRequest) {
             creativeScriptsSummary,
             articleManuscriptsSummary
         );
-        if (prompt.length > 45000) {
+        const PROMPT_MAX_CHARS = 120000;
+        if (prompt.length > PROMPT_MAX_CHARS) {
             return NextResponse.json(
-                { error: '入力データが多すぎます' },
+                { error: `入力データが多すぎます（${(prompt.length / 1000).toFixed(0)}k文字）。商材や期間を絞るか、しばらくして再試行してください。` },
                 { status: 400 }
             );
         }
