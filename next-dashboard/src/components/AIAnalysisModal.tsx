@@ -1,8 +1,8 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
-import { BaselineData, calculateCurrentMetrics, calculateTrendData, getRankingDataForAI } from '@/lib/aiAnalysis';
+import { BaselineData, calculateCurrentMetrics, calculateTrendData, getRankingDataForAI, type PeriodInput } from '@/lib/aiAnalysis';
 
 interface AIAnalysisModalProps {
     isOpen: boolean;
@@ -12,7 +12,11 @@ interface AIAnalysisModalProps {
     baselineData: BaselineData;
 }
 
-type PeriodOption = 30 | 90 | 180 | 'all';
+type PeriodOption = 3 | 7 | 14 | 'custom' | 30 | 90 | 180 | 'all';
+
+function toYMD(d: Date): string {
+    return d.toISOString().slice(0, 10);
+}
 
 export default function AIAnalysisModal({
     isOpen,
@@ -22,10 +26,28 @@ export default function AIAnalysisModal({
     baselineData,
 }: AIAnalysisModalProps) {
     const [selectedCampaign, setSelectedCampaign] = useState<string>(campaigns[0] || '');
-    const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>(90);
+    const [selectedPeriod, setSelectedPeriod] = useState<PeriodOption>(7);
+    const [customStart, setCustomStart] = useState<string>(() => {
+        const d = new Date();
+        d.setDate(d.getDate() - 6);
+        return toYMD(d);
+    });
+    const [customEnd, setCustomEnd] = useState<string>(() => toYMD(new Date()));
     const [analysisResult, setAnalysisResult] = useState<string | null>(null);
     const [isAnalyzing, setIsAnalyzing] = useState(false);
     const [error, setError] = useState<string | null>(null);
+
+    const periodInput: PeriodInput = useMemo(() => {
+        if (selectedPeriod === 'custom') return { startDate: customStart, endDate: customEnd };
+        if (selectedPeriod === 'all') return 'all';
+        return selectedPeriod;
+    }, [selectedPeriod, customStart, customEnd]);
+
+    const periodLabel = useMemo(() => {
+        if (selectedPeriod === 'all') return '全期間';
+        if (selectedPeriod === 'custom') return `${customStart.replace(/-/g, '/')}〜${customEnd.replace(/-/g, '/')}`;
+        return `直近${selectedPeriod}日`;
+    }, [selectedPeriod, customStart, customEnd]);
 
     const handleAnalyze = async () => {
         setIsAnalyzing(true);
@@ -34,7 +56,7 @@ export default function AIAnalysisModal({
 
         try {
             // Calculate current metrics
-            const currentMetrics = calculateCurrentMetrics(data, selectedCampaign, selectedPeriod);
+            const currentMetrics = calculateCurrentMetrics(data, selectedCampaign, periodInput);
 
             // Get baseline for this campaign
             const campaignBaseline = baselineData[selectedCampaign] || {};
@@ -54,9 +76,6 @@ export default function AIAnalysisModal({
 
             // Get ranking data (top 10 by CPA)
             const rankingData = getRankingDataForAI(data, selectedCampaign);
-
-            // Period label
-            const periodLabel = selectedPeriod === 'all' ? '全期間' : `直近${selectedPeriod}日`;
 
             // Call API
             const response = await fetch('/api/ai-analysis', {
@@ -168,12 +187,52 @@ export default function AIAnalysisModal({
 
                             <div>
                                 <label className="block text-sm font-bold text-gray-700 mb-2">分析期間</label>
+                                {/* 上段: 3日間・7日間・14日間・選択期間 */}
+                                <div className="grid grid-cols-4 gap-2 mb-2">
+                                    {([3, 7, 14, 'custom'] as PeriodOption[]).map(period => (
+                                        <button
+                                            key={String(period)}
+                                            onClick={() => setSelectedPeriod(period)}
+                                            className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${selectedPeriod === period
+                                                ? 'bg-blue-600 text-white shadow-md'
+                                                : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                                                }`}
+                                        >
+                                            {period === 'custom' ? '選択期間' : `${period}日間`}
+                                        </button>
+                                    ))}
+                                </div>
+                                {/* 選択期間のとき: 日付範囲 */}
+                                {selectedPeriod === 'custom' && (
+                                    <div className="flex flex-wrap items-center gap-3 mb-2 p-3 bg-gray-50 rounded-lg border border-gray-200">
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <span className="text-gray-600 font-medium">開始日</span>
+                                            <input
+                                                type="date"
+                                                value={customStart}
+                                                onChange={e => setCustomStart(e.target.value)}
+                                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                            />
+                                        </label>
+                                        <span className="text-gray-400">〜</span>
+                                        <label className="flex items-center gap-2 text-sm">
+                                            <span className="text-gray-600 font-medium">終了日</span>
+                                            <input
+                                                type="date"
+                                                value={customEnd}
+                                                onChange={e => setCustomEnd(e.target.value)}
+                                                className="px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                                            />
+                                        </label>
+                                    </div>
+                                )}
+                                {/* 下段: 30日・90日・180日・全期間 */}
                                 <div className="grid grid-cols-4 gap-2">
                                     {([30, 90, 180, 'all'] as PeriodOption[]).map(period => (
                                         <button
-                                            key={period}
+                                            key={String(period)}
                                             onClick={() => setSelectedPeriod(period)}
-                                            className={`px-4 py-3 rounded-lg text-sm font-medium transition-all ${selectedPeriod === period
+                                            className={`px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${selectedPeriod === period
                                                 ? 'bg-blue-600 text-white shadow-md'
                                                 : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
                                                 }`}
@@ -186,7 +245,7 @@ export default function AIAnalysisModal({
 
                             <button
                                 onClick={handleAnalyze}
-                                disabled={!selectedCampaign}
+                                disabled={!selectedCampaign || (selectedPeriod === 'custom' && customStart > customEnd)}
                                 className="w-full py-4 bg-blue-600 text-white font-bold rounded-xl hover:bg-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg"
                             >
                                 分析開始

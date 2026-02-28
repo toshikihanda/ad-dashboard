@@ -90,18 +90,29 @@ export interface CurrentMetrics {
     cvCount: number; // For confidence calculation
 }
 
+/** 分析期間: 日数 / 全期間 / 任意の日付範囲 */
+export type PeriodInput = number | 'all' | { startDate: string; endDate: string };
+
 export function calculateCurrentMetrics(
     data: ProcessedRow[],
     campaign: string,
-    periodDays: number | 'all'
+    periodInput: PeriodInput
 ): CurrentMetrics {
     // Filter by campaign
     let filtered = data.filter(row => row.Campaign_Name === campaign);
 
     // Filter by period
-    if (periodDays !== 'all') {
+    if (periodInput === 'all') {
+        // no date filter
+    } else if (typeof periodInput === 'object' && periodInput.startDate && periodInput.endDate) {
+        const start = new Date(periodInput.startDate);
+        start.setHours(0, 0, 0, 0);
+        const end = new Date(periodInput.endDate);
+        end.setHours(23, 59, 59, 999);
+        filtered = filtered.filter(row => row.Date >= start && row.Date <= end);
+    } else if (typeof periodInput === 'number') {
         const cutoffDate = new Date();
-        cutoffDate.setDate(cutoffDate.getDate() - periodDays);
+        cutoffDate.setDate(cutoffDate.getDate() - periodInput);
         filtered = filtered.filter(row => row.Date >= cutoffDate);
     }
 
