@@ -542,6 +542,18 @@ export default function ReportClient({
                             </div>
                         </div>
 
+                        {/* 編集中ラベル（編集可能なレポートのみ・シェア用URLを送るべきでないことを明示） */}
+                        {!isShareMode && (
+                            <>
+                                <div className="flex-1 hidden md:flex items-center justify-center min-w-0 px-2">
+                                    <span className="text-red-600 font-bold text-xl md:text-2xl lg:text-3xl whitespace-nowrap" aria-hidden>編集中</span>
+                                </div>
+                                <div className="md:hidden w-full text-center py-1">
+                                    <span className="text-red-600 font-bold text-lg" aria-hidden>編集中</span>
+                                </div>
+                            </>
+                        )}
+
                         {/* 管理者用ボタンエリア */}
                         {isAdmin && (
                             <div className="order-first md:order-last w-full md:w-auto flex flex-col md:flex-row gap-4 items-start md:items-center">
