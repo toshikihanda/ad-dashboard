@@ -9,31 +9,28 @@ const MAX_MANUSCRIPT_CHAT = 2500;
 // --- System Prompt (context blocks injected below) ---
 const SYSTEM_PROMPT_BASE = `
 あなたは広告運用ダッシュボードのAIアシスタントです。
-以下のデータと、信頼ナレッジ・クリエイティブの台本・記事の原稿を参照し、ユーザーの質問に日本語で回答してください。
+以下のデータと、信頼ナレッジ・クリエイティブの台本・記事の原稿を参照し、**ユーザーの質問にだけ**日本語で回答してください。
+
+## 重要: 回答の仕方
+- **質問に答える**: ユーザーが聞いたこと（例: 「7.63のファーストビューを教えて」「この記事のFVは？」）には、その内容だけを簡潔に答えてください。不要な考察・ネクストアクションは書かないでください。
+- **分析・考察・ネクストアクション**: 「分析して」「考察して」「ネクストアクションを出して」などと**言われたときだけ**、台本・原稿とナレッジを踏まえて考察やネクストアクションを述べてください。
+- **会話の続き**: 「会話履歴」に前のやりとりがあります。「なんでこの記事がいいの？」「その続きを教えて」などは、直前に話していた記事・クリエイティブ（例: 7.63）の文脈で答えてください。
 
 ## データの説明
 提供されるデータは、Meta広告およびBeyond（LP）の実績データのサマリーです。
-- 期間: 月次、または直近7日間など
-- 指標: Cost(消化金額), Revenue(売上), Profit(粗利), CV(獲得数), CPA(獲得単価), ROAS(費用対効果)
-- キャンペーン名: 商材名
+- 指標: Cost, Revenue, CV, CPA, ROAS など
+- 信頼ナレッジ・台本・原稿は参照用に提供されます。質問されたときや「分析して」と言われたときに利用してください。
 
-## 回答のルール
-1. **データに基づく**: 提供されたデータ数値に基づいて正確に回答してください。推測で数値を答えないでください。
-2. **ナレッジ・台本・原稿を参照**: 信頼ナレッジを判断の頭脳として使い、「なぜこの記事が成果が出ているか」「なぜこのクリエイティブが効いているか」は台本・原稿の内容を踏まえて具体的に考察し、ネクストアクションを示してください。
-3. **フォーマット**: 数値は読みやすくカンマ区切り（例: 1,234,567円）にし、必要に応じて単位（円、件、%）をつけてください。
-4. **スタイル**: 丁寧かつ簡潔に。箇条書きを活用して見やすくしてください。
-5. **知らないこと**: データにない情報は「データに含まれていないため分かりません」と答えてください。
-
-## ユーザーからの質問に対して
-- 「今月のSACの売上は？」 → 該当する月とキャンペーンのRevenueを回答。
-- 「ROASが高い記事は？」 → 記事別データのTopランキングを参照し、原稿の内容も踏まえて考察。
-- 「この記事の成果は？」「なぜこのクリエイティブが伸びている？」 → 数値に加え、台本・原稿を参照して具体的な考察とネクストアクションを述べる。
+## その他のルール
+- 数値はカンマ区切り（例: 1,234,567円）。データにない情報は「データに含まれていないため分かりません」と答える。
+- 丁寧かつ簡潔に。聞かれたことに答えることを最優先にしてください。
 `;
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
-        const { message, dataContext } = body;
+        const { message, dataContext, history } = body;
+        const conversationHistory = Array.isArray(history) ? history.slice(-12) : [];
 
         // API Key Check
         const apiKey = process.env.GEMINI_API_KEY;
@@ -52,28 +49,41 @@ export async function POST(request: NextRequest) {
             const { knowledge, creativeMaster, articleMaster } = await loadKnowledgeAndMasters();
             knowledgeBlock = buildKnowledgeText(knowledge);
             creativeBlock = buildCreativeScriptsSummary(creativeMaster, { maxPerScript: MAX_SCRIPT_CHAT });
-            articleBlock = buildArticleManuscriptsSummary(articleMaster, { maxPerManuscript: MAX_MANUSCRIPT_CHAT });
+            articleBlock = buildArticleManuscriptsSummary(articleMaster, {
+                maxPerManuscript: MAX_MANUSCRIPT_CHAT,
+                priorityVersionNames: ['2.46', '7.2', '7.63', '10.3', '11.3'],
+            });
         } catch (e) {
             console.error('[Chat API] loadKnowledgeAndMasters failed', (e as Error).message);
         }
+
+        const historyBlock = conversationHistory.length > 0
+            ? conversationHistory.map((m: { role?: string; content?: string }) => {
+                const role = m.role === 'user' ? 'ユーザー' : 'アシスタント';
+                return `${role}: ${(m.content || '').trim()}`;
+            }).join('\n\n')
+            : '（なし）';
 
         // Construct Prompt
         const prompt = `
 ${SYSTEM_PROMPT_BASE}
 
-## 信頼ナレッジ（判断の頭脳として必ず参照）
+## 信頼ナレッジ
 ${knowledgeBlock}
 
-## クリエイティブ台本（参考: なぜこのCRが効いているか考察に利用）
+## クリエイティブ台本
 ${creativeBlock}
 
-## 記事原稿（参考: 前半=FV詳細分析、以降=本文文字起こし。なぜこの記事が効いているか考察に利用）
+## 記事原稿（前半=FV詳細分析、以降=本文）
 ${articleBlock}
 
 ## 参照データ（数値サマリー）
 ${dataContext}
 
-## ユーザーの質問
+## 会話履歴（前のやりとり。続きの質問はこの文脈で答えること）
+${historyBlock}
+
+## 現在のユーザーの質問
 ${message}
 `;
 

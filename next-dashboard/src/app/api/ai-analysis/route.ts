@@ -176,6 +176,9 @@ export async function POST(request: NextRequest) {
             if (t?.creative && t.creative !== '(未設定)') priorityCreativeIds.add(String(t.creative).trim());
             if (t?.versionName && t.versionName !== '(未設定)') priorityVersionNames.add(String(t.versionName).trim());
         }
+        // 文字起こし済みの記事は常に原稿ブロックで先頭に含める（7.63等が抜けないように）
+        const manuscriptAvailableVersions = ['2.46', '7.2', '7.63', '10.3', '11.3'];
+        manuscriptAvailableVersions.forEach(v => priorityVersionNames.add(v));
 
         // 4. Load Knowledge + Creative_Master + Article_Master (every request)
         let knowledgeText = '（ナレッジを取得できませんでした）';

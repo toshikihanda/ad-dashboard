@@ -200,12 +200,17 @@ ${(reportListData || []).slice(-5).map(r => `Date:${r.Date || r.CreatedAt || ''}
             // Prepare context
             const contextData = getSummarizedData();
 
+            const historyForApi = messages
+                .filter(m => m.role !== 'assistant' || m.id !== 'welcome')
+                .map(m => ({ role: m.role, content: m.content }));
+
             const res = await fetch('/api/chat', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     message: userMsg.content,
-                    dataContext: contextData, // Sends the prepared summary string
+                    dataContext: contextData,
+                    history: historyForApi,
                 }),
             });
 
@@ -253,12 +258,12 @@ ${(reportListData || []).slice(-5).map(r => `Date:${r.Date || r.CreatedAt || ''}
 
             {/* Chat Window */}
             {isOpen && (
-                <div className="fixed bottom-6 right-6 z-50 w-[350px] md:w-[400px] h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 animate-in slide-in-from-bottom-10 fade-in duration-300">
-                    {/* Header */}
-                    <div className="flex items-center justify-between p-4 bg-gradient-to-r from-blue-600 to-blue-500 rounded-t-2xl text-white">
-                        <div className="flex items-center gap-2">
-                            <span className="text-xl">🤖</span>
-                            <span className="font-bold">AIアシスタント</span>
+                <div className="fixed bottom-6 right-6 z-50 w-[350px] md:w-[400px] h-[75vh] min-h-[420px] max-h-[820px] bg-white rounded-2xl shadow-2xl flex flex-col border border-gray-200 animate-in slide-in-from-bottom-10 fade-in duration-300">
+                    {/* Header（薄くして表示エリアを広く） */}
+                    <div className="flex items-center justify-between py-2 px-3 bg-gradient-to-r from-blue-600 to-blue-500 rounded-t-2xl text-white shrink-0">
+                        <div className="flex items-center gap-1.5">
+                            <span className="text-base">🤖</span>
+                            <span className="font-bold text-sm">AIアシスタント</span>
                         </div>
                         <button
                             onClick={() => setIsOpen(false)}
@@ -268,10 +273,10 @@ ${(reportListData || []).slice(-5).map(r => `Date:${r.Date || r.CreatedAt || ''}
                         </button>
                     </div>
 
-                    {/* Messages Area */}
+                    {/* Messages Area（縦幅を広く確保） */}
                     <div
                         ref={scrollRef}
-                        className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50"
+                        className="flex-1 min-h-0 overflow-y-auto p-4 space-y-4 bg-gray-50"
                     >
                         {messages.map((msg) => (
                             <div
