@@ -34,19 +34,28 @@ function getScriptFromRow(row: Record<string, string>): string {
 }
 
 /**
- * Article_Master 列: 商材名, 記事名, ダッシュボード名, URL, PDF, 原稿（F列）
+ * Article_Master: 商材名, 記事名, ダッシュボード名, URL, PDF, 原稿（F列）。
+ * 原稿はF列で固定取得。ヘッダーが音声入力で「現行」になっている場合も列名で対応。
  */
 function getManuscriptFromRow(row: Record<string, string>): string {
-    const exact = getCol(row, '原稿', 'Manuscript', 'Content', '文字起こし');
-    if (exact) return exact;
     const keys = Object.keys(row);
-    for (const k of keys) {
-        const kNorm = k.trim().toLowerCase();
-        if (kNorm.includes('原稿') || kNorm.includes('manuscript')) return (row[k] ?? '').trim();
-    }
     if (keys.length >= 6) {
         const fVal = (row[keys[5]] ?? '').trim();
         if (fVal) return fVal;
+    }
+    const exact = getCol(row, '原稿', '現行', 'Manuscript', 'Content', '文字起こし', 'FV詳細分析', '#FV詳細分析');
+    if (exact) return exact;
+    for (const k of keys) {
+        const kNorm = k.trim().toLowerCase();
+        if (kNorm.includes('原稿') || kNorm.includes('現行') || kNorm.includes('manuscript') || kNorm.includes('fv') || kNorm.includes('詳細分析') || kNorm.includes('文字起こし')) return (row[k] ?? '').trim();
+    }
+    if (keys.length >= 7) {
+        const gVal = (row[keys[6]] ?? '').trim();
+        if (gVal) return gVal;
+    }
+    if (keys.length >= 5) {
+        const eVal = (row[keys[4]] ?? '').trim();
+        if (eVal) return eVal;
     }
     return '';
 }

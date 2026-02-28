@@ -1,5 +1,8 @@
 // Google Sheets CSV Loader
-// Fetches data from publicly accessible Google Sheets as CSV
+// スプレッドシートのデータを「CSV形式で取得」＝Google の CSV エクスポート URL で
+// 各シート（Meta_Live, Beyond_Live, Creative_Master, Article_Master, Knowledge 等）を
+// テキストとして取得し、パースしてダッシュボード・AI分析・チャットで利用しています。
+// GAS 等で書き込んだ原稿・台本・文字起こしもこの CSV 経由で読み込みます。
 
 const SHEET_ID = "14pa730BytKIRONuhqljERM8ag8zm3bEew3zv6lXbMGU";
 
@@ -49,8 +52,35 @@ export async function loadSheetData(sheetName: string, options?: { cache?: Reque
   }
 }
 
+/** セル内改行を含むCSVを論理行に分割（引用符内の改行は行区切りとみなさない） */
+function splitCSVIntoRows(csvText: string): string[] {
+  const rows: string[] = [];
+  let current = '';
+  let inQuotes = false;
+  for (let i = 0; i < csvText.length; i++) {
+    const char = csvText[i];
+    if (char === '"') {
+      if (inQuotes && csvText[i + 1] === '"') {
+        current += '""';
+        i++;
+      } else {
+        inQuotes = !inQuotes;
+        current += char;
+      }
+    } else if ((char === '\n' || char === '\r') && !inQuotes) {
+      if (char === '\r' && csvText[i + 1] === '\n') i++;
+      if (current.trim()) rows.push(current);
+      current = '';
+    } else {
+      if (char !== '\r') current += char;
+    }
+  }
+  if (current.trim()) rows.push(current);
+  return rows;
+}
+
 function parseCSV(csvText: string): Record<string, string>[] {
-  const lines = csvText.split('\n').filter(line => line.trim() !== '');
+  const lines = splitCSVIntoRows(csvText);
   if (lines.length === 0) return [];
 
   // BOM除去（Google Sheets等のCSVで「台本」「原稿」等のヘッダーが一致しないのを防ぐ）
