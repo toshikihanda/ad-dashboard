@@ -187,13 +187,18 @@ export async function POST(request: NextRequest) {
         try {
             const { knowledge, creativeMaster, articleMaster } = await loadKnowledgeAndMasters();
             knowledgeText = buildKnowledgeText(knowledge);
+            // 分析用は1件あたりの文字数・件数を抑え、プロンプト全体が上限を超えないようにする
             creativeScriptsSummary = buildCreativeScriptsSummary(creativeMaster, {
                 campaign,
                 priorityCreativeIds: [...priorityCreativeIds],
+                maxPerScript: 1500,
+                maxItems: 28,
             });
             articleManuscriptsSummary = buildArticleManuscriptsSummary(articleMaster, {
                 campaign,
                 priorityVersionNames: [...priorityVersionNames],
+                maxPerManuscript: 2000,
+                maxItems: 18,
             });
         } catch (e) {
             console.error('AI Analysis: loadKnowledgeAndMasters failed', (e as Error).message);

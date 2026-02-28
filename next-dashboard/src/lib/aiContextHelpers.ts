@@ -78,9 +78,9 @@ export function buildKnowledgeText(rows: Record<string, string>[]): string {
 /** Creative_Master: クリエイティブ名・ダッシュボード名と台本。priorityCreativeIds 指定時は該当行を先頭に必ず含める */
 export function buildCreativeScriptsSummary(
     rows: Record<string, string>[],
-    options: { campaign?: string; maxPerScript?: number; priorityCreativeIds?: string[] }
+    options: { campaign?: string; maxPerScript?: number; priorityCreativeIds?: string[]; maxItems?: number }
 ): string {
-    const { campaign, maxPerScript = MAX_SCRIPT_CHARS, priorityCreativeIds = [] } = options;
+    const { campaign, maxPerScript = MAX_SCRIPT_CHARS, priorityCreativeIds = [], maxItems } = options;
     if (!rows?.length) return '（クリエイティブマスターにデータがありません）';
     let filtered = rows;
     if (campaign?.trim()) {
@@ -105,7 +105,9 @@ export function buildCreativeScriptsSummary(
     const ordered = [...priorityRows, ...restRows];
 
     const lines: string[] = [];
-    const limit = campaign ? ordered.length : Math.min(ordered.length, 40);
+    const limit = maxItems != null
+        ? Math.min(ordered.length, maxItems)
+        : campaign ? ordered.length : Math.min(ordered.length, 40);
     for (let i = 0; i < limit; i++) {
         const row = ordered[i];
         const name = getCol(row, 'クリエイティブ名', 'Creative Name', 'ファイル名');
@@ -125,9 +127,9 @@ export function buildCreativeScriptsSummary(
 /** Article_Master: 記事名と原稿（F列）。priorityVersionNames 指定時は該当行を先頭に必ず含める（versionName＝ダッシュボード名） */
 export function buildArticleManuscriptsSummary(
     rows: Record<string, string>[],
-    options: { campaign?: string; maxPerManuscript?: number; priorityVersionNames?: string[] }
+    options: { campaign?: string; maxPerManuscript?: number; priorityVersionNames?: string[]; maxItems?: number }
 ): string {
-    const { campaign, maxPerManuscript = MAX_MANUSCRIPT_CHARS, priorityVersionNames = [] } = options;
+    const { campaign, maxPerManuscript = MAX_MANUSCRIPT_CHARS, priorityVersionNames = [], maxItems } = options;
     if (!rows?.length) return '（記事マスターにデータがありません）';
     let filtered = rows;
     if (campaign?.trim()) {
@@ -152,7 +154,9 @@ export function buildArticleManuscriptsSummary(
     const ordered = [...priorityRows, ...restRows];
 
     const lines: string[] = [];
-    const limit = campaign ? ordered.length : Math.min(ordered.length, 25);
+    const limit = maxItems != null
+        ? Math.min(ordered.length, maxItems)
+        : campaign ? ordered.length : Math.min(ordered.length, 25);
     for (let i = 0; i < limit; i++) {
         const row = ordered[i];
         const name = getCol(row, '記事名', 'Article Name', 'Subject');
