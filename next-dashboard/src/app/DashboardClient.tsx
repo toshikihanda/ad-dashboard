@@ -447,7 +447,11 @@ export default function DashboardClient({ initialData, baselineData, masterProje
             cpm: isVersionFilterActive ? '-' : (safeDivide(metaCost, impressions) * 1000),
             cpc: displayCPC,
             mcpa: safeDivide(beyondCost, displayBeyondClicks),
-            cpa: safeDivide(beyondCost, beyondCV),
+            // Metaタブ: CVはMCVなので CPA=Meta出稿/MCV。Beyond/合計は従来どおり Beyond出稿/BeyondCV
+            cpa:
+                selectedTab === 'meta'
+                    ? safeDivide(metaCost, metaMCV)
+                    : safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
             svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
             totalExitRate: safeDivide(fvExit + svExit, beyondPV) * 100,

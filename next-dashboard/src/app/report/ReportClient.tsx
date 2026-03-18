@@ -496,7 +496,10 @@ export default function ReportClient({
             cpm: isVersionFilterActive ? '-' : (safeDivide(metaCost, impressions) * 1000),
             cpc: displayCPC,
             mcpa: safeDivide(beyondCost, displayBeyondClicks),
-            cpa: safeDivide(beyondCost, beyondCV),
+            cpa:
+                selectedTab === 'meta'
+                    ? safeDivide(metaCost, metaMCV)
+                    : safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
             svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
             totalExitRate: safeDivide(fvExit + svExit, beyondPV) * 100,
