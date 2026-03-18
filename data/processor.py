@@ -77,6 +77,8 @@ def build_master_rules(df_master: pd.DataFrame) -> dict:
         unit_price = _to_float(row.get("成果単価"))
         fee_rate = _to_float(row.get("手数料率"))
         meta_cv_name = str(row.get("Meta CV名", "")).strip()
+        if meta_cv_name.lower() == "nan":
+            meta_cv_name = ""
 
         projects[project] = {
             "type": op_type,
@@ -188,6 +190,10 @@ def process_meta_data(df_live, df_history, master_rules: dict | None = None):
     }
     combined.rename(columns=rename_map, inplace=True)
     combined['Date'] = pd.to_datetime(combined['Date'])
+
+    # 重複除外キー用に、元の Ad Name 相当を保持（processor内部では Creative にリネームされる）
+    if "Ad Name" not in combined.columns and "Creative" in combined.columns:
+        combined["Ad Name"] = combined["Creative"]
     
     # 4. Meta CV列の決定（案件別に Master_Setting["Meta CV名"] を優先）
     # - 指定列が存在すればそれを使用
@@ -208,6 +214,12 @@ def process_meta_data(df_live, df_history, master_rules: dict | None = None):
                 combined.loc[mask, "MCV"] = pd.to_numeric(combined.loc[mask, "Results"], errors="coerce").fillna(0)
             else:
                 combined.loc[mask, "MCV"] = 0
+
+        # マスターに紐づかない行（Unmapped等）は Results をフォールバックとして採用
+        if has_results:
+            unmapped_mask = combined["Campaign_Name"].isin(["Unmapped", "", None]) if "Campaign_Name" in combined.columns else pd.Series(False, index=combined.index)
+            if unmapped_mask.any():
+                combined.loc[unmapped_mask, "MCV"] = pd.to_numeric(combined.loc[unmapped_mask, "Results"], errors="coerce").fillna(0)
     else:
         if has_results:
             combined["MCV"] = pd.to_numeric(combined["Results"], errors="coerce").fillna(0)
