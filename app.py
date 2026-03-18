@@ -2,6 +2,7 @@ import streamlit as st
 import pandas as pd
 from datetime import datetime, timedelta
 import google.generativeai as genai
+import difflib
 
 # Import custom modules
 from data.loader import (
@@ -12,7 +13,7 @@ from data.loader import (
     get_knowledge_subcategories,
     format_knowledge_for_ai
 )
-from data.processor import process_data
+from data.processor import process_data, build_master_rules
 from utils.styles import get_custom_css
 from components.metrics import display_kpi_metrics
 from components.charts import display_charts
@@ -344,6 +345,7 @@ def main():
     # --- 1. Data Loading ---
     raw_data = load_data_from_sheets()
     df = process_data(raw_data)
+    master_rules = build_master_rules(raw_data.get("Master_Setting", pd.DataFrame()))
     
     if df.empty:
         st.error("データの読み込みに失敗したか、対象データがありません。")
@@ -475,6 +477,71 @@ def main():
         st.warning("データがありません")
         return
 
+    # --- Unmapped 診断 ---
+    def _normalize_text(value: object) -> str:
+        if value is None or pd.isna(value):
+            return ""
+        s = str(value).replace("\u3000", " ")
+        for ch in ["[", "]", "［", "］", "(", ")", "（", "）", "【", "】"]:
+            s = s.replace(ch, "")
+        return " ".join(s.split()).strip().lower()
+
+    def _suggest_projects(text: object, tokens: list[tuple[str, str]], limit: int = 5) -> str:
+        """
+        マッチしなかった文字列に対して、近い Master token を推定表示。
+        tokens: [(token_norm, project), ...]
+        """
+        s = _normalize_text(text)
+        if not s or not tokens:
+            return ""
+        token_list = [t for t, _ in tokens if t]
+        close = difflib.get_close_matches(s, token_list, n=limit, cutoff=0.15)
+        if not close:
+            return ""
+        # token -> project の対応（同一tokenが複数案件に紐づくことは想定しない）
+        token_to_project = {t: p for t, p in tokens}
+        return " / ".join([f"{token_to_project.get(t, '')}({t})" for t in close])
+
+    with st.expander("🧭 Unmapped診断（マスターに紐づかない行）", expanded=False):
+        unmapped = df_filtered[df_filtered["Campaign_Name"] == "Unmapped"].copy()
+        st.caption("Master_Setting の Meta名/Beyond名 にマッチせず、案件に紐づかなかった行の一覧です。")
+
+        if unmapped.empty:
+            st.success("この条件（期間/フィルタ）では Unmapped はありません。")
+        else:
+            st.warning(f"Unmapped 行数: {len(unmapped)}")
+
+            meta_unmapped = unmapped[unmapped["Media"] == "Meta"].copy()
+            beyond_unmapped = unmapped[unmapped["Media"] == "Beyond"].copy()
+
+            meta_tokens = master_rules.get("meta_tokens", [])
+            beyond_tokens = master_rules.get("beyond_tokens", [])
+
+            if not meta_unmapped.empty:
+                # 近い候補を推定表示
+                meta_unmapped["マッチ対象（Campaign Name）"] = meta_unmapped.get("Campaign Name", "")
+                meta_unmapped["推定候補（近いMaster）"] = meta_unmapped["マッチ対象（Campaign Name）"].apply(
+                    lambda x: _suggest_projects(x, meta_tokens)
+                )
+                show_cols = [c for c in [
+                    "Date", "Account Name", "Campaign Name", "Ad Set Name", "Creative", "Cost", "Impressions", "Clicks", "MCV",
+                    "マッチ対象（Campaign Name）", "推定候補（近いMaster）"
+                ] if c in meta_unmapped.columns]
+                st.markdown("##### Meta Unmapped")
+                st.dataframe(meta_unmapped[show_cols].sort_values("Date", ascending=False), use_container_width=True)
+
+            if not beyond_unmapped.empty:
+                beyond_unmapped["マッチ対象（beyond_page_name）"] = beyond_unmapped.get("beyond_page_name", "")
+                beyond_unmapped["推定候補（近いMaster）"] = beyond_unmapped["マッチ対象（beyond_page_name）"].apply(
+                    lambda x: _suggest_projects(x, beyond_tokens)
+                )
+                show_cols = [c for c in [
+                    "Date", "beyond_page_name", "version_name", "Parameter", "Cost", "PV", "Clicks", "CV",
+                    "マッチ対象（beyond_page_name）", "推定候補（近いMaster）"
+                ] if c in beyond_unmapped.columns]
+                st.markdown("##### Beyond Unmapped")
+                st.dataframe(beyond_unmapped[show_cols].sort_values("Date", ascending=False), use_container_width=True)
+
     # --- 6. KPI Calculation & Display ---
     # タブごとのロジック分岐
     
@@ -512,30 +579,7 @@ def main():
     #             available_cols = [col for col in display_cols if col in beyond_filtered_by_utm.columns]
     #             st.dataframe(beyond_filtered_by_utm[available_cols].head(10))
     
-    # 共通: 案件ごとの設定
-    PROJECT_SETTINGS = {
-        'SAC_成果': {'type': '成果', 'unit_price': 90000, 'fee_rate': None},
-        'SAC_予算': {'type': '予算', 'unit_price': None, 'fee_rate': 0.2},
-        'ルーチェ_予算': {'type': '予算', 'unit_price': None, 'fee_rate': 0.2}
-    }
-    
-    # 売上計算関数
-    def calculate_revenue_by_project(df, project_settings):
-        total_revenue = 0
-        for project_name, settings in project_settings.items():
-            project_data = df[df['Campaign_Name'] == project_name]
-            project_cv = project_data['CV'].sum()
-            project_cost = project_data['Cost'].sum()
-            
-            if settings['type'] == '成果':
-                # 成果型: CV × 単価
-                revenue = project_cv * settings['unit_price']
-            else:
-                # 予算型: Cost × 手数料率
-                revenue = project_cost * settings['fee_rate']
-            
-            total_revenue += revenue
-        return total_revenue
+    # Master_Setting は processor 側で反映済み（Campaign_Name 正規化 / Beyond Revenue 計算 / Meta MCV列選択 など）
 
     if selected_tab == "合計":
         # --- 合計タブ ロジック ---
@@ -578,27 +622,8 @@ def main():
         # 出稿金額: Beyondを使用（表示用）
         cost = beyond_cost
         
-        # 売上: 案件タイプ別に計算
-        # 予算型の場合、Beyondのcostが0の場合はMetaのCostを使用
-        revenue = 0
-        for project_name, settings in PROJECT_SETTINGS.items():
-            project_beyond = df_beyond[df_beyond['Campaign_Name'] == project_name]
-            project_meta = df_meta[df_meta['Campaign_Name'] == project_name]
-            project_cv = project_beyond['CV'].sum()
-            project_beyond_cost = project_beyond['Cost'].sum()
-            project_meta_cost = project_meta['Cost'].sum()
-            
-            if settings['type'] == '成果':
-                # 成果型: CV × 単価
-                revenue += project_cv * settings['unit_price']
-            else:
-                # 予算型: Cost × 手数料率
-                # Beyondのcostが0の場合は、MetaのCostを使用
-                if project_beyond_cost == 0:
-                    cost_for_revenue = project_meta_cost
-                else:
-                    cost_for_revenue = project_beyond_cost
-                revenue += cost_for_revenue * settings['fee_rate']
+        # 売上: Beyond側で計算済みの Revenue を集計（Master_Setting に基づく）
+        revenue = df_beyond["Revenue"].sum() if "Revenue" in df_beyond.columns else 0
         
         # 粗利
         profit = revenue - cost
@@ -763,23 +788,8 @@ def main():
                 beyond_clicks = beyond_project["Clicks"].sum()  # MCV（記事LP遷移）
                 beyond_cv = beyond_project["CV"].sum()
                 
-                # 売上計算
-                settings = PROJECT_SETTINGS.get(project_name, {})
-                if settings.get('type') == '成果':
-                    # 成果型: CV × 単価
-                    revenue = beyond_cv * settings.get('unit_price', 0)
-                    # 出稿金額はBeyondを使用
-                    cost_for_revenue = beyond_cost
-                else:
-                    # 予算型: Cost × 手数料率
-                    # Beyondのcostが0の場合は、MetaのCostを使用
-                    if beyond_cost == 0:
-                        cost_for_revenue = meta_cost
-                    else:
-                        cost_for_revenue = beyond_cost
-                    revenue = cost_for_revenue * settings.get('fee_rate', 0)
-                    # 出稿金額はBeyondを使用（表示用）
-                    # ただし、売上計算にはMetaのCostも考慮
+                # 売上計算（Master_Settingに基づき processor 側で計算済み）
+                revenue = beyond_project["Revenue"].sum() if "Revenue" in beyond_project.columns else 0
                 
                 # 出稿金額はBeyondを使用（表示用）
                 cost_for_display = beyond_cost

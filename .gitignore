@@ -11,3 +11,5 @@ app_old.py
 
 .vercel
 .env*.local
+
+.vercel

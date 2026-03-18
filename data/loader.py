@@ -28,7 +28,8 @@ def load_data_from_sheets():
             "Meta_Live": load_sheet_data("Meta_Live"),
             "Meta_History": load_sheet_data("Meta_History"),
             "Beyond_Live": load_sheet_data("Beyond_Live"),
-            "Beyond_History": load_sheet_data("Beyond_History")
+            "Beyond_History": load_sheet_data("Beyond_History"),
+            "Master_Setting": load_sheet_data("Master_Setting"),
         }
     
     return _fetch_all()
