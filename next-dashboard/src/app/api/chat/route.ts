@@ -71,20 +71,21 @@ export async function POST(request: NextRequest) {
                 const parsed = parseCreativeMaster(creativeMaster);
                 const qNorm = msg.toLowerCase();
                 const idMatches = qNorm.match(/\b(?:bt\d+|\d{3}[a-z]?)\b/gi) || [];
-                const uniqueIds = [...new Set(idMatches.map(s => s.toLowerCase()))];
+                const normalizeId = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+                const uniqueIds = [...new Set(idMatches.map(s => normalizeId(s)).filter(Boolean))];
 
                 // ID一致優先（creativeId / fileName）
                 let matched = parsed.filter(item => {
-                    const cid = (item.creativeId || '').toLowerCase();
-                    const fname = (item.fileName || '').toLowerCase();
-                    return uniqueIds.some(id => cid === id || fname.includes(id) || cid.includes(id));
+                    const cid = normalizeId(item.creativeId || '');
+                    const fname = normalizeId(item.fileName || '');
+                    return uniqueIds.some(id => cid === id || fname === id);
                 });
 
-                // IDが取れない場合は文面包含でゆるく検索
-                if (matched.length === 0) {
+                // IDが取れない場合のみ、文面包含でゆるく検索（短いID誤爆防止）
+                if (matched.length === 0 && uniqueIds.length === 0) {
                     matched = parsed.filter(item => {
-                        const cid = (item.creativeId || '').toLowerCase();
-                        const fname = (item.fileName || '').toLowerCase();
+                        const cid = (item.creativeId || '').toLowerCase().trim();
+                        const fname = (item.fileName || '').toLowerCase().trim();
                         return (cid && qNorm.includes(cid)) || (fname && qNorm.includes(fname));
                     });
                 }
