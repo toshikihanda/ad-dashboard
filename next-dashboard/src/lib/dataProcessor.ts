@@ -191,6 +191,18 @@ function extractCreativeFromAdName(adName: string): string {
     const matchBt = cleanName.match(/(bt\d+)/i);
     if (matchBt) return matchBt[1];
 
+    // 1.5 Preferred pattern:
+    // "212c_034_004" -> "212c"
+    // "218_034_004"  -> "218"
+    // Keep first 3 digits + optional trailing alphabet as creative key.
+    const matchHeadWithUnderscoreTail = cleanName.match(/(?:^|[^0-9a-z])(\d{3}[a-z]?)(?=_[0-9]{2,}(?:_[0-9]{2,})?)/i);
+    if (matchHeadWithUnderscoreTail) return matchHeadWithUnderscoreTail[1].toLowerCase();
+
+    // 1.6 Secondary pattern:
+    // "2_116_c1" -> "116"
+    const matchAnySegment = cleanName.match(/(?:^|_)(\d{3}[a-z]?)(?:_|$)/i);
+    if (matchAnySegment) return matchAnySegment[1].toLowerCase();
+
     // 2. Find sequence of 3 or more digits
     // This allows "116" to be extracted from " 116_..." or "2_116_c1" (if 116 is the first 3-digit num)
     // We iterate through all number matches to find a "valid" ID (skipping likely dates)
