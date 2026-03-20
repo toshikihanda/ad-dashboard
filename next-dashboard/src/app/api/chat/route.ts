@@ -93,6 +93,62 @@ export async function POST(request: NextRequest) {
                 // 台本があるもののみ
                 matched = matched.filter(item => item.script && item.script.trim().length > 0);
 
+                // parseCreativeMaster で取りこぼすケース向けに、生データ検索フォールバック
+                if (matched.length === 0 && uniqueIds.length > 0) {
+                    const getCol = (row: Record<string, string>, ...names: string[]) => {
+                        for (const n of names) {
+                            const v = row[n];
+                            if (v !== undefined && v !== '') return String(v).trim();
+                        }
+                        return '';
+                    };
+                    const getScriptFromRow = (row: Record<string, string>) => {
+                        const exact = getCol(row, '台本', 'Script');
+                        if (exact) return exact;
+                        const keys = Object.keys(row);
+                        for (const k of keys) {
+                            const kNorm = k.trim().toLowerCase();
+                            if (kNorm.includes('台本') || kNorm.includes('script')) {
+                                const v = String(row[k] ?? '').trim();
+                                if (v) return v;
+                            }
+                        }
+                        if (keys.length >= 8) {
+                            const hVal = String(row[keys[7]] ?? '').trim();
+                            if (hVal) return hVal;
+                        }
+                        return '';
+                    };
+
+                    const fallback = creativeMaster
+                        .map((row) => {
+                            const cid = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID', 'utm_creative');
+                            const fname = getCol(row, 'クリエイティブ名', 'Creative Name', 'ファイル名', 'File Name');
+                            const script = getScriptFromRow(row);
+                            return { cid, fname, script };
+                        })
+                        .filter(x => !!x.script)
+                        .filter(x => {
+                            const cidN = normalizeId(x.cid);
+                            const fnameN = normalizeId(x.fname);
+                            return uniqueIds.some(id =>
+                                cidN === id ||
+                                cidN.includes(id) ||
+                                fnameN === id ||
+                                fnameN.includes(id)
+                            );
+                        })
+                        .slice(0, 3);
+
+                    if (fallback.length > 0) {
+                        const blocks = fallback.map(x => {
+                            const label = x.cid || x.fname || '（ID不明）';
+                            return `【${label}】\n${x.script}`;
+                        });
+                        return NextResponse.json({ reply: blocks.join('\n\n') });
+                    }
+                }
+
                 if (matched.length > 0) {
                     const top = matched.slice(0, 3); // 応答が長大化しすぎないよう上位3件
                     const blocks = top.map(item => {
