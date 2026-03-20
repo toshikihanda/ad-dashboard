@@ -640,7 +640,28 @@ export function parseCreativeMaster(rawData: Record<string, string>[]): Creative
         const creativeId = findVal(row, ['ダッシュボード名', 'utm_creative', 'Dashboard Name', 'ID']) || '';
         const url = findVal(row, ['URL', 'Link', 'Google Drive URL']) || '';
         const thumbnailUrl = findVal(row, ['サムネイルURL', 'サムネイル', 'Thumbnail', 'Thumbnail URL', 'Image']) || '';
-        const script = findVal(row, ['台本', 'Script']) || undefined;
+        // 台本列名が変わっても拾えるよう、より堅牢に抽出する
+        let script = findVal(row, ['台本', 'Script']);
+        if (!script) {
+            const keys = Object.keys(row);
+            // ヘッダー名に台本/Scriptが含まれる列を優先
+            for (const k of keys) {
+                const kNorm = k.trim().toLowerCase();
+                if (kNorm.includes('台本') || kNorm.includes('script')) {
+                    script = (row[k] ?? '').trim();
+                    break;
+                }
+            }
+            // それでも取れない場合は、長文になりやすい列から推定
+            if (!script) {
+                const longest = keys
+                    .map(k => ({ k, v: (row[k] ?? '').trim() }))
+                    .filter(x => x.v && x.v.length >= 30)
+                    .sort((a, b) => b.v.length - a.v.length)[0];
+                script = longest?.v;
+            }
+        }
+        script = script || undefined;
 
         return {
             campaign: campaign.trim(),

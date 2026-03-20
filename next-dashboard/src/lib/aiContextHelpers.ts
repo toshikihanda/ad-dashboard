@@ -26,6 +26,17 @@ function getScriptFromRow(row: Record<string, string>): string {
         const kNorm = k.trim().toLowerCase();
         if (kNorm.includes('台本') || kNorm.includes('script')) return (row[k] ?? '').trim();
     }
+    // Fallback:
+    // - ヘッダーが変わって「台本/Script」として検出できないケースがある
+    // - その場合は「値の文字数が長い列」を台本候補として採用する
+    //   （URL/サムネイル等は短文になりやすい前提）
+    const longest = keys
+        .map(k => ({ k, v: (row[k] ?? '').trim() }))
+        .filter(x => x.v && x.v.length >= 30)
+        .sort((a, b) => b.v.length - a.v.length)[0];
+    if (longest?.v) return longest.v;
+
+    // Final fallback: H列相当（元設計どおり）
     if (keys.length >= 8) {
         const hVal = (row[keys[7]] ?? '').trim();
         if (hVal) return hVal;
