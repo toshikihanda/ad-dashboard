@@ -16,6 +16,7 @@ import AIAnalysisModal from '@/components/AIAnalysisModal';
 import PeriodComparisonModal from '@/components/PeriodComparisonModal';
 import { MultiSelect } from '@/components/MultiSelect';
 import { ChatBot } from '@/components/ChatBot';
+import { KnowledgeCandidatesPanel } from '@/components/KnowledgeCandidatesPanel';
 
 interface DashboardClientProps {
     initialData: ProcessedRow[];
@@ -27,7 +28,7 @@ interface DashboardClientProps {
     isDemo?: boolean;
 }
 
-type TabType = 'total' | 'meta' | 'beyond';
+type TabType = 'total' | 'meta' | 'beyond' | 'knowledge';
 
 function getFirstDayOfMonth(): Date {
     const now = new Date();
@@ -145,8 +146,9 @@ export default function DashboardClient({ initialData, baselineData, masterProje
     };
 
     // Filter data based on selections
-    // Filter data based on selections
     const currentBaseData = initialData;
+    // DataTable等に渡すviewMode（knowledgeタブの場合はtotalにフォールバック）
+    const tableViewMode: 'total' | 'meta' | 'beyond' = selectedTab === 'knowledge' ? 'total' : selectedTab;
 
     // 属性フィルター（商材・ページ等）のみを適用したデータ（日付フィルターなし）
     const attributeFilteredData = useMemo(() => {
@@ -554,6 +556,17 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 >
                                     Beyond
                                 </button>
+                                <button
+                                    onClick={() => setSelectedTab('knowledge')}
+                                    className={cn(
+                                        "flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[11px] md:text-xs font-medium rounded-md transition-all whitespace-nowrap text-center",
+                                        selectedTab === 'knowledge'
+                                            ? 'bg-white text-amber-600 shadow-sm md:bg-amber-600 md:text-white md:shadow-none'
+                                            : 'text-gray-600 hover:bg-gray-200/50 md:text-gray-600 md:hover:bg-gray-200'
+                                    )}
+                                >
+                                    ナレッジ候補
+                                </button>
                             </div>
                         </div>
 
@@ -771,6 +784,11 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     )}
                 </div>
 
+                {/* ナレッジ候補タブ */}
+                {selectedTab === 'knowledge' && (
+                    <KnowledgeCandidatesPanel isDemo={isDemo} />
+                )}
+
                 {/* KPI Cards */}
                 {(selectedTab === 'total' || selectedTab === 'beyond') && (
                     <div className="space-y-2">
@@ -786,18 +804,41 @@ export default function DashboardClient({ initialData, baselineData, masterProje
 
                         {/* Secondary Metrics - Also always visible in compact grid */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
-                            <KPICard label="IMP" value={kpis.impressions} source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CLICK" value={kpis.metaClicks} source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="MCVR" value={fmtRate(kpis.mcvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CVR" value={fmtRate(kpis.cvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            {selectedTab === 'beyond' ? (
+                                <>
+                                    <KPICard label="IMP" value="—" source="合計/Meta" />
+                                    <KPICard label="CLICK" value="—" source="合計/Meta" />
+                                    <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source="Beyond" />
+                                    <KPICard label="CTR" value="—" source="合計/Meta" />
+                                    <KPICard label="MCVR" value={fmtRate(kpis.mcvr)} unit="%" colorClass="text-green" source="Beyond" />
+                                    <KPICard label="CVR" value={fmtRate(kpis.cvr)} unit="%" colorClass="text-green" source="Beyond" />
+                                    <KPICard label="CPM" value="—" source="合計/Meta" />
+                                    <KPICard label="PV単価" value={fmtAmt(kpis.cpc)} unit="円" source="Beyond" />
+                                    <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source="Beyond" />
+                                    <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source="Beyond" />
+                                    <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source="Beyond" />
+                                </>
+                            ) : (
+                                <>
+                                    <KPICard label="IMP" value={kpis.impressions} source="Meta" />
+                                    <KPICard label="CLICK" value={kpis.metaClicks} source="Meta" />
+                                    <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source="Beyond" />
+                                    <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" source="Meta" />
+                                    <KPICard label="MCVR" value={fmtRate(kpis.mcvr)} unit="%" colorClass="text-green" source="Beyond" />
+                                    <KPICard label="CVR" value={fmtRate(kpis.cvr)} unit="%" colorClass="text-green" source="Beyond" />
+                                    <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" source="Meta" />
+                                    <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" source="Meta" />
+                                    <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source="Beyond" />
+                                    <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source="Beyond" />
+                                    <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source="Beyond" />
+                                </>
+                            )}
                         </div>
+                        {selectedTab === 'total' && (
+                            <p className="text-[9px] md:text-[10px] text-gray-500 px-0.5">
+                                ※ 1行目の出稿・売上・粗利・CPA・CV・ROASはBeyond基準。CPM/CPCはMeta出稿÷MetaのImp/Clickです（出稿金額の数字とは分母が異なります）。
+                            </p>
+                        )}
                     </div>
                 )}
 
@@ -852,7 +893,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                 )}
 
                 {/* Ranking and Data Tables Section */}
-                <div className="mt-12 space-y-6">
+                <div className={cn("mt-12 space-y-6", selectedTab === 'knowledge' && 'hidden')}>
                     <RankingPanel data={filteredData} selectedCampaign={selectedCampaigns} isVersionFilterActive={isVersionFilterActive} />
 
                     <CreativeMetricsTable
@@ -866,16 +907,16 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                         title={`■記事別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
                     />
 
-                    <DataTable data={todayData} title={`■案件別数値（${formatDateForTitle(today)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={yesterdayData} title={`■案件別数値（${formatDateForTitle(yesterday)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={threeDayData} title={`■案件別数値（${formatDateForTitle(threeDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={sevenDayData} title={`■案件別数値（${formatDateForTitle(sevenDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={filteredData} title={`■案件別数値（${formatDateForTitle(new Date(startDate))}〜${formatDateForTitle(new Date(endDate))}）`} viewMode={selectedTab} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={todayData} title={`■案件別数値（${formatDateForTitle(today)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={yesterdayData} title={`■案件別数値（${formatDateForTitle(yesterday)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={threeDayData} title={`■案件別数値（${formatDateForTitle(threeDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={sevenDayData} title={`■案件別数値（${formatDateForTitle(sevenDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={filteredData} title={`■案件別数値（${formatDateForTitle(new Date(startDate))}〜${formatDateForTitle(new Date(endDate))}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
                 </div>
 
                 {/* Daily Data Table - placed above Charts */}
                 <div className="mt-8">
-                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={selectedTab} isVersionFilterActive={isVersionFilterActive} />
+                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={tableViewMode} isVersionFilterActive={isVersionFilterActive} />
                 </div>
 
                 {/* Charts */}
