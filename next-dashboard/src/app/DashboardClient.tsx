@@ -915,12 +915,12 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                 </div>
 
                 {/* Daily Data Table - placed above Charts */}
-                <div className="mt-8">
+                <div className={cn("mt-8", selectedTab === 'knowledge' && 'hidden')}>
                     <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={tableViewMode} isVersionFilterActive={isVersionFilterActive} />
                 </div>
 
                 {/* Charts */}
-                <div className="mt-8">
+                <div className={cn("mt-8", selectedTab === 'knowledge' && 'hidden')}>
                     {selectedTab === 'total' && (
                         <>
                             {/* Row 1: 出稿金額、売上、粗利、CPA、CV、ROAS - same order as KPI cards */}
