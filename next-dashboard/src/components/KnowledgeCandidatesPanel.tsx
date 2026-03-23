@@ -318,8 +318,8 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
 
                     {/* レビューUI（pending のみ） */}
                     {c.status === 'pending' && (
-                      <div className="flex items-end gap-2 pt-2 border-t border-gray-100">
-                        <div className="flex-1">
+                      <div className="pt-2 border-t border-gray-100 space-y-2">
+                        <div>
                           <label className="text-[10px] text-gray-500 block mb-1">コメント（任意）</label>
                           <input
                             type="text"
@@ -329,20 +329,22 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-300"
                           />
                         </div>
-                        <button
-                          onClick={() => handleReview(c.id, 'approve')}
-                          disabled={isReviewing}
-                          className="px-3 py-1.5 text-[11px] font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
-                        >
-                          {isReviewing ? '...' : '採用'}
-                        </button>
-                        <button
-                          onClick={() => handleReview(c.id, 'reject')}
-                          disabled={isReviewing}
-                          className="px-3 py-1.5 text-[11px] font-medium bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
-                        >
-                          {isReviewing ? '...' : '不採用'}
-                        </button>
+                        <div className="flex gap-2">
+                          <button
+                            onClick={() => handleReview(c.id, 'approve')}
+                            disabled={isReviewing}
+                            className="flex-1 py-2 text-xs font-medium bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 transition-colors"
+                          >
+                            {isReviewing ? '...' : '採用'}
+                          </button>
+                          <button
+                            onClick={() => handleReview(c.id, 'reject')}
+                            disabled={isReviewing}
+                            className="flex-1 py-2 text-xs font-medium bg-gray-200 text-gray-700 rounded-lg hover:bg-gray-300 disabled:opacity-50 transition-colors"
+                          >
+                            {isReviewing ? '...' : '不採用'}
+                          </button>
+                        </div>
                       </div>
                     )}
 
