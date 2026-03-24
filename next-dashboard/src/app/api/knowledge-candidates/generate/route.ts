@@ -104,8 +104,8 @@ export async function POST(request: NextRequest) {
 
     for (const combo of allCandidates) {
       const key = `${combo.version_name}||${combo.creative_value}`;
-      const script = findScriptForCreative(creativeMaster, combo.creative_value);
-      const article = findManuscriptForVersion(articleMaster, combo.version_name);
+      const script = findScriptForCreative(creativeMaster, combo.creative_value, combo.campaign_name);
+      const article = findManuscriptForVersion(articleMaster, combo.version_name, combo.campaign_name);
       scriptExcerpts.set(key, script);
       articleExcerpts.set(key, article);
 

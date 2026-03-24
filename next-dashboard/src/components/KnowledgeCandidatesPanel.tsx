@@ -26,7 +26,28 @@ interface Candidate {
   evidence_article_excerpt: string;
   source_run_id: string;
   review_comment: string;
+  campaign_name?: string;
+  review_reason_code?: string;
+  review_reason_text?: string;
 }
+
+// 改善C: 理由コード定義
+const REASON_CODES = {
+  approve: [
+    { code: 'accurate_insight', label: '分析が正確' },
+    { code: 'actionable', label: '実行可能な提案' },
+    { code: 'novel_finding', label: '新しい発見' },
+    { code: 'matches_experience', label: '経験と一致' },
+  ],
+  reject: [
+    { code: 'wrong_matching', label: '商材/台本の紐付けが違う' },
+    { code: 'low_data_quality', label: 'データ量・品質が不十分' },
+    { code: 'obvious_insight', label: '当たり前の内容' },
+    { code: 'not_actionable', label: '実行不可能な提案' },
+    { code: 'wrong_analysis', label: '分析が的外れ' },
+    { code: 'time_decay', label: '時間経過による自然減' },
+  ],
+};
 
 interface KnowledgeCandidatesPanelProps {
   isDemo?: boolean;
@@ -40,6 +61,7 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
   const [showAll, setShowAll] = useState(false);
   const [expandedId, setExpandedId] = useState<string | null>(null);
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
+  const [reviewReasonCodes, setReviewReasonCodes] = useState<Record<string, string>>({});
   const [reviewingId, setReviewingId] = useState<string | null>(null);
 
   const fetchCandidates = useCallback(async () => {
@@ -92,6 +114,7 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
   const handleReview = async (candidateId: string, decision: 'approve' | 'reject') => {
     setReviewingId(candidateId);
     try {
+      const reasonCode = reviewReasonCodes[candidateId] || '';
       const res = await fetch('/api/knowledge-candidates/review', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -99,13 +122,15 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
           candidate_id: candidateId,
           decision,
           comment: reviewComments[candidateId] || '',
+          reason_code: reasonCode,
+          reason_text: REASON_CODES[decision === 'approve' ? 'approve' : 'reject']
+            .find(r => r.code === reasonCode)?.label || '',
         }),
       });
       const data = await res.json();
       if (data.error) {
         setError(data.error);
       } else {
-        // 一覧を再取得
         await fetchCandidates();
       }
     } catch {
@@ -173,6 +198,7 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
             const isExpanded = expandedId === c.id;
             const isReviewing = reviewingId === c.id;
             const ratioPercent = Math.round((c.cpa_ratio - 1) * 100);
+            const selectedReason = reviewReasonCodes[c.id] || '';
 
             return (
               <div
@@ -319,6 +345,35 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
                     {/* レビューUI（pending のみ） */}
                     {c.status === 'pending' && (
                       <div className="pt-2 border-t border-gray-100 space-y-2">
+                        {/* 改善C: 理由コード選択 */}
+                        <div>
+                          <label className="text-[10px] text-gray-500 block mb-1.5">
+                            理由を選択（任意）
+                          </label>
+                          <div className="flex flex-wrap gap-1.5">
+                            {[...REASON_CODES.approve, ...REASON_CODES.reject].map(r => (
+                              <button
+                                key={r.code}
+                                onClick={() => setReviewReasonCodes(prev => ({
+                                  ...prev,
+                                  [c.id]: prev[c.id] === r.code ? '' : r.code,
+                                }))}
+                                className={cn(
+                                  "px-2 py-1 text-[10px] rounded-full border transition-colors",
+                                  selectedReason === r.code
+                                    ? REASON_CODES.approve.some(a => a.code === r.code)
+                                      ? 'bg-green-100 border-green-400 text-green-700 font-medium'
+                                      : 'bg-red-100 border-red-400 text-red-700 font-medium'
+                                    : 'bg-white border-gray-200 text-gray-500 hover:border-gray-300'
+                                )}
+                              >
+                                {r.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* コメント */}
                         <div>
                           <label className="text-[10px] text-gray-500 block mb-1">コメント（任意）</label>
                           <input
@@ -329,6 +384,8 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
                             className="w-full px-2 py-1.5 text-xs border border-gray-200 rounded-lg focus:outline-none focus:ring-1 focus:ring-blue-300"
                           />
                         </div>
+
+                        {/* 採用/不採用ボタン */}
                         <div className="flex gap-2">
                           <button
                             onClick={() => handleReview(c.id, 'approve')}
@@ -348,10 +405,18 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
                       </div>
                     )}
 
-                    {/* レビュー済みコメント */}
-                    {c.status !== 'pending' && c.review_comment && (
-                      <div className="text-[11px] text-gray-500 italic pt-1">
-                        コメント: {c.review_comment}
+                    {/* レビュー済み情報 */}
+                    {c.status !== 'pending' && (
+                      <div className="text-[11px] text-gray-500 pt-1 space-y-0.5">
+                        {c.review_reason_code && (
+                          <div>
+                            理由:&nbsp;
+                            <span className="font-medium">
+                              {[...REASON_CODES.approve, ...REASON_CODES.reject].find(r => r.code === c.review_reason_code)?.label || c.review_reason_code}
+                            </span>
+                          </div>
+                        )}
+                        {c.review_comment && <div className="italic">コメント: {c.review_comment}</div>}
                       </div>
                     )}
                   </div>

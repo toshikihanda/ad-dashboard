@@ -1,6 +1,5 @@
 /**
  * Knowledge_Candidates シートへの読み書きユーティリティ。
- * 既存の googleAuth.ts / googleSheets.ts を利用する。
  */
 
 import { google } from 'googleapis';
@@ -17,16 +16,15 @@ const MASTER_SHEET_ID = '14pa730BytKIRONuhqljERM8ag8zm3bEew3zv6lXbMGU';
 const CANDIDATES_SHEET_NAME = 'Knowledge_Candidates';
 const KNOWLEDGE_SHEET_NAME = 'Knowledge';
 const LEARNING_RUNS_SHEET_NAME = 'Learning_Runs';
+const REVIEW_LOG_SHEET_NAME = 'Review_Reason_Log'; // 改善C
 
 // --- 候補の読み込み ---
 
-/** Knowledge_Candidates シートから全行を取得 */
 export async function loadCandidates(): Promise<KnowledgeCandidate[]> {
   const rows = await loadSheetData(CANDIDATES_SHEET_NAME, { cache: 'no-store' });
   return rows.map(rowToCandidate).filter(c => c.id);
 }
 
-/** pending 候補のみ取得 */
 export async function loadPendingCandidates(): Promise<KnowledgeCandidate[]> {
   const all = await loadCandidates();
   return all.filter(c => c.status === 'pending');
@@ -34,14 +32,12 @@ export async function loadPendingCandidates(): Promise<KnowledgeCandidate[]> {
 
 // --- 候補の追記 ---
 
-/** Knowledge_Candidates シートにヘッダー+データを追記する */
 export async function appendCandidates(candidates: KnowledgeCandidate[]): Promise<void> {
   if (candidates.length === 0) return;
 
   const auth = await getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
 
-  // まず既存データがあるか確認（ヘッダーが存在するか）
   let hasHeader = false;
   try {
     const existing = await sheets.spreadsheets.values.get({
@@ -50,20 +46,14 @@ export async function appendCandidates(candidates: KnowledgeCandidate[]): Promis
     });
     hasHeader = !!(existing.data.values && existing.data.values.length > 0);
   } catch {
-    // シートが存在しない場合は作成
     try {
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: MASTER_SHEET_ID,
         requestBody: {
-          requests: [{
-            addSheet: {
-              properties: { title: CANDIDATES_SHEET_NAME },
-            },
-          }],
+          requests: [{ addSheet: { properties: { title: CANDIDATES_SHEET_NAME } } }],
         },
       });
     } catch (e: any) {
-      // 既に存在する場合は無視
       if (!e.message?.includes('already exists')) throw e;
     }
   }
@@ -85,21 +75,21 @@ export async function appendCandidates(candidates: KnowledgeCandidate[]): Promis
   });
 }
 
-// --- 候補のステータス更新 ---
+// --- 候補のステータス更新（改善C: reasonCode/reasonText 追加） ---
 
-/** 指定IDの候補のステータスとコメントを更新する */
 export async function updateCandidateStatus(
   candidateId: string,
   status: 'approved' | 'rejected',
-  comment: string
+  comment: string,
+  reasonCode?: string,
+  reasonText?: string
 ): Promise<KnowledgeCandidate | null> {
   const auth = await getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
 
-  // 全データ取得して該当行を探す
   const res = await sheets.spreadsheets.values.get({
     spreadsheetId: MASTER_SHEET_ID,
-    range: `${CANDIDATES_SHEET_NAME}!A:V`,
+    range: `${CANDIDATES_SHEET_NAME}!A:Z`,
   });
 
   const allRows = res.data.values || [];
@@ -109,6 +99,8 @@ export async function updateCandidateStatus(
   const idCol = headers.indexOf('id');
   const statusCol = headers.indexOf('status');
   const commentCol = headers.indexOf('review_comment');
+  const reasonCodeCol = headers.indexOf('review_reason_code');
+  const reasonTextCol = headers.indexOf('review_reason_text');
 
   if (idCol < 0 || statusCol < 0) return null;
 
@@ -122,26 +114,39 @@ export async function updateCandidateStatus(
 
   if (targetRowIndex < 0) return null;
 
-  // ステータスとコメントを更新
-  const rowNum = targetRowIndex + 1; // 1-indexed
+  const rowNum = targetRowIndex + 1;
   const statusCell = `${CANDIDATES_SHEET_NAME}!${columnLetter(statusCol)}${rowNum}`;
   const commentCell = `${CANDIDATES_SHEET_NAME}!${columnLetter(commentCol)}${rowNum}`;
 
+  const data: any[] = [
+    { range: statusCell, values: [[status]] },
+    { range: commentCell, values: [[comment]] },
+  ];
+
+  // 改善C: reason 列が存在する場合のみ更新
+  if (reasonCodeCol >= 0 && reasonCode) {
+    data.push({
+      range: `${CANDIDATES_SHEET_NAME}!${columnLetter(reasonCodeCol)}${rowNum}`,
+      values: [[reasonCode]],
+    });
+  }
+  if (reasonTextCol >= 0 && reasonText) {
+    data.push({
+      range: `${CANDIDATES_SHEET_NAME}!${columnLetter(reasonTextCol)}${rowNum}`,
+      values: [[reasonText]],
+    });
+  }
+
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: MASTER_SHEET_ID,
-    requestBody: {
-      valueInputOption: 'USER_ENTERED',
-      data: [
-        { range: statusCell, values: [[status]] },
-        { range: commentCell, values: [[comment]] },
-      ],
-    },
+    requestBody: { valueInputOption: 'USER_ENTERED', data },
   });
 
-  // 更新後の候補を返す
   const updatedRow = allRows[targetRowIndex];
   updatedRow[statusCol] = status;
   if (commentCol >= 0) updatedRow[commentCol] = comment;
+  if (reasonCodeCol >= 0 && reasonCode) updatedRow[reasonCodeCol] = reasonCode;
+  if (reasonTextCol >= 0 && reasonText) updatedRow[reasonTextCol] = reasonText;
 
   const rowObj: Record<string, string> = {};
   headers.forEach((h: string, i: number) => {
@@ -150,15 +155,89 @@ export async function updateCandidateStatus(
   return rowToCandidate(rowObj);
 }
 
+// --- 改善C: レビュー理由ログの書き込み ---
+
+const REVIEW_LOG_HEADERS = [
+  'id', 'created_at', 'candidate_id', 'decision',
+  'reason_code', 'reason_text',
+  'category', 'subcategory',
+  'creative', 'version_name', 'campaign_name',
+  'cpa_ratio', 'cv_current', 'confidence',
+];
+
+export async function appendReviewLog(
+  candidate: KnowledgeCandidate,
+  decision: 'approved' | 'rejected',
+  reasonCode: string,
+  reasonText: string
+): Promise<void> {
+  const auth = await getGoogleAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  let hasHeader = false;
+  try {
+    const existing = await sheets.spreadsheets.values.get({
+      spreadsheetId: MASTER_SHEET_ID,
+      range: `${REVIEW_LOG_SHEET_NAME}!A1:A1`,
+    });
+    hasHeader = !!(existing.data.values && existing.data.values.length > 0);
+  } catch {
+    try {
+      await sheets.spreadsheets.batchUpdate({
+        spreadsheetId: MASTER_SHEET_ID,
+        requestBody: {
+          requests: [{ addSheet: { properties: { title: REVIEW_LOG_SHEET_NAME } } }],
+        },
+      });
+    } catch (e: any) {
+      if (!e.message?.includes('already exists')) throw e;
+    }
+  }
+
+  const jstOffset = 9 * 60 * 60 * 1000;
+  const now = new Date(Date.now() + jstOffset);
+  const createdAt = now.toISOString().replace('T', ' ').slice(0, 19);
+  const logId = `log_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const category = candidate.judge_type === 'good' ? '良化パターン' : '悪化パターン';
+  const subcategory = `${candidate.version_name} × ${candidate.creative}`;
+
+  const rows: string[][] = [];
+  if (!hasHeader) {
+    rows.push(REVIEW_LOG_HEADERS);
+  }
+  rows.push([
+    logId,
+    createdAt,
+    candidate.id,
+    decision,
+    reasonCode,
+    reasonText,
+    category,
+    subcategory,
+    candidate.creative,
+    candidate.version_name,
+    candidate.campaign_name || '',
+    String(candidate.cpa_ratio),
+    String(candidate.cv_current),
+    candidate.confidence,
+  ]);
+
+  await sheets.spreadsheets.values.append({
+    spreadsheetId: MASTER_SHEET_ID,
+    range: `${REVIEW_LOG_SHEET_NAME}!A1`,
+    valueInputOption: 'USER_ENTERED',
+    insertDataOption: 'INSERT_ROWS',
+    requestBody: { values: rows },
+  });
+}
+
 // --- Knowledge シートへの転記 ---
 
-/** approve 時に Knowledge シートへナレッジを追記する */
 export async function appendToKnowledge(candidate: KnowledgeCandidate): Promise<void> {
   const auth = await getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
 
-  // Category, Subcategory, Knowledge の3列で追記
-  // summary をナレッジ本文として転記
   const category = candidate.judge_type === 'good' ? '良化パターン' : '悪化パターン';
   const subcategory = `${candidate.version_name} × ${candidate.creative}`;
   const knowledgeText = candidate.summary;
@@ -176,11 +255,17 @@ export async function appendToKnowledge(candidate: KnowledgeCandidate): Promise<
 
 // --- Learning_Runs 記録 ---
 
-export async function recordLearningRun(runId: string, targetDate: string, candidateCount: number, goodCount: number, badCount: number, errors: string): Promise<void> {
+export async function recordLearningRun(
+  runId: string,
+  targetDate: string,
+  candidateCount: number,
+  goodCount: number,
+  badCount: number,
+  errors: string
+): Promise<void> {
   const auth = await getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
 
-  // シート存在確認・作成
   try {
     await sheets.spreadsheets.values.get({
       spreadsheetId: MASTER_SHEET_ID,
@@ -191,14 +276,9 @@ export async function recordLearningRun(runId: string, targetDate: string, candi
       await sheets.spreadsheets.batchUpdate({
         spreadsheetId: MASTER_SHEET_ID,
         requestBody: {
-          requests: [{
-            addSheet: {
-              properties: { title: LEARNING_RUNS_SHEET_NAME },
-            },
-          }],
+          requests: [{ addSheet: { properties: { title: LEARNING_RUNS_SHEET_NAME } } }],
         },
       });
-      // ヘッダー追加
       await sheets.spreadsheets.values.append({
         spreadsheetId: MASTER_SHEET_ID,
         range: `${LEARNING_RUNS_SHEET_NAME}!A1`,
@@ -230,7 +310,6 @@ export async function recordLearningRun(runId: string, targetDate: string, candi
 
 // --- 重複チェック ---
 
-/** 同日の run が既に存在するか確認 */
 export async function hasRunForDate(targetDate: string): Promise<boolean> {
   try {
     const rows = await loadSheetData(LEARNING_RUNS_SHEET_NAME, { cache: 'no-store' });

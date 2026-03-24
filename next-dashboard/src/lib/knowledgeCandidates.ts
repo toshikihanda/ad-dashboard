@@ -11,13 +11,14 @@ import { ProcessedRow, safeDivide } from './dataProcessor';
 export interface AggregatedCombo {
   version_name: string;
   creative_value: string;
-  // current (直近7日)
+  campaign_name: string; // 支配的な Campaign_Name（改善B）
+  // current (直近3日)
   cost_current: number;
   cv_current: number;
   clicks_current: number;
   cpa_current: number;
   cvr_current: number;
-  // baseline (直近30日から直近7日を除いた期間)
+  // baseline (4〜33日前)
   cost_baseline: number;
   cv_baseline: number;
   clicks_baseline: number;
@@ -51,7 +52,33 @@ export interface KnowledgeCandidate {
   evidence_article_excerpt: string;
   source_run_id: string;
   review_comment: string;
+  campaign_name: string;      // 改善B
+  review_reason_code: string; // 改善C
+  review_reason_text: string; // 改善C
 }
+
+// --- 改善C: 採用/不採用の理由コード定義 ---
+
+export const REVIEW_REASON_CODES = {
+  approved: [
+    { code: 'accurate_insight', label: '分析が正確' },
+    { code: 'actionable', label: '実行可能な提案' },
+    { code: 'novel_finding', label: '新しい発見' },
+    { code: 'matches_experience', label: '経験と一致' },
+  ],
+  rejected: [
+    { code: 'wrong_matching', label: '商材/台本の紐付けが違う' },
+    { code: 'low_data_quality', label: 'データ量・品質が不十分' },
+    { code: 'obvious_insight', label: '当たり前の内容' },
+    { code: 'not_actionable', label: '実行不可能な提案' },
+    { code: 'wrong_analysis', label: '分析が的外れ' },
+    { code: 'time_decay', label: '時間経過による自然減' },
+  ],
+} as const;
+
+export type ReviewReasonCode =
+  | typeof REVIEW_REASON_CODES.approved[number]['code']
+  | typeof REVIEW_REASON_CODES.rejected[number]['code'];
 
 // --- 日付ヘルパー ---
 
@@ -87,20 +114,22 @@ function generateId(): string {
 
 /**
  * ProcessedRow[] を version_name × creative_value で集計し、
- * current (直近7日) と baseline (8〜30日前) に分けて指標を算出する。
+ * current (直近3日) と baseline (4〜33日前) に分けて指標を算出する。
  * 対象は Beyond データのみ。
  */
 export function aggregateCombinations(data: ProcessedRow[]): AggregatedCombo[] {
   const beyondData = data.filter(row => row.Media === 'Beyond');
 
-  const now = getJSTNow();
-  now.setHours(0, 0, 0, 0);
+  // 改善A: current=直近3日、baseline=4〜33日前
+  const currentStart = daysBefore(3);
+  const baselineStart = daysBefore(33);
 
-  const current7Start = daysBefore(7);
-  const baseline30Start = daysBefore(30);
-
-  // version_name × creative_value でグルーピング
-  const groups = new Map<string, { current: ProcessedRow[]; baseline: ProcessedRow[] }>();
+  // version_name × creative_value でグルーピング（改善B: campaignCounts を追加）
+  const groups = new Map<string, {
+    current: ProcessedRow[];
+    baseline: ProcessedRow[];
+    campaignCounts: Map<string, number>;
+  }>();
 
   for (const row of beyondData) {
     const vn = (row.version_name || '').trim();
@@ -109,13 +138,19 @@ export function aggregateCombinations(data: ProcessedRow[]): AggregatedCombo[] {
 
     const key = `${vn}||${cv}`;
     if (!groups.has(key)) {
-      groups.set(key, { current: [], baseline: [] });
+      groups.set(key, { current: [], baseline: [], campaignCounts: new Map() });
     }
     const group = groups.get(key)!;
 
+    // 改善B: Campaign_Name をカウント
+    const cn = (row.Campaign_Name || '').trim();
+    if (cn) {
+      group.campaignCounts.set(cn, (group.campaignCounts.get(cn) || 0) + 1);
+    }
+
     const rowDateStr = formatDateStr(row.Date);
-    const currentStartStr = formatDateStr(current7Start);
-    const baselineStartStr = formatDateStr(baseline30Start);
+    const currentStartStr = formatDateStr(currentStart);
+    const baselineStartStr = formatDateStr(baselineStart);
 
     if (rowDateStr >= currentStartStr) {
       group.current.push(row);
@@ -137,9 +172,20 @@ export function aggregateCombinations(data: ProcessedRow[]): AggregatedCombo[] {
     const cvBaseline = group.baseline.reduce((s, r) => s + r.CV, 0);
     const clicksBaseline = group.baseline.reduce((s, r) => s + r.Clicks, 0);
 
+    // 改善B: 最頻の Campaign_Name を取得
+    let dominantCampaign = '';
+    let maxCount = 0;
+    for (const [name, count] of group.campaignCounts) {
+      if (count > maxCount) {
+        dominantCampaign = name;
+        maxCount = count;
+      }
+    }
+
     results.push({
       version_name: vn,
       creative_value: cv,
+      campaign_name: dominantCampaign,
       cost_current: costCurrent,
       cv_current: cvCurrent,
       clicks_current: clicksCurrent,
@@ -176,10 +222,8 @@ export function judgeCombinations(combos: AggregatedCombo[]): JudgedCombo[] {
   const results: JudgedCombo[] = [];
 
   for (const combo of combos) {
-    // CV_current >= 2 のみ対象
     if (combo.cv_current < 2) continue;
 
-    // baseline CPA が 0 の場合は hold
     if (combo.cpa_baseline <= 0) {
       results.push({
         ...combo,
@@ -212,8 +256,6 @@ export function judgeCombinations(combos: AggregatedCombo[]): JudgedCombo[] {
 
 /**
  * good/bad の候補を上位N件ずつ抽出する。
- * good: CPA_ratio が小さい順（改善が大きい順）
- * bad:  CPA_ratio が大きい順（悪化が大きい順）
  */
 export function selectTopCandidates(
   judged: JudgedCombo[],
@@ -243,76 +285,126 @@ function getCol(row: Record<string, string>, ...names: string[]): string {
 }
 
 /**
- * Creative_Master から台本テキストを取得する
+ * Creative_Master から台本テキストを取得する（改善B: campaign フィルタ追加）
  */
 export function findScriptForCreative(
   creativeMaster: Record<string, string>[],
-  creativeValue: string
+  creativeValue: string,
+  campaignName?: string
 ): string {
   if (!creativeValue || !creativeMaster?.length) return '';
 
   const norm = creativeValue.toLowerCase().trim();
+  const campNorm = (campaignName || '').toLowerCase().trim();
+
+  // creative_value でマッチする全行を収集
+  const matches: { row: Record<string, string>; campaignMatch: boolean }[] = [];
 
   for (const row of creativeMaster) {
     const dashboardName = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID', 'utm_creative').trim().toLowerCase();
     const fileName = getCol(row, 'クリエイティブ名', 'Creative Name', 'ファイル名').trim().toLowerCase();
 
-    if ((dashboardName && (dashboardName === norm || dashboardName.includes(norm) || norm.includes(dashboardName))) ||
-        (fileName && (fileName === norm || fileName.includes(norm) || norm.includes(fileName)))) {
-      // 台本取得
-      let script = getCol(row, '台本', 'Script');
-      if (!script) {
-        const keys = Object.keys(row);
-        for (const k of keys) {
-          const kNorm = k.trim().toLowerCase();
-          if (kNorm.includes('台本') || kNorm.includes('script')) {
-            script = (row[k] ?? '').trim();
-            break;
-          }
-        }
+    const creativeMatch =
+      (dashboardName && (dashboardName === norm || dashboardName.includes(norm) || norm.includes(dashboardName))) ||
+      (fileName && (fileName === norm || fileName.includes(norm) || norm.includes(fileName)));
+
+    if (!creativeMatch) continue;
+
+    // 改善B: 商材名マッチング
+    let campaignMatch = false;
+    if (campNorm) {
+      const productName = getCol(row, '商材名', 'Project', 'Campaign', '商材').trim().toLowerCase();
+      campaignMatch = !!(productName && (
+        productName === campNorm ||
+        productName.includes(campNorm) ||
+        campNorm.includes(productName)
+      ));
+    }
+    matches.push({ row, campaignMatch });
+  }
+
+  if (matches.length === 0) return '';
+
+  // 商材マッチする行を優先、なければ最初の行
+  const best = matches.find(m => m.campaignMatch) || matches[0];
+  const row = best.row;
+
+  // 台本取得
+  let script = getCol(row, '台本', 'Script');
+  if (!script) {
+    const keys = Object.keys(row);
+    for (const k of keys) {
+      const kNorm = k.trim().toLowerCase();
+      if (kNorm.includes('台本') || kNorm.includes('script')) {
+        script = (row[k] ?? '').trim();
+        break;
       }
-      if (!script) {
-        // 長文列をフォールバック
-        const keys = Object.keys(row);
-        const longest = keys
-          .map(k => ({ k, v: (row[k] ?? '').trim() }))
-          .filter(x => x.v && x.v.length >= 30)
-          .sort((a, b) => b.v.length - a.v.length)[0];
-        script = longest?.v || '';
-      }
-      if (script) return script.slice(0, 2000);
     }
   }
-  return '';
+  if (!script) {
+    const keys = Object.keys(row);
+    const longest = keys
+      .map(k => ({ k, v: (row[k] ?? '').trim() }))
+      .filter(x => x.v && x.v.length >= 30)
+      .sort((a, b) => b.v.length - a.v.length)[0];
+    script = longest?.v || '';
+  }
+  return script ? script.slice(0, 2000) : '';
 }
 
 /**
- * Article_Master から原稿テキストを取得する（F列優先）
+ * Article_Master から原稿テキストを取得する（F列優先、改善B: campaign フィルタ追加）
  */
 export function findManuscriptForVersion(
   articleMaster: Record<string, string>[],
-  versionName: string
+  versionName: string,
+  campaignName?: string
 ): string {
   if (!versionName || !articleMaster?.length) return '';
 
   const norm = versionName.toLowerCase().trim();
+  const campNorm = (campaignName || '').toLowerCase().trim();
+
+  // versionName でマッチする全行を収集
+  const matches: { row: Record<string, string>; campaignMatch: boolean }[] = [];
 
   for (const row of articleMaster) {
     const dashboardName = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID').trim().toLowerCase();
     const articleName = getCol(row, '記事名', 'Article Name', 'Subject').trim().toLowerCase();
 
-    if ((dashboardName && (dashboardName === norm || dashboardName.includes(norm) || norm.includes(dashboardName))) ||
-        (articleName && (articleName === norm || articleName.includes(norm) || norm.includes(articleName)))) {
-      // F列優先で原稿取得
-      const keys = Object.keys(row);
-      if (keys.length >= 6) {
-        const fVal = (row[keys[5]] ?? '').trim();
-        if (fVal) return fVal.slice(0, 2500);
-      }
-      const exact = getCol(row, '原稿', '現行', 'Manuscript', 'Content', '文字起こし', 'FV詳細分析');
-      if (exact) return exact.slice(0, 2500);
+    const versionMatch =
+      (dashboardName && (dashboardName === norm || dashboardName.includes(norm) || norm.includes(dashboardName))) ||
+      (articleName && (articleName === norm || articleName.includes(norm) || norm.includes(articleName)));
+
+    if (!versionMatch) continue;
+
+    // 改善B: 商材名マッチング
+    let campaignMatch = false;
+    if (campNorm) {
+      const productName = getCol(row, '商材名', 'Project', 'Campaign', '商材').trim().toLowerCase();
+      campaignMatch = !!(productName && (
+        productName === campNorm ||
+        productName.includes(campNorm) ||
+        campNorm.includes(productName)
+      ));
     }
+    matches.push({ row, campaignMatch });
   }
+
+  if (matches.length === 0) return '';
+
+  // 商材マッチする行を優先、なければ最初の行
+  const best = matches.find(m => m.campaignMatch) || matches[0];
+  const row = best.row;
+
+  // F列優先で原稿取得
+  const keys = Object.keys(row);
+  if (keys.length >= 6) {
+    const fVal = (row[keys[5]] ?? '').trim();
+    if (fVal) return fVal.slice(0, 2500);
+  }
+  const exact = getCol(row, '原稿', '現行', 'Manuscript', 'Content', '文字起こし', 'FV詳細分析');
+  if (exact) return exact.slice(0, 2500);
   return '';
 }
 
@@ -326,12 +418,14 @@ export interface CandidateGenerationInput {
 }
 
 /**
- * AI に渡すプロンプトを構築する。
- * good/bad 両方の候補を一括で処理する。
+ * AI に渡すプロンプトを構築する。バグ修正: existingKnowledge をプロンプトに注入。
  */
 export function buildCandidateGenerationPrompt(
   inputs: CandidateGenerationInput[]
 ): string {
+  // バグ修正: existingKnowledge を全 input で共通なので最初の1つから取得
+  const existingKnowledge = inputs[0]?.existingKnowledge || '';
+
   const candidateBlocks = inputs.map((input, i) => {
     const { combo, scriptExcerpt, articleExcerpt } = input;
     const ratioPercent = Math.round((combo.cpa_ratio - 1) * 100);
@@ -355,6 +449,9 @@ ${articleExcerpt ? articleExcerpt.slice(0, 800) : '（原稿データなし）'}
   return `
 あなたは広告運用のナレッジ管理AIです。
 以下の記事×クリエイティブ組み合わせについて、数値差分・台本・原稿を踏まえてナレッジ候補を生成してください。
+
+## 既存ナレッジ（重複しない新しい知見を生成すること）
+${existingKnowledge ? existingKnowledge.slice(0, 3000) : '（まだナレッジがありません）'}
 
 ## 候補一覧
 ${candidateBlocks}
@@ -408,13 +505,11 @@ export interface AIGeneratedKnowledge {
 }
 
 export function parseAIResponse(text: string): AIGeneratedKnowledge[] {
-  // JSON部分を抽出（```json ... ``` でラップされている場合にも対応）
   let jsonStr = text.trim();
   const codeBlockMatch = jsonStr.match(/```(?:json)?\s*([\s\S]*?)```/);
   if (codeBlockMatch) {
     jsonStr = codeBlockMatch[1].trim();
   }
-  // 配列の開始位置を探す
   const arrayStart = jsonStr.indexOf('[');
   const arrayEnd = jsonStr.lastIndexOf(']');
   if (arrayStart >= 0 && arrayEnd > arrayStart) {
@@ -472,6 +567,7 @@ export function buildCandidateRows(
       confidence: combo.confidence,
       version_name: combo.version_name,
       creative: combo.creative_value,
+      campaign_name: combo.campaign_name || '',
       cpa_current: Math.round(combo.cpa_current),
       cpa_baseline: Math.round(combo.cpa_baseline),
       cpa_ratio: Math.round(combo.cpa_ratio * 100) / 100,
@@ -487,6 +583,8 @@ export function buildCandidateRows(
       evidence_article_excerpt: (articleExcerpts.get(key) || '').slice(0, 500),
       source_run_id: runId,
       review_comment: '',
+      review_reason_code: '',
+      review_reason_text: '',
     };
   });
 }
@@ -500,6 +598,9 @@ export const CANDIDATE_SHEET_HEADERS = [
   'summary', 'hypothesis_good_points', 'hypothesis_bad_points',
   'next_action', 'evidence_script_excerpt', 'evidence_article_excerpt',
   'source_run_id', 'review_comment',
+  'campaign_name',        // 改善B（末尾追加で既存データと互換）
+  'review_reason_code',   // 改善C
+  'review_reason_text',   // 改善C
 ];
 
 export function candidateToRow(c: KnowledgeCandidate): string[] {
@@ -515,6 +616,7 @@ export function rowToCandidate(row: Record<string, string>): KnowledgeCandidate 
     confidence: (row['confidence'] as any) || 'normal',
     version_name: row['version_name'] || '',
     creative: row['creative'] || '',
+    campaign_name: row['campaign_name'] || '',
     cpa_current: parseFloat(row['cpa_current'] || '0'),
     cpa_baseline: parseFloat(row['cpa_baseline'] || '0'),
     cpa_ratio: parseFloat(row['cpa_ratio'] || '0'),
@@ -530,5 +632,7 @@ export function rowToCandidate(row: Record<string, string>): KnowledgeCandidate 
     evidence_article_excerpt: row['evidence_article_excerpt'] || '',
     source_run_id: row['source_run_id'] || '',
     review_comment: row['review_comment'] || '',
+    review_reason_code: row['review_reason_code'] || '',
+    review_reason_text: row['review_reason_text'] || '',
   };
 }
