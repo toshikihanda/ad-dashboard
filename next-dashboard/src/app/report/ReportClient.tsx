@@ -767,9 +767,19 @@ export default function ReportClient({
                         {/* Always visible grid on all screens */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                             <KPICard label="出稿金額" value={fmtAmt(kpis.cost)} unit="円" colorClass="text-red" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="IMP" value={kpis.impressions} source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CLICK" value={kpis.metaClicks} source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            {selectedTab === 'beyond' ? (
+                                <>
+                                    <KPICard label="IMP" value="—" source="合計/Meta" />
+                                    <KPICard label="CLICK" value="—" source="合計/Meta" />
+                                    <KPICard label="CTR" value="—" source="合計/Meta" />
+                                </>
+                            ) : (
+                                <>
+                                    <KPICard label="IMP" value={kpis.impressions} source="Meta" />
+                                    <KPICard label="CLICK" value={kpis.metaClicks} source="Meta" />
+                                    <KPICard label="CTR" value={fmtRate(kpis.ctr)} unit="%" colorClass="text-green" source="Meta" />
+                                </>
+                            )}
                             <KPICard label="CV" value={kpis.cv} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="CVR" value={fmtRate(kpis.cvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
@@ -777,12 +787,26 @@ export default function ReportClient({
                         {/* Secondary Metrics - Also always visible in compact grid */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                             <KPICard label="CPA" value={fmtAmt(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
-                            <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" source={selectedTab === 'total' ? 'Meta' : undefined} />
+                            {selectedTab === 'beyond' ? (
+                                <>
+                                    <KPICard label="CPM" value="—" source="合計/Meta" />
+                                    <KPICard label="PV単価" value={fmtAmt(kpis.cpc)} unit="円" source="Beyond" />
+                                </>
+                            ) : (
+                                <>
+                                    <KPICard label="CPM" value={fmtAmt(kpis.cpm)} unit="円" source="Meta" />
+                                    <KPICard label="CPC" value={fmtAmt(kpis.cpc)} unit="円" source="Meta" />
+                                </>
+                            )}
                             <KPICard label="商品LP CLICK" value={kpis.beyondClicks} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="MCVR" value={fmtRate(kpis.mcvr)} unit="%" colorClass="text-green" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
+                        {selectedTab === 'total' && (
+                            <p className="text-[9px] md:text-[10px] text-gray-500 px-0.5">
+                                ※ CPM/CPCはMeta出稿÷MetaのImp/Click。出稿金額（Beyond）とは分母が異なります。
+                            </p>
+                        )}
 
                         {/* 離脱率KPI - 左寄せで2カラムのみ使用 */}
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">

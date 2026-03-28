@@ -110,6 +110,63 @@ def safe_divide(numerator, denominator):
         return 0
     return numerator / denominator
 
+
+def extract_creative_from_text(text: object) -> str:
+    """
+    Meta の Ad Name / Beyond の utm 値などからクリエイティブIDを抽出する。
+    （next-dashboard の extractCreativeFromAdName と同一ルール）
+    1) 3桁 + _ + 英1〜2文字
+    2) 3桁 + 英1〜2文字（直結）
+    3) 3桁の数字のみ
+    """
+    if text is None or (isinstance(text, float) and pd.isna(text)):
+        return ""
+    s = str(text).strip()
+    if not s:
+        return ""
+
+    # 1) 3桁_英1〜2文字
+    m = re.search(r"(?<![0-9A-Za-z])(\d{3}_[a-zA-Z]{1,2})(?![a-zA-Z])", s, re.IGNORECASE)
+    if m:
+        return m.group(1).lower()
+
+    # 2) 3桁+英1〜2文字（直結）
+    m = re.search(r"(?<![0-9A-Za-z])(\d{3}[a-zA-Z]{1,2})(?![a-zA-Z])", s, re.IGNORECASE)
+    if m:
+        return m.group(1).lower()
+
+    # 互換: bt◯◯（「054」単体より先に拾う）
+    m = re.search(r"(bt\d+)", s, re.IGNORECASE)
+    if m:
+        return m.group(1).lower()
+
+    # 3) 3桁のみ
+    for m in re.finditer(r"(?<![0-9A-Za-z])(\d{3})(?![0-9a-zA-Z])", s, re.IGNORECASE):
+        idx = m.start()
+        tail = s[idx:]
+        if re.match(r"^\d{8}", tail) and tail.startswith("20"):
+            continue
+        if re.match(r"^\d{6}", tail) and len(tail) >= 6 and tail[:2] in ("23", "24", "25", "26", "27"):
+            continue
+        return m.group(1)
+
+    m = re.search(r"\d{15,}", s)
+    if m:
+        return m.group(0)
+
+    return ""
+
+
+def _beyond_param_value(raw_param: str, parameter_type: str = "utm_creative") -> str:
+    """parameter 文字列から値部分だけ取り出す（デフォルト utm_creative=）。"""
+    p = (raw_param or "").strip()
+    prefix = f"{parameter_type}="
+    if p.startswith(prefix):
+        return p[len(prefix) :].strip()
+    if "=" in p:
+        return p.split("=", 1)[1].strip()
+    return p
+
 def _match_project(text: object, tokens: list[tuple[str, str]]) -> str | None:
     """
     tokens: [(token_norm, project), ...]
@@ -180,6 +237,10 @@ def process_meta_data(df_live, df_history, master_rules: dict | None = None):
         combined["Campaign_Name"] = combined[campaign_col].apply(lambda x: _match_project(x, meta_tokens) or "Unmapped")
 
     # 3. Rename Columns
+    # 重複除外用にリネーム前の Ad Name を保持
+    if "Ad Name" in combined.columns:
+        combined["_ad_raw"] = combined["Ad Name"].astype(str)
+
     # Metaデータ: Amount Spent -> Cost, Impressions -> Impressions, Link Clicks -> Clicks
     rename_map = {
         'Day': 'Date',
@@ -191,8 +252,14 @@ def process_meta_data(df_live, df_history, master_rules: dict | None = None):
     combined.rename(columns=rename_map, inplace=True)
     combined['Date'] = pd.to_datetime(combined['Date'])
 
-    # 重複除外キー用に、元の Ad Name 相当を保持（processor内部では Creative にリネームされる）
-    if "Ad Name" not in combined.columns and "Creative" in combined.columns:
+    # クリエイティブID（Meta/Beyond と同一ルール）を抽出し、Creative を表示用に揃える
+    if "Creative" in combined.columns:
+        combined["creative_value"] = combined["Creative"].astype(str).map(extract_creative_from_text)
+        has_id = combined["creative_value"].astype(str).str.len() > 0
+        combined.loc[has_id, "Creative"] = combined.loc[has_id, "creative_value"]
+
+    # 重複除外キー用に、元の Ad Name 相当を保持（リネームで消えた場合）
+    if "Ad Name" not in combined.columns and "Creative" in combined.columns and "_ad_raw" not in combined.columns:
         combined["Ad Name"] = combined["Creative"]
     
     # 4. Meta CV列の決定（案件別に Master_Setting["Meta CV名"] を優先）
@@ -238,8 +305,14 @@ def process_meta_data(df_live, df_history, master_rules: dict | None = None):
     combined['CV'] = combined['MCV'] 
 
     # 重複除外（ユーザー指定キー）
-    # 日付×Account Name×Campaign Name×Ad Set Name×Ad Name が一致する行は同一扱い
-    dedupe_cols = ["Date", "Account Name", "Campaign Name", "Ad Set Name", "Ad Name"]
+    # 日付×Account Name×Campaign Name×Ad Set Name×元Ad Name が一致する行は同一扱い
+    dedupe_cols = ["Date", "Account Name", "Campaign Name", "Ad Set Name"]
+    if "_ad_raw" in combined.columns:
+        dedupe_cols.append("_ad_raw")
+    elif "Ad Name" in combined.columns:
+        dedupe_cols.append("Ad Name")
+    elif "Creative" in combined.columns:
+        dedupe_cols.append("Creative")
     dedupe_cols = [c for c in dedupe_cols if c in combined.columns]
     if len(dedupe_cols) >= 2:
         combined = combined.drop_duplicates(subset=dedupe_cols, keep="last").copy()
@@ -364,7 +437,15 @@ def process_beyond_data(df_live, df_history, master_rules: dict | None = None):
         combined["Creative"] = combined[page_col].astype(str)
     else:
         combined["Creative"] = ""
-    
+
+    # Beyond: parameter からクリエイティブID（Meta と同一ルール）。Live/History 合算後もここで統一。
+    if "Parameter" in combined.columns:
+        combined["creative_value"] = combined["Parameter"].astype(str).apply(
+            lambda p: extract_creative_from_text(_beyond_param_value(p)) or extract_creative_from_text(p)
+        )
+    else:
+        combined["creative_value"] = ""
+
     # 数値変換
     cols = ['Cost', 'PV', 'Clicks', 'CV', 'FV_Exit', 'SV_Exit']
     for col in cols:

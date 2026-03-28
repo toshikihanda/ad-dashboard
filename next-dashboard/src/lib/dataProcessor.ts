@@ -170,64 +170,48 @@ function findProjectByBeyondKeyword(
     return null;
 }
 
-// Extract creative value from Meta's Ad Name
-// Matches patterns like "bt054_004_004" in "campaign_SAC_成果_bt054_004_004_v1"
-// Extract creative value from Meta's Ad Name
-// Matches patterns like "bt054_004_004", "116_004_004", or raw IDs like "120237718661190172"
-// Extract creative value from Meta's Ad Name or Beyond's parameter
-// Objective: Normalize diverse naming patterns (e.g. "【16】116_配置変更", "2_116_c1") to a core ID (e.g. "116")
-function extractCreativeFromAdName(adName: string): string {
+/**
+ * Meta の Ad Name / Beyond の utm 値などからクリエイティブIDを抽出する。
+ * 優先順:
+ * 1) 3桁 + _ + 英字1〜2文字（例: 219_g, 219_ab）
+ * 2) 3桁 + 英字1〜2文字 直結（例: 219g, 219ab）※ 219 と 219g は別クリエイティブ
+ * 3) 3桁の数字のみ（例: 219）※ 直後に英数字がある場合は別パターンへ委ねる
+ * Meta/Beyond・Live/History 共通で processMetaData / processBeyondData から利用。
+ */
+export function extractCreativeFromAdName(adName: string): string {
     if (!adName) return '';
 
-    // 1. Clean input (remove brackets and their content if used for labeling, or just brackets?)
-    // User case: "【16】116_..." -> The "16" in brackets might be a label, "116" is the ID.
-    // However, removing content inside brackets might remove the ID if valid ID is in brackets.
-    // Looking at the user image: "【16】" seems to be a label (date? batch?), "116" follows.
-    // "【10】 116_..." -> "10" is label.
-    // Strategy: Replace bracketed content with space to avoid false positives from labels.
-    let cleanName = adName.replace(/[【\[].*?[】\]]/g, ' ');
+    const s = adName.trim();
 
-    // Also matching standard "bt" pattern first as it's specific
-    const matchBt = cleanName.match(/(bt\d+)/i);
-    if (matchBt) return matchBt[1];
+    // 1) 3桁_英1〜2文字
+    const reC = /(?<![0-9A-Za-z])(\d{3}_[a-zA-Z]{1,2})(?![a-zA-Z])/gi;
+    reC.lastIndex = 0;
+    const mC = reC.exec(s);
+    if (mC) return mC[1].toLowerCase();
 
-    // 1.5 Preferred pattern:
-    // "212c_034_004" -> "212c"
-    // "218_034_004"  -> "218"
-    // Keep first 3 digits + optional trailing alphabet as creative key.
-    const matchHeadWithUnderscoreTail = cleanName.match(/(?:^|[^0-9a-z])(\d{3}[a-z]?)(?=_[0-9]{2,}(?:_[0-9]{2,})?)/i);
-    if (matchHeadWithUnderscoreTail) return matchHeadWithUnderscoreTail[1].toLowerCase();
+    // 2) 3桁+英1〜2文字（直結）
+    const reB = /(?<![0-9A-Za-z])(\d{3}[a-zA-Z]{1,2})(?![a-zA-Z])/gi;
+    reB.lastIndex = 0;
+    const mB = reB.exec(s);
+    if (mB) return mB[1].toLowerCase();
 
-    // 1.6 Secondary pattern:
-    // "2_116_c1" -> "116"
-    const matchAnySegment = cleanName.match(/(?:^|_)(\d{3}[a-z]?)(?:_|$)/i);
-    if (matchAnySegment) return matchAnySegment[1].toLowerCase();
+    // 互換: bt◯◯ 系（「054」のような3桁単体より先に拾う）
+    const matchBt = s.match(/(bt\d+)/i);
+    if (matchBt) return matchBt[1].toLowerCase();
 
-    // 2. Find sequence of 3 or more digits
-    // This allows "116" to be extracted from " 116_..." or "2_116_c1" (if 116 is the first 3-digit num)
-    // We iterate through all number matches to find a "valid" ID (skipping likely dates)
-    const numberMatches = cleanName.match(/\d{3,}/g);
-
-    if (numberMatches) {
-        for (const num of numberMatches) {
-            // Filter out likely dates (YYYYMMDD or YYMMDD)
-            // 8 digits starting with 20xx
-            if (num.length === 8 && (num.startsWith('20') || num.startsWith('19'))) continue;
-            // 6 digits starting with 24, 25, 26 (likely year 2024-2026)
-            if (num.length === 6 && ['23', '24', '25', '26', '27'].includes(num.substring(0, 2))) continue;
-
-            // If it passes date check, assume it's the Core ID
-            return num;
-        }
+    // 3) 3桁のみ（日付っぽい連続はスキップ）
+    const reA = /(?<![0-9A-Za-z])(\d{3})(?![0-9a-zA-Z])/g;
+    let mA: RegExpExecArray | null;
+    while ((mA = reA.exec(s)) !== null) {
+        const idx = mA.index;
+        const tail = s.slice(idx);
+        if (/^\d{8}/.test(tail) && tail.startsWith('20')) continue;
+        if (/^\d{6}/.test(tail) && ['23', '24', '25', '26', '27'].includes(tail.substring(0, 2))) continue;
+        return mA[1];
     }
 
-    // 3. Fallback: If no 3-digit number found, look for "2_c1" pattern? 
-    // Or just look for any number sequence that was part of the original logic
-    const matchUnderscore = adName.match(/\d{2,}(?:_\d{1,3})+/);
-    if (matchUnderscore) return matchUnderscore[0];
-
-    // 4. Long ID fallback
-    const matchLongId = adName.match(/\d{15,}/);
+    // Meta 内部の長い数値ID
+    const matchLongId = s.match(/\d{15,}/);
     if (matchLongId) return matchLongId[0];
 
     return '';
