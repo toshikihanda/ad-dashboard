@@ -249,6 +249,16 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
                     <span className="text-xs font-medium text-gray-800 truncate">
                       {c.version_name} × {c.creative}
                     </span>
+                    {c.campaign_name && (
+                      <span className="ml-1.5 text-[10px] text-gray-400">
+                        [{c.campaign_name}]
+                      </span>
+                    )}
+                    {c.created_at && (
+                      <span className="ml-1.5 text-[10px] text-gray-400">
+                        {c.created_at}
+                      </span>
+                    )}
                   </div>
 
                   {/* CPA 情報 */}

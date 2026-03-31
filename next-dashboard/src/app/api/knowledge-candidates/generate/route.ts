@@ -81,14 +81,8 @@ export async function POST(request: NextRequest) {
     const articleMaster = rawData.Article_Master;
     const knowledge = rawData.Knowledge;
 
-    // 2. 集計（任意: KNOWLEDGE_CANDIDATE_ALLOWED_CAMPAIGNS で商材を絞る。例: SAC → SAC を含む Campaign_Name のみ）
-    const campaignAllow = process.env.KNOWLEDGE_CANDIDATE_ALLOWED_CAMPAIGNS;
-    const allowedSubstrings = campaignAllow
-      ? campaignAllow.split(',').map(s => s.trim()).filter(Boolean)
-      : undefined;
-    const combos = aggregateCombinations(processedData, {
-      allowedCampaignSubstrings: allowedSubstrings?.length ? allowedSubstrings : undefined,
-    });
+    // 2. 集計（全商材対象）
+    const combos = aggregateCombinations(processedData);
     const judged = judgeCombinations(combos);
     const { good, bad } = selectTopCandidates(judged, 10);
     const allCandidates = [...good, ...bad];
@@ -101,10 +95,11 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // 3. 証拠テキスト取得
+    // 3. 証拠テキスト取得 → 台本も原稿も無い候補は除外
     const scriptExcerpts = new Map<string, string>();
     const articleExcerpts = new Map<string, string>();
     const aiInputs: CandidateGenerationInput[] = [];
+    const qualifiedCandidates: JudgedCombo[] = [];
 
     const existingKnowledge = buildKnowledgeText(knowledge);
 
@@ -122,14 +117,29 @@ export async function POST(request: NextRequest) {
         combo.campaign_name,
         rawData.Master_Setting
       );
+
+      if (!script && !article) {
+        console.log(`[KnowledgeCandidates] 台本・原稿ともに無し → スキップ: ${combo.campaign_name} / ${combo.version_name} × ${combo.creative_value}`);
+        continue;
+      }
+
       scriptExcerpts.set(key, script);
       articleExcerpts.set(key, article);
+      qualifiedCandidates.push(combo);
 
       aiInputs.push({
         combo,
         scriptExcerpt: script,
         articleExcerpt: article,
         existingKnowledge,
+      });
+    }
+
+    if (qualifiedCandidates.length === 0) {
+      await recordLearningRun(runId, targetDate, 0, 0, 0, '台本・原稿のある候補なし');
+      return NextResponse.json({
+        message: '台本・原稿が揃っている候補が見つかりませんでした（数値候補はあったが証拠データ不足）',
+        candidateCount: 0,
       });
     }
 
@@ -151,9 +161,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    // 5. 候補オブジェクト構築
+    // 5. 候補オブジェクト構築（台本・原稿のある候補のみ）
     const candidateRows = buildCandidateRows(
-      allCandidates,
+      qualifiedCandidates,
       aiResults,
       scriptExcerpts,
       articleExcerpts,
@@ -163,22 +173,26 @@ export async function POST(request: NextRequest) {
     // 6. シートに追記
     await appendCandidates(candidateRows);
 
+    const goodCount = qualifiedCandidates.filter(c => c.judge_type === 'good').length;
+    const badCount = qualifiedCandidates.filter(c => c.judge_type === 'bad').length;
+
     // 7. Learning_Runs 記録
     await recordLearningRun(
       runId,
       targetDate,
       candidateRows.length,
-      good.length,
-      bad.length,
+      goodCount,
+      badCount,
       ''
     );
 
     return NextResponse.json({
-      message: `${candidateRows.length}件の候補を生成しました`,
+      message: `${candidateRows.length}件の候補を生成しました（台本・原稿が無い${allCandidates.length - qualifiedCandidates.length}件はスキップ）`,
       runId,
       candidateCount: candidateRows.length,
-      goodCount: good.length,
-      badCount: bad.length,
+      goodCount,
+      badCount,
+      skippedNoEvidence: allCandidates.length - qualifiedCandidates.length,
     });
   } catch (error: any) {
     console.error('[KnowledgeCandidates] generate エラー:', error.message);
