@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
+import type { SkippedNoEvidenceItem } from '@/lib/knowledgeCandidates';
 
 interface Candidate {
   id: string;
@@ -66,6 +67,9 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
   const [clearing, setClearing] = useState(false);
   /** 手動生成の結果メッセージ（成功・注意。エラーは error に） */
   const [generateInfo, setGenerateInfo] = useState('');
+  const [generateSkippedNoEvidence, setGenerateSkippedNoEvidence] = useState<
+    SkippedNoEvidenceItem[] | null
+  >(null);
 
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
@@ -118,6 +122,7 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
     setGenerating(true);
     setError('');
     setGenerateInfo('');
+    setGenerateSkippedNoEvidence(null);
     try {
       const res = await fetch('/api/knowledge-candidates/generate', {
         method: 'POST',
@@ -140,6 +145,10 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
       await fetchCandidates();
       if (data.message) {
         setGenerateInfo(data.message);
+      }
+      const skipped = data.skippedNoEvidenceDetail;
+      if (Array.isArray(skipped) && skipped.length > 0) {
+        setGenerateSkippedNoEvidence(skipped as SkippedNoEvidenceItem[]);
       }
     } catch {
       setError('候補生成に失敗しました');
@@ -237,8 +246,56 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
         <div className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>
       )}
       {generateInfo && !error && (
-        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 px-3 py-2 rounded-lg whitespace-pre-wrap">
-          {generateInfo}
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 px-3 py-2 rounded-lg space-y-2">
+          <p className="whitespace-pre-wrap leading-relaxed">{generateInfo}</p>
+          {generateSkippedNoEvidence && generateSkippedNoEvidence.length > 0 && (
+            <div className="border-t border-amber-200/80 pt-2 mt-1">
+              <p className="font-semibold text-amber-900 mb-1.5">
+                数値では検出されたが、台本・原稿が無くナレッジに追加できなかった組み合わせ
+              </p>
+              <ul className="space-y-1.5">
+                {generateSkippedNoEvidence.map((row, i) => (
+                  <li
+                    key={`${row.version_name}-${row.creative_value}-${i}`}
+                    className="bg-white/60 rounded px-2 py-1.5 border border-amber-100/80"
+                  >
+                    <div className="flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span
+                        className={cn(
+                          'shrink-0 px-1 py-0.5 text-[10px] font-bold rounded',
+                          row.judge_type === 'good' && 'bg-blue-100 text-blue-800',
+                          row.judge_type === 'bad' && 'bg-red-100 text-red-800',
+                          row.judge_type === 'hold' && 'bg-gray-100 text-gray-700',
+                        )}
+                      >
+                        {row.judge_type === 'good'
+                          ? '良化'
+                          : row.judge_type === 'bad'
+                            ? '悪化'
+                            : '保留'}
+                      </span>
+                      <span className="font-medium text-gray-900">
+                        {row.version_name} × {row.creative_value}
+                      </span>
+                      {row.campaign_name && (
+                        <span className="text-[10px] text-gray-500">[{row.campaign_name}]</span>
+                      )}
+                    </div>
+                    <div className="text-[10px] text-gray-600 mt-0.5 pl-0.5">
+                      CPA {row.cpa_current > 0 ? `${Math.round(row.cpa_current).toLocaleString()}円` : '-'}
+                      <span className="ml-2">
+                        変化{' '}
+                        {row.cpa_baseline > 0
+                          ? `${Math.round((row.cpa_ratio - 1) * 100) > 0 ? '+' : ''}${Math.round((row.cpa_ratio - 1) * 100)}%`
+                          : '-'}
+                      </span>
+                      <span className="ml-2">直近CV {row.cv_current}</span>
+                    </div>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       )}
 

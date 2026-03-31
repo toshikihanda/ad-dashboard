@@ -230,6 +230,18 @@ export interface JudgedCombo extends AggregatedCombo {
   confidence: Confidence;
 }
 
+/** 証拠不足でスキップした組み合わせ（generate API → UI 表示用） */
+export interface SkippedNoEvidenceItem {
+  version_name: string;
+  creative_value: string;
+  campaign_name: string;
+  judge_type: JudgeType;
+  cpa_ratio: number;
+  cpa_current: number;
+  cpa_baseline: number;
+  cv_current: number;
+}
+
 /**
  * 集計済みデータに good/bad/hold 判定を付与する。
  * - good: CPA_ratio <= 0.80 (20%以上改善)

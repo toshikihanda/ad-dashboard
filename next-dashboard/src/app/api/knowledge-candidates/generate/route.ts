@@ -18,6 +18,7 @@ import {
   buildCandidateRows,
   CandidateGenerationInput,
   JudgedCombo,
+  SkippedNoEvidenceItem,
 } from '@/lib/knowledgeCandidates';
 import { appendCandidates, hasRunForDate, recordLearningRun } from '@/lib/candidateSheets';
 import { buildKnowledgeText } from '@/lib/aiContextHelpers';
@@ -106,6 +107,7 @@ export async function POST(request: NextRequest) {
     const articleExcerpts = new Map<string, string>();
     const aiInputs: CandidateGenerationInput[] = [];
     const qualifiedCandidates: JudgedCombo[] = [];
+    const skippedNoEvidenceDetail: SkippedNoEvidenceItem[] = [];
 
     const existingKnowledge = buildKnowledgeText(knowledge);
 
@@ -126,6 +128,16 @@ export async function POST(request: NextRequest) {
 
       if (requireEvidence && !script && !article) {
         console.log(`[KnowledgeCandidates] 台本・原稿ともに無し → スキップ: ${combo.campaign_name} / ${combo.version_name} × ${combo.creative_value}`);
+        skippedNoEvidenceDetail.push({
+          version_name: combo.version_name,
+          creative_value: combo.creative_value,
+          campaign_name: combo.campaign_name,
+          judge_type: combo.judge_type,
+          cpa_ratio: combo.cpa_ratio,
+          cpa_current: combo.cpa_current,
+          cpa_baseline: combo.cpa_baseline,
+          cv_current: combo.cv_current,
+        });
         continue;
       }
 
@@ -146,12 +158,13 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         message:
           requireEvidence
-            ? `台本・原稿のどちらも Creative_Master / Article_Master で取れなかったため、候補を追加しませんでした（数値ベースの組み合わせは ${allCandidates.length} 件ありました）。マスタの商材名・クリエID・記事名を確認するか、一時的に環境変数 KNOWLEDGE_REQUIRE_EVIDENCE=false で数値のみ生成を許可できます。`
+            ? `数値では好調/悪化の組み合わせが ${allCandidates.length} 件ありましたが、台本・原稿のどちらも Creative_Master / Article_Master で取れなかったため、ナレッジ候補は追加していません。下の一覧を確認するか、マスタの商材名・クリエID・記事名を揃えてください。一時的に KNOWLEDGE_REQUIRE_EVIDENCE=false で数値のみ生成も可能です。`
             : '候補の抽出に失敗しました（内部エラー）',
         candidateCount: 0,
         stage: 'no_evidence',
         numericCandidateCount: allCandidates.length,
         skippedEvidenceCount: allCandidates.length,
+        skippedNoEvidenceDetail,
         requireEvidence,
       });
     }
@@ -210,6 +223,8 @@ export async function POST(request: NextRequest) {
       goodCount,
       badCount,
       skippedNoEvidence: requireEvidence ? allCandidates.length - qualifiedCandidates.length : 0,
+      skippedNoEvidenceDetail:
+        requireEvidence && skippedNoEvidenceDetail.length > 0 ? skippedNoEvidenceDetail : undefined,
       stage: 'ok',
       numericCandidateCount: allCandidates.length,
       qualifiedCount: qualifiedCandidates.length,
