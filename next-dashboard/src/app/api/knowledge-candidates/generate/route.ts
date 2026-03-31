@@ -61,8 +61,8 @@ export async function POST(request: NextRequest) {
     const jstNow = new Date(Date.now() + jstOffset);
     const targetDate = `${jstNow.getFullYear()}-${String(jstNow.getMonth() + 1).padStart(2, '0')}-${String(jstNow.getDate()).padStart(2, '0')}`;
 
-    // 冪等性チェック: 同日の run が既にあればスキップ
-    if (!body?.force) {
+    // 冪等性チェック: Cron（manual でない）のみ同日二重実行を防ぐ。手動は何度でも実行可。
+    if (!body?.force && body?.manual !== true) {
       const alreadyRun = await hasRunForDate(targetDate);
       if (alreadyRun) {
         return NextResponse.json({

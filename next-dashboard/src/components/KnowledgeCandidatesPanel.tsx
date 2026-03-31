@@ -63,6 +63,7 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
   const [reviewComments, setReviewComments] = useState<Record<string, string>>({});
   const [reviewReasonCodes, setReviewReasonCodes] = useState<Record<string, string>>({});
   const [reviewingId, setReviewingId] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
 
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
@@ -85,6 +86,30 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
   useEffect(() => {
     fetchCandidates();
   }, [fetchCandidates]);
+
+  const handleClearAll = async () => {
+    if (isDemo) return;
+    if (!window.confirm('ナレッジ候補をすべて削除します。よろしいですか？')) return;
+    setClearing(true);
+    setError('');
+    try {
+      const res = await fetch('/api/knowledge-candidates/clear', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ manual: true }),
+      });
+      const data = await res.json();
+      if (data.error) {
+        setError(data.error);
+      } else {
+        await fetchCandidates();
+      }
+    } catch {
+      setError('削除に失敗しました');
+    } finally {
+      setClearing(false);
+    }
+  };
 
   const handleGenerate = async () => {
     if (isDemo) return;
@@ -157,7 +182,7 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
             </span>
           )}
         </div>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap">
           <label className="flex items-center gap-1 text-[11px] text-gray-500 cursor-pointer">
             <input
               type="checkbox"
@@ -168,8 +193,22 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
             全件表示
           </label>
           <button
+            type="button"
+            onClick={handleClearAll}
+            disabled={clearing || generating || isDemo}
+            className={cn(
+              "px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all border border-red-200",
+              isDemo
+                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+                : "bg-white text-red-600 hover:bg-red-50 disabled:opacity-50"
+            )}
+          >
+            {clearing ? '削除中...' : '候補を全削除'}
+          </button>
+          <button
+            type="button"
             onClick={handleGenerate}
-            disabled={generating || isDemo}
+            disabled={generating || clearing || isDemo}
             className={cn(
               "px-3 py-1.5 text-[11px] font-medium rounded-lg transition-all",
               isDemo

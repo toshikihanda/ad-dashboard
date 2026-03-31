@@ -308,6 +308,24 @@ export async function recordLearningRun(
   });
 }
 
+/** Knowledge_Candidates シートのデータ行をすべて削除（1行目のヘッダーは残す） */
+export async function clearAllCandidates(): Promise<void> {
+  const auth = await getGoogleAuth();
+  const sheets = google.sheets({ version: 'v4', auth });
+
+  try {
+    await sheets.spreadsheets.values.clear({
+      spreadsheetId: MASTER_SHEET_ID,
+      range: `${CANDIDATES_SHEET_NAME}!A2:ZZ50000`,
+    });
+  } catch (e: any) {
+    if (e?.code === 400 || e?.message?.includes('Unable to parse')) {
+      return;
+    }
+    throw e;
+  }
+}
+
 // --- 重複チェック ---
 
 export async function hasRunForDate(targetDate: string): Promise<boolean> {
