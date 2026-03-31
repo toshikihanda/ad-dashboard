@@ -81,8 +81,14 @@ export async function POST(request: NextRequest) {
     const articleMaster = rawData.Article_Master;
     const knowledge = rawData.Knowledge;
 
-    // 2. 集計
-    const combos = aggregateCombinations(processedData);
+    // 2. 集計（任意: KNOWLEDGE_CANDIDATE_ALLOWED_CAMPAIGNS で商材を絞る。例: SAC → SAC を含む Campaign_Name のみ）
+    const campaignAllow = process.env.KNOWLEDGE_CANDIDATE_ALLOWED_CAMPAIGNS;
+    const allowedSubstrings = campaignAllow
+      ? campaignAllow.split(',').map(s => s.trim()).filter(Boolean)
+      : undefined;
+    const combos = aggregateCombinations(processedData, {
+      allowedCampaignSubstrings: allowedSubstrings?.length ? allowedSubstrings : undefined,
+    });
     const judged = judgeCombinations(combos);
     const { good, bad } = selectTopCandidates(judged, 10);
     const allCandidates = [...good, ...bad];

@@ -112,13 +112,33 @@ function generateId(): string {
 
 // --- 集計ロジック ---
 
+export interface AggregateCombinationsOptions {
+  /**
+   * 指定時は、Campaign_Name にいずれかの部分文字列が含まれる Beyond 行だけを集計する。
+   * 例: ['SAC'] で URARA など SAC 以外の管理用案件名を除外（Vercel: KNOWLEDGE_CANDIDATE_ALLOWED_CAMPAIGNS=SAC）
+   */
+  allowedCampaignSubstrings?: string[];
+}
+
 /**
  * ProcessedRow[] を version_name × creative_value で集計し、
  * current (直近3日) と baseline (4〜33日前) に分けて指標を算出する。
- * 対象は Beyond データのみ。
+ * 対象は Beyond データのみ。Article_Master / Creative_Master はここでは使わない（数値のみ）。
  */
-export function aggregateCombinations(data: ProcessedRow[]): AggregatedCombo[] {
-  const beyondData = data.filter(row => row.Media === 'Beyond');
+export function aggregateCombinations(
+  data: ProcessedRow[],
+  options?: AggregateCombinationsOptions
+): AggregatedCombo[] {
+  let beyondData = data.filter(row => row.Media === 'Beyond');
+
+  const allowed = options?.allowedCampaignSubstrings?.map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (allowed?.length) {
+    beyondData = beyondData.filter(row => {
+      const cn = (row.Campaign_Name || '').trim().toLowerCase();
+      if (!cn) return false;
+      return allowed.some(tok => cn.includes(tok));
+    });
+  }
 
   // 改善A: current=直近3日、baseline=4〜33日前
   const currentStart = daysBefore(3);
