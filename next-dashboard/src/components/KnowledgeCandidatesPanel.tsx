@@ -64,6 +64,8 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
   const [reviewReasonCodes, setReviewReasonCodes] = useState<Record<string, string>>({});
   const [reviewingId, setReviewingId] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  /** 手動生成の結果メッセージ（成功・注意。エラーは error に） */
+  const [generateInfo, setGenerateInfo] = useState('');
 
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
@@ -115,19 +117,29 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
     if (isDemo) return;
     setGenerating(true);
     setError('');
+    setGenerateInfo('');
     try {
       const res = await fetch('/api/knowledge-candidates/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ manual: true }),
       });
-      const data = await res.json();
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setError(data.error || `HTTP ${res.status}`);
+        return;
+      }
       if (data.skipped) {
-        setError(data.message);
-      } else if (data.error) {
+        setError(data.message || 'スキップされました');
+        return;
+      }
+      if (data.error) {
         setError(data.error);
-      } else {
-        await fetchCandidates();
+        return;
+      }
+      await fetchCandidates();
+      if (data.message) {
+        setGenerateInfo(data.message);
       }
     } catch {
       setError('候補生成に失敗しました');
@@ -223,6 +235,11 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
 
       {error && (
         <div className="text-xs text-red-600 bg-red-50 px-3 py-2 rounded-lg">{error}</div>
+      )}
+      {generateInfo && !error && (
+        <div className="text-xs text-amber-800 bg-amber-50 border border-amber-100 px-3 py-2 rounded-lg whitespace-pre-wrap">
+          {generateInfo}
+        </div>
       )}
 
       {loading ? (

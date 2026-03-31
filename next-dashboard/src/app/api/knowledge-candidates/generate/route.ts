@@ -74,6 +74,9 @@ export async function POST(request: NextRequest) {
 
     const runId = `run_${targetDate}_${Date.now()}`;
 
+    /** false のときは台本・原稿が無くても数値候補を採用（Vercel: KNOWLEDGE_REQUIRE_EVIDENCE=false） */
+    const requireEvidence = process.env.KNOWLEDGE_REQUIRE_EVIDENCE !== 'false';
+
     // 1. データロード
     const rawData = await loadDataFromSheets();
     const processedData = processData(rawData);
@@ -90,12 +93,15 @@ export async function POST(request: NextRequest) {
     if (allCandidates.length === 0) {
       await recordLearningRun(runId, targetDate, 0, 0, 0, '候補なし');
       return NextResponse.json({
-        message: '候補となる組み合わせが見つかりませんでした',
+        message:
+          '候補となる組み合わせが見つかりませんでした（直近3日でCV≥2かつCPAが良化/悪化した記事×クリが無い可能性があります）',
         candidateCount: 0,
+        stage: 'no_numeric',
+        numericCandidateCount: 0,
       });
     }
 
-    // 3. 証拠テキスト取得 → 台本も原稿も無い候補は除外
+    // 3. 証拠テキスト取得 → requireEvidence 時のみ台本も原稿も無い候補を除外
     const scriptExcerpts = new Map<string, string>();
     const articleExcerpts = new Map<string, string>();
     const aiInputs: CandidateGenerationInput[] = [];
@@ -118,7 +124,7 @@ export async function POST(request: NextRequest) {
         rawData.Master_Setting
       );
 
-      if (!script && !article) {
+      if (requireEvidence && !script && !article) {
         console.log(`[KnowledgeCandidates] 台本・原稿ともに無し → スキップ: ${combo.campaign_name} / ${combo.version_name} × ${combo.creative_value}`);
         continue;
       }
@@ -138,8 +144,15 @@ export async function POST(request: NextRequest) {
     if (qualifiedCandidates.length === 0) {
       await recordLearningRun(runId, targetDate, 0, 0, 0, '台本・原稿のある候補なし');
       return NextResponse.json({
-        message: '台本・原稿が揃っている候補が見つかりませんでした（数値候補はあったが証拠データ不足）',
+        message:
+          requireEvidence
+            ? `台本・原稿のどちらも Creative_Master / Article_Master で取れなかったため、候補を追加しませんでした（数値ベースの組み合わせは ${allCandidates.length} 件ありました）。マスタの商材名・クリエID・記事名を確認するか、一時的に環境変数 KNOWLEDGE_REQUIRE_EVIDENCE=false で数値のみ生成を許可できます。`
+            : '候補の抽出に失敗しました（内部エラー）',
         candidateCount: 0,
+        stage: 'no_evidence',
+        numericCandidateCount: allCandidates.length,
+        skippedEvidenceCount: allCandidates.length,
+        requireEvidence,
       });
     }
 
@@ -187,12 +200,20 @@ export async function POST(request: NextRequest) {
     );
 
     return NextResponse.json({
-      message: `${candidateRows.length}件の候補を生成しました（台本・原稿が無い${allCandidates.length - qualifiedCandidates.length}件はスキップ）`,
+      message: `${candidateRows.length}件の候補を生成しました${
+        requireEvidence && allCandidates.length > qualifiedCandidates.length
+          ? `（台本・原稿が無い${allCandidates.length - qualifiedCandidates.length}件はスキップ）`
+          : ''
+      }`,
       runId,
       candidateCount: candidateRows.length,
       goodCount,
       badCount,
-      skippedNoEvidence: allCandidates.length - qualifiedCandidates.length,
+      skippedNoEvidence: requireEvidence ? allCandidates.length - qualifiedCandidates.length : 0,
+      stage: 'ok',
+      numericCandidateCount: allCandidates.length,
+      qualifiedCount: qualifiedCandidates.length,
+      requireEvidence,
     });
   } catch (error: any) {
     console.error('[KnowledgeCandidates] generate エラー:', error.message);
