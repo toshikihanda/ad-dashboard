@@ -5,7 +5,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { GoogleGenerativeAI } from '@google/generative-ai';
-import { loadDataFromSheets, loadSheetData } from '@/lib/googleSheets';
+import { loadDataFromSheets } from '@/lib/googleSheets';
 import { processData } from '@/lib/dataProcessor';
 import {
   aggregateCombinations,
@@ -45,10 +45,16 @@ export async function GET(request: NextRequest) {
 }
 
 export async function POST(request: NextRequest) {
+  let targetDate = '';
+  let isManualRun = false;
+
   try {
     // 認証チェック（Cron Secret または手動実行用トークン）
     const authHeader = request.headers.get('authorization');
     const body = await request.json().catch(() => ({}));
+    isManualRun = body?.manual === true;
+    const learnLabel = isManualRun ? '[manual]' : '[cron]';
+
     const isAuthorized =
       (CRON_SECRET && authHeader === `Bearer ${CRON_SECRET}`) ||
       body?.manual === true; // 手動実行を許可
@@ -60,7 +66,7 @@ export async function POST(request: NextRequest) {
     // JST で今日の日付
     const jstOffset = 9 * 60 * 60 * 1000;
     const jstNow = new Date(Date.now() + jstOffset);
-    const targetDate = `${jstNow.getFullYear()}-${String(jstNow.getMonth() + 1).padStart(2, '0')}-${String(jstNow.getDate()).padStart(2, '0')}`;
+    targetDate = `${jstNow.getFullYear()}-${String(jstNow.getMonth() + 1).padStart(2, '0')}-${String(jstNow.getDate()).padStart(2, '0')}`;
 
     // 冪等性チェック: Cron（manual でない）のみ同日二重実行を防ぐ。手動は何度でも実行可。
     if (!body?.force && body?.manual !== true) {
@@ -92,7 +98,14 @@ export async function POST(request: NextRequest) {
     const allCandidates = [...good, ...bad];
 
     if (allCandidates.length === 0) {
-      await recordLearningRun(runId, targetDate, 0, 0, 0, '候補なし');
+      await recordLearningRun(
+        runId,
+        targetDate,
+        0,
+        0,
+        0,
+        `${learnLabel} 候補なし（数値ベースの良化/悪化の組み合わせは0件）`
+      );
       return NextResponse.json({
         message:
           '候補となる組み合わせが見つかりませんでした（直近3日でCV≥2かつCPAが良化/悪化した記事×クリが無い可能性があります）',
@@ -154,7 +167,16 @@ export async function POST(request: NextRequest) {
     }
 
     if (qualifiedCandidates.length === 0) {
-      await recordLearningRun(runId, targetDate, 0, 0, 0, '台本・原稿のある候補なし');
+      await recordLearningRun(
+        runId,
+        targetDate,
+        0,
+        0,
+        0,
+        requireEvidence
+          ? `${learnLabel} ナレッジ候補0件（台本・原稿が Creative_Master / Article_Master で取得できず。数値候補は ${allCandidates.length} 件あったが証拠必須のためスキップ）`
+          : `${learnLabel} 候補抽出失敗（内部エラー: requireEvidence=false かつ qualified=0）`
+      );
       return NextResponse.json({
         message:
           requireEvidence
@@ -202,15 +224,13 @@ export async function POST(request: NextRequest) {
     const goodCount = qualifiedCandidates.filter(c => c.judge_type === 'good').length;
     const badCount = qualifiedCandidates.filter(c => c.judge_type === 'bad').length;
 
-    // 7. Learning_Runs 記録
-    await recordLearningRun(
-      runId,
-      targetDate,
-      candidateRows.length,
-      goodCount,
-      badCount,
-      ''
-    );
+    // 7. Learning_Runs 記録（証拠なしで一部スキップした場合は errors に注記）
+    const skippedN = requireEvidence ? allCandidates.length - qualifiedCandidates.length : 0;
+    const runNote =
+      skippedN > 0
+        ? `${learnLabel} 候補を追加（証拠なしで ${skippedN} 件はスキップ）`
+        : '';
+    await recordLearningRun(runId, targetDate, candidateRows.length, goodCount, badCount, runNote);
 
     return NextResponse.json({
       message: `${candidateRows.length}件の候補を生成しました${
@@ -232,6 +252,25 @@ export async function POST(request: NextRequest) {
     });
   } catch (error: any) {
     console.error('[KnowledgeCandidates] generate エラー:', error.message);
+    try {
+      const jstOffset = 9 * 60 * 60 * 1000;
+      const jstNow = new Date(Date.now() + jstOffset);
+      const td =
+        targetDate ||
+        `${jstNow.getFullYear()}-${String(jstNow.getMonth() + 1).padStart(2, '0')}-${String(jstNow.getDate()).padStart(2, '0')}`;
+      const label = isManualRun ? '[manual]' : '[cron]';
+      const msg = String(error?.message ?? error).slice(0, 450);
+      await recordLearningRun(
+        `run_err_${td}_${Date.now()}`,
+        td,
+        0,
+        0,
+        0,
+        `${label} エラーで中断（${msg}）`
+      );
+    } catch (e) {
+      console.error('[KnowledgeCandidates] Learning_Runs 記録も失敗:', (e as Error).message);
+    }
     return NextResponse.json(
       { error: `候補生成に失敗しました: ${error.message}` },
       { status: 500 }
