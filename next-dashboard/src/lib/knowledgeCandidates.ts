@@ -285,51 +285,152 @@ function getCol(row: Record<string, string>, ...names: string[]): string {
 }
 
 /**
- * Creative_Master から台本テキストを取得する（改善B: campaign フィルタ追加）
+ * Master_Setting の同一行から、商材名照合に使う別名を集める。
+ * （管理用案件名=SAC_成果 と Creative_Master の 商材名=URARA… のズレを吸収）
+ */
+export function buildCampaignAliasesFromMaster(
+  masterSetting: Record<string, string>[],
+  campaignName: string
+): string[] {
+  const target = (campaignName || '').trim();
+  if (!target || !masterSetting?.length) return [];
+
+  const tl = target.toLowerCase();
+  const out = new Set<string>();
+  out.add(tl);
+
+  const tryRow = (row: Record<string, string>) => {
+    const proj = getCol(row, '管理用案件名', 'Project').trim();
+    if (proj) out.add(proj.toLowerCase());
+    [getCol(row, 'Meta名'), getCol(row, 'Beyond名')].forEach(s => {
+      const x = s.trim();
+      if (x) out.add(x.toLowerCase());
+    });
+  };
+
+  for (const row of masterSetting) {
+    const proj = getCol(row, '管理用案件名', '').trim();
+    if (proj.toLowerCase() === tl) {
+      tryRow(row);
+      return [...out];
+    }
+  }
+  for (const row of masterSetting) {
+    const proj = getCol(row, '管理用案件名', '').trim();
+    if (!proj) continue;
+    const pl = proj.toLowerCase();
+    if (pl === tl || pl.includes(tl) || tl.includes(pl)) {
+      tryRow(row);
+      return [...out];
+    }
+  }
+  return [...out];
+}
+
+/**
+ * 部分一致の最短長（「5」など1文字での誤マッチ防止）。
+ * 3桁のみのIDは完全一致のみ（上の d===n）で拾う。219g 等は 4 文字以上で includes 可。
+ */
+const MIN_SUBSTR_LEN = 4;
+
+function creativeMatchScore(dashboardName: string, fileName: string, norm: string): number {
+  const d = dashboardName.trim().toLowerCase();
+  const f = fileName.trim().toLowerCase();
+  const n = norm.trim().toLowerCase();
+  if (!n) return 0;
+
+  if (d && d === n) return 100;
+  if (f && f === n) return 100;
+
+  if (d && (d.endsWith(n) || n.endsWith(d)) && Math.min(d.length, n.length) >= MIN_SUBSTR_LEN) return 90;
+
+  if (d && d.includes(n) && n.length >= MIN_SUBSTR_LEN) return 80;
+  if (n.includes(d) && d.length >= MIN_SUBSTR_LEN) return 75;
+  if (f && f.includes(n) && n.length >= MIN_SUBSTR_LEN) return 70;
+  if (n.includes(f) && f.length >= MIN_SUBSTR_LEN) return 65;
+
+  return 0;
+}
+
+function versionMatchScore(dashboardName: string, articleName: string, norm: string): number {
+  const d = dashboardName.trim().toLowerCase();
+  const a = articleName.trim().toLowerCase();
+  const n = norm.trim().toLowerCase();
+  if (!n) return 0;
+
+  if (d && d === n) return 100;
+  if (a && a === n) return 100;
+  if (d && d.includes(n) && n.length >= 4) return 85;
+  if (n.includes(d) && d.length >= 4) return 80;
+  if (a && a.includes(n) && n.length >= 4) return 75;
+  if (n.includes(a) && a.length >= 4) return 70;
+  return 0;
+}
+
+function productMatchesCampaign(
+  productName: string,
+  campNorm: string,
+  aliases: string[]
+): boolean {
+  const pn = (productName || '').trim().toLowerCase();
+  if (!pn) return false;
+  const checks = [...new Set([campNorm, ...aliases].filter(Boolean).map(x => x.trim().toLowerCase()))];
+  for (const c of checks) {
+    if (!c) continue;
+    if (pn === c || pn.includes(c) || c.includes(pn)) return true;
+  }
+  return false;
+}
+
+/**
+ * Creative_Master から台本テキストを取得する。
+ * 商材が特定できるときは Master_Setting 別名で商材名と突き合わせ、一致しない行は採用しない（別案件の台本を返さない）。
  */
 export function findScriptForCreative(
   creativeMaster: Record<string, string>[],
   creativeValue: string,
-  campaignName?: string
+  campaignName?: string,
+  masterSetting?: Record<string, string>[]
 ): string {
   if (!creativeValue || !creativeMaster?.length) return '';
 
   const norm = creativeValue.toLowerCase().trim();
   const campNorm = (campaignName || '').toLowerCase().trim();
+  const aliases =
+    masterSetting?.length && campNorm ? buildCampaignAliasesFromMaster(masterSetting, campaignName || '') : [];
+  const requireCampaign = !!campNorm;
 
-  // creative_value でマッチする全行を収集
-  const matches: { row: Record<string, string>; campaignMatch: boolean }[] = [];
+  type Scored = { row: Record<string, string>; score: number; campaignMatch: boolean };
+  const scored: Scored[] = [];
 
   for (const row of creativeMaster) {
-    const dashboardName = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID', 'utm_creative').trim().toLowerCase();
-    const fileName = getCol(row, 'クリエイティブ名', 'Creative Name', 'ファイル名').trim().toLowerCase();
+    const dashboardName = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID', 'utm_creative');
+    const fileName = getCol(row, 'クリエイティブ名', 'Creative Name', 'ファイル名');
+    const score = creativeMatchScore(dashboardName, fileName, norm);
+    if (score <= 0) continue;
 
-    const creativeMatch =
-      (dashboardName && (dashboardName === norm || dashboardName.includes(norm) || norm.includes(dashboardName))) ||
-      (fileName && (fileName === norm || fileName.includes(norm) || norm.includes(fileName)));
+    const productName = getCol(row, '商材名', 'Project', 'Campaign', '商材');
+    const campaignMatch =
+      !requireCampaign || productMatchesCampaign(productName, campNorm, aliases);
 
-    if (!creativeMatch) continue;
-
-    // 改善B: 商材名マッチング
-    let campaignMatch = false;
-    if (campNorm) {
-      const productName = getCol(row, '商材名', 'Project', 'Campaign', '商材').trim().toLowerCase();
-      campaignMatch = !!(productName && (
-        productName === campNorm ||
-        productName.includes(campNorm) ||
-        campNorm.includes(productName)
-      ));
-    }
-    matches.push({ row, campaignMatch });
+    scored.push({ row, score, campaignMatch });
   }
 
-  if (matches.length === 0) return '';
+  if (scored.length === 0) return '';
 
-  // 商材マッチする行を優先、なければ最初の行
-  const best = matches.find(m => m.campaignMatch) || matches[0];
-  const row = best.row;
+  let pool = scored;
+  if (requireCampaign) {
+    const ok = pool.filter(p => p.campaignMatch);
+    if (ok.length > 0) pool = ok;
+    else return '';
+  } else {
+    pool = pool.filter(p => p.score >= 80);
+    if (pool.length === 0) return '';
+  }
 
-  // 台本取得
+  pool.sort((a, b) => b.score - a.score);
+  const row = pool[0].row;
+
   let script = getCol(row, '台本', 'Script');
   if (!script) {
     const keys = Object.keys(row);
@@ -353,51 +454,53 @@ export function findScriptForCreative(
 }
 
 /**
- * Article_Master から原稿テキストを取得する（F列優先、改善B: campaign フィルタ追加）
+ * Article_Master から原稿テキストを取得する（F列優先）。
  */
 export function findManuscriptForVersion(
   articleMaster: Record<string, string>[],
   versionName: string,
-  campaignName?: string
+  campaignName?: string,
+  masterSetting?: Record<string, string>[]
 ): string {
   if (!versionName || !articleMaster?.length) return '';
 
   const norm = versionName.toLowerCase().trim();
   const campNorm = (campaignName || '').toLowerCase().trim();
+  const aliases =
+    masterSetting?.length && campNorm ? buildCampaignAliasesFromMaster(masterSetting, campaignName || '') : [];
+  const requireCampaign = !!campNorm;
 
-  // versionName でマッチする全行を収集
-  const matches: { row: Record<string, string>; campaignMatch: boolean }[] = [];
+  type Scored = { row: Record<string, string>; score: number; campaignMatch: boolean };
+  const scored: Scored[] = [];
 
   for (const row of articleMaster) {
-    const dashboardName = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID').trim().toLowerCase();
-    const articleName = getCol(row, '記事名', 'Article Name', 'Subject').trim().toLowerCase();
+    const dashboardName = getCol(row, 'ダッシュボード名', 'Dashboard Name', 'ID');
+    const articleName = getCol(row, '記事名', 'Article Name', 'Subject');
+    const score = versionMatchScore(dashboardName, articleName, norm);
+    if (score <= 0) continue;
 
-    const versionMatch =
-      (dashboardName && (dashboardName === norm || dashboardName.includes(norm) || norm.includes(dashboardName))) ||
-      (articleName && (articleName === norm || articleName.includes(norm) || norm.includes(articleName)));
+    const productName = getCol(row, '商材名', 'Project', 'Campaign', '商材');
+    const campaignMatch =
+      !requireCampaign || productMatchesCampaign(productName, campNorm, aliases);
 
-    if (!versionMatch) continue;
-
-    // 改善B: 商材名マッチング
-    let campaignMatch = false;
-    if (campNorm) {
-      const productName = getCol(row, '商材名', 'Project', 'Campaign', '商材').trim().toLowerCase();
-      campaignMatch = !!(productName && (
-        productName === campNorm ||
-        productName.includes(campNorm) ||
-        campNorm.includes(productName)
-      ));
-    }
-    matches.push({ row, campaignMatch });
+    scored.push({ row, score, campaignMatch });
   }
 
-  if (matches.length === 0) return '';
+  if (scored.length === 0) return '';
 
-  // 商材マッチする行を優先、なければ最初の行
-  const best = matches.find(m => m.campaignMatch) || matches[0];
-  const row = best.row;
+  let pool = scored;
+  if (requireCampaign) {
+    const ok = pool.filter(p => p.campaignMatch);
+    if (ok.length > 0) pool = ok;
+    else return '';
+  } else {
+    pool = pool.filter(p => p.score >= 80);
+    if (pool.length === 0) return '';
+  }
 
-  // F列優先で原稿取得
+  pool.sort((a, b) => b.score - a.score);
+  const row = pool[0].row;
+
   const keys = Object.keys(row);
   if (keys.length >= 6) {
     const fVal = (row[keys[5]] ?? '').trim();
