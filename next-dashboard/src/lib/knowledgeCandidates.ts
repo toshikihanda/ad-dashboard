@@ -222,6 +222,186 @@ export function aggregateCombinations(
   return results;
 }
 
+/** カスタム期間の最大日数（不正に長い範囲を防ぐ） */
+export const KNOWLEDGE_CUSTOM_PERIOD_MAX_DAYS = 120;
+
+/**
+ * JST 基準で集計開始・終了日（YYYY-MM-DD）を解決する。
+ * - preset 7d: 今日を含む過去7日
+ * - preset 30d: 今日を含む過去30日
+ * - custom: startDate / endDate（YYYY-MM-DD）必須
+ */
+export function resolvePeriodRangeJST(input: {
+  preset?: '7d' | '30d' | 'custom';
+  startDate?: string;
+  endDate?: string;
+}): { startStr: string; endStr: string; label: string } {
+  const today = formatDateStr(getJSTNow());
+  const iso = /^\d{4}-\d{2}-\d{2}$/;
+
+  if (input.preset === 'custom') {
+    const s = (input.startDate || '').trim();
+    const e = (input.endDate || '').trim();
+    if (!iso.test(s) || !iso.test(e)) {
+      throw new Error('カスタム期間は startDate / endDate を YYYY-MM-DD で指定してください');
+    }
+    if (s > e) {
+      throw new Error('開始日は終了日以前である必要があります');
+    }
+    const startMs = Date.parse(s + 'T00:00:00');
+    const endMs = Date.parse(e + 'T00:00:00');
+    const days = Math.floor((endMs - startMs) / (24 * 60 * 60 * 1000)) + 1;
+    if (days > KNOWLEDGE_CUSTOM_PERIOD_MAX_DAYS) {
+      throw new Error(`カスタム期間は最大${KNOWLEDGE_CUSTOM_PERIOD_MAX_DAYS}日までです`);
+    }
+    return {
+      startStr: s,
+      endStr: e,
+      label: `指定期間（${s}〜${e}）`,
+    };
+  }
+
+  if (input.preset === '30d') {
+    const start = daysBefore(29);
+    const startStr = formatDateStr(start);
+    return {
+      startStr,
+      endStr: today,
+      label: `直近30日（${startStr}〜${today}）`,
+    };
+  }
+
+  // デフォルト: 7d（今日を含む7日 = 6日前〜今日）
+  const start7 = daysBefore(6);
+  const start7Str = formatDateStr(start7);
+  return {
+    startStr: start7Str,
+    endStr: today,
+    label: `直近7日（${start7Str}〜${today}）`,
+  };
+}
+
+/**
+ * 指定した日付範囲（YYYY-MM-DD、両端含む）だけを集計する。
+ * baseline 系は 0（期間モードでは baseline 比較をしない）。
+ */
+export function aggregateCombinationsInPeriod(
+  data: ProcessedRow[],
+  startStr: string,
+  endStr: string,
+  options?: AggregateCombinationsOptions
+): AggregatedCombo[] {
+  let beyondData = data.filter(row => row.Media === 'Beyond');
+
+  const allowed = options?.allowedCampaignSubstrings?.map(s => s.trim().toLowerCase()).filter(Boolean);
+  if (allowed?.length) {
+    beyondData = beyondData.filter(row => {
+      const cn = (row.Campaign_Name || '').trim().toLowerCase();
+      if (!cn) return false;
+      return allowed.some(tok => cn.includes(tok));
+    });
+  }
+
+  const groups = new Map<
+    string,
+    {
+      rows: ProcessedRow[];
+      campaignCounts: Map<string, number>;
+    }
+  >();
+
+  for (const row of beyondData) {
+    const vn = (row.version_name || '').trim();
+    const cv = (row.creative_value || '').trim();
+    if (!vn || !cv) continue;
+
+    const rowDateStr = formatDateStr(row.Date);
+    if (rowDateStr < startStr || rowDateStr > endStr) continue;
+
+    const key = `${vn}||${cv}`;
+    if (!groups.has(key)) {
+      groups.set(key, { rows: [], campaignCounts: new Map() });
+    }
+    const group = groups.get(key)!;
+
+    const cn = (row.Campaign_Name || '').trim();
+    if (cn) {
+      group.campaignCounts.set(cn, (group.campaignCounts.get(cn) || 0) + 1);
+    }
+    group.rows.push(row);
+  }
+
+  const results: AggregatedCombo[] = [];
+
+  for (const [key, group] of groups) {
+    const [vn, cv] = key.split('||');
+
+    const cost = group.rows.reduce((s, r) => s + r.Cost, 0);
+    const cvSum = group.rows.reduce((s, r) => s + r.CV, 0);
+    const clicks = group.rows.reduce((s, r) => s + r.Clicks, 0);
+
+    let dominantCampaign = '';
+    let maxCount = 0;
+    for (const [name, count] of group.campaignCounts) {
+      if (count > maxCount) {
+        dominantCampaign = name;
+        maxCount = count;
+      }
+    }
+
+    results.push({
+      version_name: vn,
+      creative_value: cv,
+      campaign_name: dominantCampaign,
+      cost_current: cost,
+      cv_current: cvSum,
+      clicks_current: clicks,
+      cpa_current: safeDivide(cost, cvSum),
+      cvr_current: cvSum > 0 && clicks > 0 ? (cvSum / clicks) * 100 : 0,
+      cost_baseline: 0,
+      cv_baseline: 0,
+      clicks_baseline: 0,
+      cpa_baseline: 0,
+      cvr_baseline: 0,
+    });
+  }
+
+  return results;
+}
+
+/**
+ * 期間集計モード: 選択期間内の CV 合計が 2 以上の組み合わせのみ候補とする（複数CV）。
+ * baseline が無いため CPA 比較は行わず、ナレッジ生成用に judge_type=good として扱う。
+ */
+export function judgeCombinationsForPeriod(combos: AggregatedCombo[]): JudgedCombo[] {
+  const results: JudgedCombo[] = [];
+
+  for (const combo of combos) {
+    if (combo.cv_current < 2) continue;
+
+    results.push({
+      ...combo,
+      cpa_ratio: 1,
+      judge_type: 'good',
+      confidence: combo.cv_current === 2 ? 'low' : 'normal',
+    });
+  }
+
+  return results;
+}
+
+/** 期間モード: CV 多い順で上位 N 件（good/bad 分割なし） */
+export function selectTopCandidatesForPeriod(
+  judged: JudgedCombo[],
+  maxTotal: number = 15
+): { good: JudgedCombo[]; bad: JudgedCombo[] } {
+  const sorted = [...judged].sort((a, b) => b.cv_current - a.cv_current);
+  return {
+    good: sorted.slice(0, maxTotal),
+    bad: [],
+  };
+}
+
 // --- 判定ロジック ---
 
 export interface JudgedCombo extends AggregatedCombo {
@@ -552,17 +732,42 @@ export interface CandidateGenerationInput {
   existingKnowledge: string;
 }
 
+export interface CandidateGenerationPromptOptions {
+  /** 期間集計モード（baseline 比較なし）のときラベルを渡す */
+  periodLabel?: string;
+}
+
 /**
  * AI に渡すプロンプトを構築する。バグ修正: existingKnowledge をプロンプトに注入。
  */
 export function buildCandidateGenerationPrompt(
-  inputs: CandidateGenerationInput[]
+  inputs: CandidateGenerationInput[],
+  promptOptions?: CandidateGenerationPromptOptions
 ): string {
   // バグ修正: existingKnowledge を全 input で共通なので最初の1つから取得
   const existingKnowledge = inputs[0]?.existingKnowledge || '';
+  const periodLabel = promptOptions?.periodLabel;
 
   const candidateBlocks = inputs.map((input, i) => {
     const { combo, scriptExcerpt, articleExcerpt } = input;
+
+    if (periodLabel) {
+      return `
+### 候補 ${i + 1}: ${combo.version_name} × ${combo.creative_value}（期間内実績）
+- 集計期間: ${periodLabel}
+- 出稿金額: ${Math.round(combo.cost_current)}円 / CV（期間合計）: ${combo.cv_current} / 商品LP遷移: ${combo.clicks_current}
+- CPA: ${Math.round(combo.cpa_current)}円 / CVR: ${combo.cvr_current.toFixed(2)}%
+- 確度: ${combo.confidence}
+- 抽出条件: 上記期間において CV が 2 以上の記事×クリエイティブの組み合わせです。台本・原稿と数値を照らし、汎用的なナレッジを生成してください。
+
+台本抜粋:
+${scriptExcerpt ? scriptExcerpt.slice(0, 800) : '（台本データなし）'}
+
+原稿抜粋:
+${articleExcerpt ? articleExcerpt.slice(0, 800) : '（原稿データなし）'}
+`;
+    }
+
     const ratioPercent = Math.round((combo.cpa_ratio - 1) * 100);
     const direction = combo.judge_type === 'good' ? '改善' : '悪化';
 
@@ -581,10 +786,14 @@ ${articleExcerpt ? articleExcerpt.slice(0, 800) : '（原稿データなし）'}
 `;
   }).join('\n---\n');
 
+  const modeNote = periodLabel
+    ? `\n## 集計モード\nユーザーが選択した期間内の実績のみを用いています（過去ベースラインとのCPA比較は行っていません）。\n`
+    : '';
+
   return `
 あなたは広告運用のナレッジ管理AIです。
-以下の記事×クリエイティブ組み合わせについて、数値差分・台本・原稿を踏まえてナレッジ候補を生成してください。
-
+以下の記事×クリエイティブ組み合わせについて、数値${periodLabel ? '（期間内）' : '差分'}・台本・原稿を踏まえてナレッジ候補を生成してください。
+${modeNote}
 ## 既存ナレッジ（重複しない新しい知見を生成すること）
 ${existingKnowledge ? existingKnowledge.slice(0, 3000) : '（まだナレッジがありません）'}
 
@@ -710,7 +919,11 @@ export function buildCandidateRows(
       cv_baseline: combo.cv_baseline,
       cvr_current: Math.round(combo.cvr_current * 100) / 100,
       cvr_baseline: Math.round(combo.cvr_baseline * 100) / 100,
-      summary: ai.knowledge_text || `${combo.version_name} × ${combo.creative_value}: CPA ${combo.judge_type === 'good' ? '改善' : '悪化'}`,
+      summary:
+        ai.knowledge_text ||
+        (combo.cpa_baseline <= 0 && combo.cv_baseline <= 0
+          ? `${combo.version_name} × ${combo.creative_value}: 期間内CV${combo.cv_current}（複数CV）`
+          : `${combo.version_name} × ${combo.creative_value}: CPA ${combo.judge_type === 'good' ? '改善' : '悪化'}`),
       hypothesis_good_points: ai.good_points.join(' / '),
       hypothesis_bad_points: ai.bad_points.join(' / '),
       next_action: ai.next_actions.join(' / '),

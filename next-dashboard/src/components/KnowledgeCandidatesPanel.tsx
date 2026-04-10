@@ -71,6 +71,21 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
     SkippedNoEvidenceItem[] | null
   >(null);
 
+  /** ナレッジ生成の集計期間（自動Cronは無効・手動のみ） */
+  const [periodPreset, setPeriodPreset] = useState<'7d' | '30d' | 'custom'>('7d');
+  const [customStart, setCustomStart] = useState('');
+  const [customEnd, setCustomEnd] = useState('');
+
+  useEffect(() => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(start.getDate() - 6);
+    const fmt = (d: Date) =>
+      `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+    setCustomStart(fmt(start));
+    setCustomEnd(fmt(end));
+  }, []);
+
   const fetchCandidates = useCallback(async () => {
     setLoading(true);
     setError('');
@@ -119,15 +134,33 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
 
   const handleGenerate = async () => {
     if (isDemo) return;
+    if (periodPreset === 'custom') {
+      if (!customStart || !customEnd) {
+        setError('カスタム期間では開始日・終了日を指定してください');
+        return;
+      }
+      if (customStart > customEnd) {
+        setError('開始日は終了日以前にしてください');
+        return;
+      }
+    }
     setGenerating(true);
     setError('');
     setGenerateInfo('');
     setGenerateSkippedNoEvidence(null);
     try {
+      const body: Record<string, unknown> = { manual: true };
+      if (periodPreset === 'custom') {
+        body.preset = 'custom';
+        body.startDate = customStart;
+        body.endDate = customEnd;
+      } else {
+        body.preset = periodPreset;
+      }
       const res = await fetch('/api/knowledge-candidates/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ manual: true }),
+        body: JSON.stringify(body),
       });
       const data = await res.json().catch(() => ({}));
       if (!res.ok) {
@@ -193,6 +226,56 @@ export function KnowledgeCandidatesPanel({ isDemo }: KnowledgeCandidatesPanelPro
 
   return (
     <div className="space-y-4">
+      <div className="bg-white border border-gray-200 rounded-lg p-3 text-[11px] text-gray-700 space-y-2">
+        <p className="font-semibold text-gray-800">集計期間（手動生成のみ）</p>
+        <p className="text-gray-500 leading-relaxed">
+          自動でのナレッジ生成は行いません。下の期間で Beyond を集計し、
+          <strong className="text-gray-700"> 記事（version）×クリエイティブ</strong> ごとに{' '}
+          <strong className="text-gray-700">期間中のCV合計が2以上</strong>
+          の組み合わせから候補を抽出し、台本・原稿とあわせてAIが提案します（上位最大15件）。
+        </p>
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-gray-500 shrink-0">プリセット:</span>
+          {(['7d', '30d', 'custom'] as const).map(p => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => setPeriodPreset(p)}
+              className={cn(
+                'px-2.5 py-1 rounded border text-[11px] font-medium transition-colors',
+                periodPreset === p
+                  ? 'bg-blue-600 text-white border-blue-600'
+                  : 'bg-white border-gray-200 text-gray-700 hover:bg-gray-50'
+              )}
+            >
+              {p === '7d' ? '過去7日（今日含む）' : p === '30d' ? '過去30日（今日含む）' : '日付を指定'}
+            </button>
+          ))}
+        </div>
+        {periodPreset === 'custom' && (
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+            <label className="flex items-center gap-1.5 text-gray-600">
+              開始
+              <input
+                type="date"
+                value={customStart}
+                onChange={e => setCustomStart(e.target.value)}
+                className="border border-gray-200 rounded px-2 py-1 text-[11px]"
+              />
+            </label>
+            <label className="flex items-center gap-1.5 text-gray-600">
+              終了
+              <input
+                type="date"
+                value={customEnd}
+                onChange={e => setCustomEnd(e.target.value)}
+                className="border border-gray-200 rounded px-2 py-1 text-[11px]"
+              />
+            </label>
+          </div>
+        )}
+      </div>
+
       {/* ヘッダー */}
       <div className="flex items-center justify-between flex-wrap gap-2">
         <div className="flex items-center gap-3">
