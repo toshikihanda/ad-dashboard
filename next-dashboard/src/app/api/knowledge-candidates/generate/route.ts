@@ -240,7 +240,8 @@ export async function POST(request: NextRequest) {
       scriptExcerpts,
       articleExcerpts,
       runId,
-      processedData
+      processedData,
+      rawData.Master_Setting
     );
 
     // 6. シートに追記

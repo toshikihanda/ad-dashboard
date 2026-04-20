@@ -902,13 +902,47 @@ export function inferCampaignNameForCombo(
   return '';
 }
 
+/**
+ * Beyond 行の beyond_page_name と Master_Setting の「Beyond名」（部分一致）で突合し、
+ * 「管理用案件名」を返す。dataProcessor の findProjectByBeyondKeyword と同じ考え方。
+ * 集計で支配 Campaign_Name が空でも、ページ名とマスタが取れていれば商材を復元できる。
+ */
+export function inferCampaignNameFromMasterSetting(
+  versionName: string,
+  creativeValue: string,
+  data: ProcessedRow[],
+  masterSetting: Record<string, string>[]
+): string {
+  if (!masterSetting?.length) return '';
+  const vn = versionName.trim();
+  const cv = creativeValue.trim();
+  if (!vn || !cv) return '';
+
+  for (const row of data) {
+    if (row.Media !== 'Beyond') continue;
+    if ((row.version_name || '').trim() !== vn) continue;
+    if ((row.creative_value || '').trim() !== cv) continue;
+    const bpn = (row.beyond_page_name || '').trim();
+    if (!bpn) continue;
+
+    for (const mrow of masterSetting) {
+      const proj = getCol(mrow, '管理用案件名', 'Project').trim();
+      const beyondKw = getCol(mrow, 'Beyond名').trim();
+      if (!proj || !beyondKw) continue;
+      if (bpn.includes(beyondKw)) return proj;
+    }
+  }
+  return '';
+}
+
 export function buildCandidateRows(
   combos: JudgedCombo[],
   aiResults: AIGeneratedKnowledge[],
   scriptExcerpts: Map<string, string>,
   articleExcerpts: Map<string, string>,
   runId: string,
-  processedData: ProcessedRow[]
+  processedData: ProcessedRow[],
+  masterSetting?: Record<string, string>[]
 ): KnowledgeCandidate[] {
   const now = getJSTNow();
   const createdAt = `${formatDateStr(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -928,6 +962,12 @@ export function buildCandidateRows(
     const campaignResolved =
       (combo.campaign_name && combo.campaign_name.trim()) ||
       inferCampaignNameForCombo(combo.version_name, combo.creative_value, processedData) ||
+      inferCampaignNameFromMasterSetting(
+        combo.version_name,
+        combo.creative_value,
+        processedData,
+        masterSetting || []
+      ) ||
       '';
     return {
       id: generateId(),

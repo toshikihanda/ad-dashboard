@@ -625,12 +625,9 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
                           <span>{c.campaign_name}</span>
                         ) : (
                           <span>
-                            —（指定期間の Beyond 行に{' '}
-                            <code className="text-[10px] bg-white/90 px-1 rounded border border-amber-200/80">
-                              Campaign_Name
-                            </code>{' '}
-                            が入っていないと、集計だけでは商材が決まりません。下の「この商材のみ」で指定するか、シート側を確認してください。新規生成では
-                            同一記事×クリの他日付から補完する場合があります）
+                            —（集計行に商材が入っていないか、旧データです。本来は Master_Setting の Beyond名 と Beyond のページ名を突合して
+                            管理用案件名が付きます。新規生成では
+                            同一記事×クリの他日付からの補完や Master_Setting からの照合も行います。下の「この商材のみ」で指定するか、シートを確認してください）
                           </span>
                         )}
                       </div>
