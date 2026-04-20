@@ -881,12 +881,34 @@ export function parseAIResponse(text: string): AIGeneratedKnowledge[] {
 
 // --- 最終候補オブジェクト構築 ---
 
+/**
+ * 期間集計で商材が空だった場合、同一 version×creative の Beyond 行を全データから走査し、
+ * 最初に見つかった Campaign_Name を補完する（スプレッドシートで期間外には商材が入っているケース向け）。
+ */
+export function inferCampaignNameForCombo(
+  versionName: string,
+  creativeValue: string,
+  data: ProcessedRow[]
+): string {
+  const vn = versionName.trim();
+  const cv = creativeValue.trim();
+  for (const row of data) {
+    if (row.Media !== 'Beyond') continue;
+    if ((row.version_name || '').trim() !== vn) continue;
+    if ((row.creative_value || '').trim() !== cv) continue;
+    const cn = (row.Campaign_Name || '').trim();
+    if (cn) return cn;
+  }
+  return '';
+}
+
 export function buildCandidateRows(
   combos: JudgedCombo[],
   aiResults: AIGeneratedKnowledge[],
   scriptExcerpts: Map<string, string>,
   articleExcerpts: Map<string, string>,
-  runId: string
+  runId: string,
+  processedData: ProcessedRow[]
 ): KnowledgeCandidate[] {
   const now = getJSTNow();
   const createdAt = `${formatDateStr(now)} ${String(now.getHours()).padStart(2, '0')}:${String(now.getMinutes()).padStart(2, '0')}`;
@@ -903,6 +925,10 @@ export function buildCandidateRows(
     };
 
     const key = `${combo.version_name}||${combo.creative_value}`;
+    const campaignResolved =
+      (combo.campaign_name && combo.campaign_name.trim()) ||
+      inferCampaignNameForCombo(combo.version_name, combo.creative_value, processedData) ||
+      '';
     return {
       id: generateId(),
       created_at: createdAt,
@@ -911,7 +937,7 @@ export function buildCandidateRows(
       confidence: combo.confidence,
       version_name: combo.version_name,
       creative: combo.creative_value,
-      campaign_name: combo.campaign_name || '',
+      campaign_name: campaignResolved,
       cpa_current: Math.round(combo.cpa_current),
       cpa_baseline: Math.round(combo.cpa_baseline),
       cpa_ratio: Math.round(combo.cpa_ratio * 100) / 100,

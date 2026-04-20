@@ -1,5 +1,3 @@
-import { PRESET_TAGS } from '@/constants/knowledgeTags';
-
 const STORAGE_KEY = 'meta-dashboard-knowledge-items-v1';
 export const MIN_RATING_FOR_CHAT_STORAGE_KEY = 'meta-dashboard-knowledge-min-rating-v1';
 
@@ -16,7 +14,7 @@ export type KnowledgeItem = {
     isAllProducts: boolean;
     /** 星1〜5 */
     rating: number;
-    /** プリセットタグ */
+    /** ジャンル（チェック＋自由記入。旧 presetTags キー互換） */
     presetTags: string[];
     createdAt: string;
     updatedAt: string;
@@ -118,12 +116,8 @@ export function getKnowledgeTextForPrompt(
     if (filtered.length === 0) return '';
 
     const lines = filtered.map((it) => {
-        const tags = [
-            ...it.genderTags,
-            ...it.ageTags,
-            ...it.presetTags.filter((t) => (PRESET_TAGS as readonly string[]).includes(t)),
-        ];
-        const tagStr = tags.length ? ` [${tags.join(', ')}]` : '';
+        const tags = [...it.genderTags, ...it.ageTags, ...it.presetTags];
+        const tagStr = tags.length ? ` [ジャンル/属性: ${tags.join(', ')}]` : '';
         const star = '★'.repeat(Math.min(5, Math.max(1, it.rating)));
         const scope = it.isAllProducts ? '全商材' : it.productName || '商材指定';
         return `- (${star}) ${scope}${tagStr}\n  ${it.summary.trim()}`;

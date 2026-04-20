@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { cn } from '@/lib/utils';
 import type { SkippedNoEvidenceItem } from '@/lib/knowledgeCandidates';
-import { KNOWLEDGE_AGE_OPTIONS, PRESET_TAGS } from '@/constants/knowledgeTags';
+import { KNOWLEDGE_AGE_OPTIONS, KNOWLEDGE_GENRE_OPTIONS } from '@/constants/knowledgeTags';
 import { upsertKnowledgeItem, type KnowledgeItem } from '@/lib/knowledgeStore';
 
 const GENDER_OPTIONS = ['男性', '女性', 'その他'] as const;
@@ -85,7 +85,9 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
   const [productModeById, setProductModeById] = useState<Record<string, 'select' | 'custom'>>({});
   const [genderById, setGenderById] = useState<Record<string, string[]>>({});
   const [ageById, setAgeById] = useState<Record<string, string[]>>({});
-  const [presetById, setPresetById] = useState<Record<string, string[]>>({});
+  /** ジャンル（一覧チェック＋自由記入で追加した文字列） */
+  const [genreTagsById, setGenreTagsById] = useState<Record<string, string[]>>({});
+  const [customGenreDraftById, setCustomGenreDraftById] = useState<Record<string, string>>({});
 
   useEffect(() => {
     const end = new Date();
@@ -117,7 +119,7 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
       });
       setGenderById((prev) => (prev[c.id] ? prev : { ...prev, [c.id]: [] }));
       setAgeById((prev) => (prev[c.id] ? prev : { ...prev, [c.id]: [] }));
-      setPresetById((prev) => (prev[c.id] ? prev : { ...prev, [c.id]: [] }));
+      setGenreTagsById((prev) => (prev[c.id] ? prev : { ...prev, [c.id]: [] }));
     },
     [masterProjects]
   );
@@ -237,7 +239,7 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
     const parts = [`星${r}`, allP ? '全商材' : `商材:${product || '—'}`];
     if (g.length) parts.push(`性別:${g.join('/')}`);
     if (a.length) parts.push(`年齢:${a.join('/')}`);
-    if (p.length) parts.push(`タグ:${p.join('/')}`);
+    if (p.length) parts.push(`ジャンル:${p.join('/')}`);
     return parts.join(' | ');
   };
 
@@ -267,7 +269,7 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
     try {
       const g = genderById[c.id] ?? [];
       const ag = ageById[c.id] ?? [];
-      const pr = presetById[c.id] ?? [];
+      const pr = genreTagsById[c.id] ?? [];
       const allP = allProductsById[c.id] ?? false;
       const product = (productScopeById[c.id] ?? c.campaign_name ?? '').trim();
       const r = ratingById[c.id] ?? 3;
@@ -329,18 +331,46 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
 
   const pendingCount = candidates.filter((c) => c.status === 'pending').length;
 
-  const toggleStr = (id: string, key: 'gender' | 'age' | 'preset', value: string) => {
+  const toggleStr = (id: string, key: 'gender' | 'age' | 'genre', value: string) => {
     const map =
-      key === 'gender' ? genderById : key === 'age' ? ageById : presetById;
+      key === 'gender' ? genderById : key === 'age' ? ageById : genreTagsById;
     const setMap =
-      key === 'gender' ? setGenderById : key === 'age' ? setAgeById : setPresetById;
+      key === 'gender' ? setGenderById : key === 'age' ? setAgeById : setGenreTagsById;
     const cur = map[id] || [];
     const next = cur.includes(value) ? cur.filter((x) => x !== value) : [...cur, value];
     setMap((prev) => ({ ...prev, [id]: next }));
   };
 
+  const addCustomGenre = (id: string) => {
+    const raw = (customGenreDraftById[id] || '').trim();
+    if (!raw) return;
+    setGenreTagsById((prev) => {
+      const cur = prev[id] || [];
+      if (cur.includes(raw)) return prev;
+      return { ...prev, [id]: [...cur, raw] };
+    });
+    setCustomGenreDraftById((prev) => ({ ...prev, [id]: '' }));
+  };
+
   return (
     <div className="space-y-4">
+      <details className="bg-slate-50 border border-slate-200 rounded-lg p-3 text-[11px] text-gray-700">
+        <summary className="cursor-pointer font-semibold text-gray-800 list-none">
+          採用時の動き（AI・データ）を見る
+        </summary>
+        <ul className="mt-2 list-disc pl-4 space-y-1.5 text-gray-600 leading-relaxed">
+          <li>
+            <strong className="text-gray-800">スプレッドシート</strong>
+            の Knowledge に、要約のほか星・商材スコープ・性別・年齢・ジャンルがメタ付きで追記されます。
+          </li>
+          <li>
+            <strong className="text-gray-800">AIチャット</strong>
+            は、ブラウザに保存されたナレッジのうち、画面上で選んだ商材に合うものを参照用にプロンプトへ含めます。ジャンルや属性は本文の前に短く表示され、
+            <strong>文脈として読みます</strong>（ジャンルごとに自動で採否を切るわけではありません）。
+          </li>
+        </ul>
+      </details>
+
       <div className="bg-white border border-gray-200 rounded-lg p-3 text-[11px] text-gray-700 space-y-2">
         <p className="font-semibold text-gray-800">集計期間（手動生成のみ）</p>
         <p className="text-gray-500 leading-relaxed">
@@ -588,9 +618,22 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
 
                 {isExpanded && (
                   <div className="px-3 pb-3 space-y-3 border-t border-gray-100">
-                    <div className="pt-3 rounded-lg bg-amber-50/50 border border-amber-100 px-2 py-2 text-[11px] text-amber-950">
-                      <span className="font-bold">商材名: </span>
-                      {c.campaign_name || '—（スコープ欄で指定してください）'}
+                    <div className="pt-3 rounded-lg bg-amber-50/50 border border-amber-100 px-2 py-2 text-[11px] text-amber-950 space-y-1">
+                      <div>
+                        <span className="font-bold">商材名: </span>
+                        {c.campaign_name ? (
+                          <span>{c.campaign_name}</span>
+                        ) : (
+                          <span>
+                            —（指定期間の Beyond 行に{' '}
+                            <code className="text-[10px] bg-white/90 px-1 rounded border border-amber-200/80">
+                              Campaign_Name
+                            </code>{' '}
+                            が入っていないと、集計だけでは商材が決まりません。下の「この商材のみ」で指定するか、シート側を確認してください。新規生成では
+                            同一記事×クリの他日付から補完する場合があります）
+                          </span>
+                        )}
+                      </div>
                     </div>
 
                     <div>
@@ -653,23 +696,31 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
 
                     {c.status === 'pending' && (
                       <div className="pt-2 border-t border-gray-100 space-y-3">
-                        <div className="flex flex-wrap items-center gap-3">
-                          <span className="text-[10px] font-medium text-gray-600">評価（1〜5）</span>
-                          <div className="flex gap-0.5">
-                            {[1, 2, 3, 4, 5].map((n) => (
-                              <button
-                                key={n}
-                                type="button"
-                                onClick={() => setRatingById((prev) => ({ ...prev, [c.id]: n }))}
-                                className={cn(
-                                  'text-lg leading-none px-0.5 rounded transition-colors',
-                                  (ratingById[c.id] ?? 3) >= n ? 'text-amber-500' : 'text-gray-200'
-                                )}
-                              >
-                                ★
-                              </button>
-                            ))}
+                        <div className="flex flex-wrap items-center gap-2">
+                          <span className="text-[10px] font-medium text-gray-600 shrink-0">評価（1〜5）</span>
+                          <div className="flex gap-1 items-center" role="group" aria-label="1から5で評価">
+                            {[1, 2, 3, 4, 5].map((n) => {
+                              const r = ratingById[c.id] ?? 3;
+                              const on = r >= n;
+                              return (
+                                <button
+                                  key={n}
+                                  type="button"
+                                  onClick={() => setRatingById((prev) => ({ ...prev, [c.id]: n }))}
+                                  className={cn(
+                                    'w-9 h-9 flex items-center justify-center rounded-md border text-lg leading-none transition-colors',
+                                    on
+                                      ? 'border-amber-400 bg-amber-50 text-amber-500 shadow-sm'
+                                      : 'border-gray-200 bg-white text-gray-300'
+                                  )}
+                                  aria-label={`${n}の星`}
+                                >
+                                  {on ? '★' : '☆'}
+                                </button>
+                              );
+                            })}
                           </div>
+                          <span className="text-[10px] text-gray-500">（{ratingById[c.id] ?? 3} / 5）</span>
                         </div>
 
                         <label className="flex items-center gap-2 text-[11px] cursor-pointer">
@@ -772,17 +823,20 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
                           </div>
                         </div>
 
-                        <div>
-                          <span className="text-[10px] font-medium text-gray-500 block mb-1">タグ</span>
+                        <div className="space-y-2">
+                          <span className="text-[10px] font-medium text-gray-500 block">ジャンル</span>
+                          <p className="text-[10px] text-gray-500 leading-relaxed">
+                            よく使うジャンルを選び、足りなければ下に自由入力してください（複数可）。
+                          </p>
                           <div className="flex flex-wrap gap-1">
-                            {PRESET_TAGS.map((t) => (
+                            {KNOWLEDGE_GENRE_OPTIONS.map((t) => (
                               <button
                                 key={t}
                                 type="button"
-                                onClick={() => toggleStr(c.id, 'preset', t)}
+                                onClick={() => toggleStr(c.id, 'genre', t)}
                                 className={cn(
-                                  'px-2 py-0.5 text-[10px] rounded-full border',
-                                  (presetById[c.id] || []).includes(t)
+                                  'px-2 py-0.5 text-[10px] rounded-full border text-left max-w-[200px]',
+                                  (genreTagsById[c.id] || []).includes(t)
                                     ? 'bg-violet-600 text-white border-violet-600'
                                     : 'bg-white border-gray-200 text-gray-600'
                                 )}
@@ -791,6 +845,56 @@ export function KnowledgeCandidatesPanel({ isDemo, masterProjects }: KnowledgeCa
                               </button>
                             ))}
                           </div>
+                          <div className="flex flex-wrap gap-1.5 items-center">
+                            <input
+                              type="text"
+                              value={customGenreDraftById[c.id] ?? ''}
+                              onChange={(e) =>
+                                setCustomGenreDraftById((prev) => ({ ...prev, [c.id]: e.target.value }))
+                              }
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') {
+                                  e.preventDefault();
+                                  addCustomGenre(c.id);
+                                }
+                              }}
+                              placeholder="ジャンルを自由入力（Enterで追加）"
+                              className="flex-1 min-w-[160px] text-[11px] border border-gray-200 rounded px-2 py-1"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => addCustomGenre(c.id)}
+                              className="px-2 py-1 text-[10px] font-medium rounded border border-violet-300 text-violet-700 bg-violet-50 hover:bg-violet-100"
+                            >
+                              追加
+                            </button>
+                          </div>
+                          {(genreTagsById[c.id] || []).length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 items-center pt-1">
+                              <span className="text-[10px] text-gray-500 shrink-0">選択中:</span>
+                              {(genreTagsById[c.id] || []).map((tag) => (
+                                <span
+                                  key={tag}
+                                  className="inline-flex items-center gap-0.5 pl-2 pr-1 py-0.5 rounded-full bg-violet-100 text-violet-900 text-[10px] border border-violet-200 max-w-full"
+                                >
+                                  <span className="truncate">{tag}</span>
+                                  <button
+                                    type="button"
+                                    className="shrink-0 rounded-full px-1 hover:bg-violet-200 leading-none"
+                                    onClick={() =>
+                                      setGenreTagsById((prev) => ({
+                                        ...prev,
+                                        [c.id]: (prev[c.id] || []).filter((t) => t !== tag),
+                                      }))
+                                    }
+                                    aria-label={`${tag}を外す`}
+                                  >
+                                    ×
+                                  </button>
+                                </span>
+                              ))}
+                            </div>
+                          )}
                         </div>
 
                         <div>

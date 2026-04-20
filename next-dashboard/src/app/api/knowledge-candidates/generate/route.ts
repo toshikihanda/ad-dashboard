@@ -239,7 +239,8 @@ export async function POST(request: NextRequest) {
       aiResults,
       scriptExcerpts,
       articleExcerpts,
-      runId
+      runId,
+      processedData
     );
 
     // 6. シートに追記

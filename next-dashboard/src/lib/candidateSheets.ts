@@ -259,7 +259,7 @@ export type KnowledgeAppendMeta = {
 function buildKnowledgeSheetBody(candidate: KnowledgeCandidate, meta: KnowledgeAppendMeta): string {
   const lines: string[] = [];
   lines.push(
-    `[メタ] 星${meta.rating}/5 | ${meta.isAllProducts ? '全商材' : `商材:${meta.productScopeName || candidate.campaign_name || '—'}`} | 性別:${meta.genderTags.join(',') || '—'} | 年齢:${meta.ageTags.join(',') || '—'} | タグ:${meta.presetTags.join(',') || '—'} [/メタ]`
+    `[メタ] 星${meta.rating}/5 | ${meta.isAllProducts ? '全商材' : `商材:${meta.productScopeName || candidate.campaign_name || '—'}`} | 性別:${meta.genderTags.join(',') || '—'} | 年齢:${meta.ageTags.join(',') || '—'} | ジャンル:${meta.presetTags.join(',') || '—'} [/メタ]`
   );
   lines.push('');
   lines.push(meta.summary);

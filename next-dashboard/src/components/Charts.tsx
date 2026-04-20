@@ -50,6 +50,26 @@ function formatYAxis(value: number): string {
     return value.toLocaleString('ja-JP');
 }
 
+/** Recharts Tooltip の formatter 用（ValueType が number | string など混在するため） */
+function formatTooltipValue(value: unknown): string {
+    if (value === undefined || value === null) return '';
+    if (typeof value === 'number') return value.toLocaleString('ja-JP');
+    if (typeof value === 'string') {
+        return Number.isFinite(Number(value)) ? Number(value).toLocaleString('ja-JP') : value;
+    }
+    return String(value);
+}
+
+function toTooltipNumber(value: unknown): number | undefined {
+    if (value === undefined || value === null) return undefined;
+    if (typeof value === 'number' && Number.isFinite(value)) return value;
+    if (typeof value === 'string') {
+        const n = Number(value);
+        return Number.isFinite(n) ? n : undefined;
+    }
+    return undefined;
+}
+
 function formatDate(dateStr: string): string {
     const parts = dateStr.split('-');
     if (parts.length < 3) return dateStr;
@@ -101,9 +121,7 @@ export function RevenueChart({ data, title }: ChartProps) {
                             backgroundColor: 'rgba(255, 255, 255, 0.98)',
                             padding: '10px 14px',
                         }}
-                        formatter={(value: number | undefined) =>
-                            value !== undefined ? value.toLocaleString('ja-JP') : ''
-                        }
+                        formatter={(value) => formatTooltipValue(value)}
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend
@@ -148,9 +166,7 @@ export function CostChart({ data, title }: ChartProps) {
                             backgroundColor: 'rgba(255, 255, 255, 0.98)',
                             padding: '10px 14px',
                         }}
-                        formatter={(value: number | undefined) =>
-                            value !== undefined ? value.toLocaleString('ja-JP') : ''
-                        }
+                        formatter={(value) => formatTooltipValue(value)}
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend
@@ -195,9 +211,7 @@ export function CVChart({ data, title }: ChartProps) {
                             backgroundColor: 'rgba(255, 255, 255, 0.98)',
                             padding: '10px 14px',
                         }}
-                        formatter={(value: number | undefined) =>
-                            value !== undefined ? value.toLocaleString('ja-JP') : ''
-                        }
+                        formatter={(value) => formatTooltipValue(value)}
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend
@@ -278,9 +292,10 @@ export function RateChart({ data, title, numeratorKey, denominatorKey, multiplie
                             backgroundColor: 'rgba(255, 255, 255, 0.98)',
                             padding: '10px 14px',
                         }}
-                        formatter={(value: number | undefined) =>
-                            value !== undefined ? `${value.toFixed(2)}%` : ''
-                        }
+                        formatter={(value) => {
+                            const n = toTooltipNumber(value);
+                            return n !== undefined ? `${n.toFixed(2)}%` : '';
+                        }}
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend
@@ -361,9 +376,10 @@ export function CostMetricChart({ data, title, costDivisorKey, multiplier = 1 }:
                             backgroundColor: 'rgba(255, 255, 255, 0.98)',
                             padding: '10px 14px',
                         }}
-                        formatter={(value: number | undefined) =>
-                            value !== undefined ? value.toLocaleString('ja-JP', { maximumFractionDigits: 0 }) : ''
-                        }
+                        formatter={(value) => {
+                            const n = toTooltipNumber(value);
+                            return n !== undefined ? n.toLocaleString('ja-JP', { maximumFractionDigits: 0 }) : '';
+                        }}
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend
@@ -415,9 +431,12 @@ export function GenericBarChart({ data, title, dataKey, unit = '' }: GenericChar
                             backgroundColor: 'rgba(255, 255, 255, 0.98)',
                             padding: '10px 14px',
                         }}
-                        formatter={(value: number | undefined) =>
-                            value !== undefined ? `${value.toLocaleString('ja-JP', { maximumFractionDigits: unit === '%' ? 1 : 0 })}${unit}` : ''
-                        }
+                        formatter={(value) => {
+                            const n = toTooltipNumber(value);
+                            return n !== undefined
+                                ? `${n.toLocaleString('ja-JP', { maximumFractionDigits: unit === '%' ? 1 : 0 })}${unit}`
+                                : '';
+                        }}
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend
@@ -517,9 +536,10 @@ export function GenericRateChart({
                             backgroundColor: 'rgba(255, 255, 255, 0.98)',
                             padding: '10px 14px',
                         }}
-                        formatter={(value: number | undefined) =>
-                            value !== undefined ? `${value.toFixed(2)}${unit}` : ''
-                        }
+                        formatter={(value) => {
+                            const n = toTooltipNumber(value);
+                            return n !== undefined ? `${n.toFixed(2)}${unit}` : '';
+                        }}
                         labelFormatter={(label) => `日付: ${label}`}
                     />
                     <Legend
