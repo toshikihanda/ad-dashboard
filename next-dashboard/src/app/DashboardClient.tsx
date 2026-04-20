@@ -17,6 +17,7 @@ import PeriodComparisonModal from '@/components/PeriodComparisonModal';
 import { MultiSelect } from '@/components/MultiSelect';
 import { ChatBot } from '@/components/ChatBot';
 import { KnowledgeCandidatesPanel } from '@/components/KnowledgeCandidatesPanel';
+import { KnowledgeWorkbench } from '@/components/KnowledgeWorkbench';
 
 interface DashboardClientProps {
     initialData: ProcessedRow[];
@@ -565,7 +566,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                             : 'text-gray-600 hover:bg-gray-200/50 md:text-gray-600 md:hover:bg-gray-200'
                                     )}
                                 >
-                                    ナレッジ候補
+                                    ナレッジ候補・工房
                                 </button>
                             </div>
                         </div>
@@ -784,9 +785,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     )}
                 </div>
 
-                {/* ナレッジ候補タブ */}
                 {selectedTab === 'knowledge' && (
-                    <KnowledgeCandidatesPanel isDemo={isDemo} />
+                    <>
+                        <KnowledgeCandidatesPanel isDemo={isDemo} />
+                        <div className="mt-8 border-t border-amber-200/60 pt-6">
+                            <KnowledgeWorkbench masterProjects={masterProjects} />
+                        </div>
+                    </>
                 )}
 
                 {/* KPI Cards */}
@@ -948,8 +953,8 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPC" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCPA" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" rateType="fvExit" />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" rateType="svExit" />
                             </div>
                         </>
                     )}
@@ -998,8 +1003,8 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             <div className="h-4" />
                             {/* Row 3: FV離脱率、SV離脱率、回収率 */}
                             <div className="grid grid-cols-3 gap-4">
-                                <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" />
-                                <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" />
+                                <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" rateType="fvExit" />
+                                <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" rateType="svExit" />
                                 <GenericRateChart data={filteredData} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
                             </div>
                         </>
@@ -1290,6 +1295,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                 articleMasterData={articleMasterData}
                 creativeMasterData={creativeMasterData}
                 reportListData={reportListData}
+                knowledgeProductHint={selectedCampaigns[0] ?? ''}
             />
         </>
     );

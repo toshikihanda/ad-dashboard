@@ -49,10 +49,77 @@ export function safeDivide(numerator: number, denominator: number): number {
     return numerator / denominator;
 }
 
+export interface ExitMetrics {
+    fvExitCount: number;
+    svExitCount: number;
+    fvEligiblePv: number;
+    svEligiblePv: number;
+    fvExitRate: number;
+    svExitRate: number;
+    totalExitRate: number;
+}
+
+export function calculateExitMetrics(pv: number, fvExit: number, svExit: number): ExitMetrics {
+    const normalizedPv = Math.max(pv, 0);
+    const normalizedFvExit = Math.min(Math.max(fvExit, 0), normalizedPv);
+    const remainingAfterFv = Math.max(normalizedPv - normalizedFvExit, 0);
+    const normalizedSvExit = Math.min(Math.max(svExit, 0), remainingAfterFv);
+
+    return {
+        fvExitCount: normalizedFvExit,
+        svExitCount: normalizedSvExit,
+        fvEligiblePv: normalizedPv,
+        svEligiblePv: remainingAfterFv,
+        fvExitRate: safeDivide(normalizedFvExit, normalizedPv) * 100,
+        svExitRate: safeDivide(normalizedSvExit, remainingAfterFv) * 100,
+        totalExitRate: safeDivide(normalizedFvExit + normalizedSvExit, normalizedPv) * 100,
+    };
+}
+
 function parseNumber(value: string | undefined): number {
     if (!value) return 0;
     const num = parseFloat(value.replace(/,/g, ''));
     return isNaN(num) ? 0 : num;
+}
+
+function firstPresentNumber(row: Record<string, string>, keys: string[]): number | null {
+    for (const key of keys) {
+        if (row[key] !== undefined && row[key] !== '') {
+            return parseNumber(row[key]);
+        }
+    }
+    return null;
+}
+
+function normalizeBeyondExitCounts(row: Record<string, string>, pv: number): { fvExit: number; svExit: number } {
+    const rawFvExit = firstPresentNumber(row, ['fv_exit']) ?? 0;
+    const rawSvExit = firstPresentNumber(row, ['sv_exit']) ?? 0;
+    const rawFvRate = firstPresentNumber(row, ['fver']);
+    const rawSvRate = firstPresentNumber(row, ['sver']);
+
+    const normalizedPv = Math.max(pv, 0);
+
+    let fvExit = rawFvExit;
+    if (rawFvRate !== null && rawFvRate >= 0 && rawFvRate <= 100) {
+        fvExit = normalizedPv * (rawFvRate / 100);
+    } else if (rawFvExit > normalizedPv && rawFvExit <= 100 && normalizedPv > 0) {
+        // Older rows sometimes store FV離脱率 in the fv_exit column.
+        fvExit = normalizedPv * (rawFvExit / 100);
+    }
+    fvExit = Math.min(Math.max(fvExit, 0), normalizedPv);
+
+    const remainingAfterFv = Math.max(normalizedPv - fvExit, 0);
+
+    let svExit = rawSvExit;
+    if (rawSvRate !== null && rawSvRate >= 0 && rawSvRate <= 100) {
+        svExit = remainingAfterFv * (rawSvRate / 100);
+    } else if (rawSvExit > remainingAfterFv && rawSvExit <= 100 && remainingAfterFv > 0) {
+        // Older rows sometimes store SV離脱率 in the sv_exit column.
+        svExit = remainingAfterFv * (rawSvExit / 100);
+    }
+    svExit = Math.min(Math.max(svExit, 0), remainingAfterFv);
+
+    return { fvExit, svExit };
 }
 
 function parseDate(dateStr: string): Date {
@@ -413,6 +480,8 @@ function processBeyondData(
 
         const cost = parseNumber(row['cost']);
         const cv = parseNumber(row['cv']);
+        const pv = parseNumber(row['pv']);
+        const { fvExit, svExit } = normalizeBeyondExitCounts(row, pv);
 
         let revenue = 0;
         let profit = 0;
@@ -440,9 +509,9 @@ function processBeyondData(
             Clicks: parseNumber(row['click']),
             CV: cv,
             MCV: 0,
-            PV: parseNumber(row['pv']),
-            FV_Exit: parseNumber(row['fv_exit']),
-            SV_Exit: parseNumber(row['sv_exit']),
+            PV: pv,
+            FV_Exit: fvExit,
+            SV_Exit: svExit,
             Revenue: revenue,
             Gross_Profit: profit,
             Video_3Sec_Views: 0,

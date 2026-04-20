@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics } from '@/lib/dataProcessor';
 
 interface FilterSelection {
     beyondPageNames: string[];
@@ -174,6 +174,7 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
     const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
     const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+    const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
     // Revenue and Profit are already calculated in ProcessedRow
     const beyondRevenue = beyondData.reduce((sum, row) => sum + row.Revenue, 0);
@@ -214,9 +215,9 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
         pv,
         fvExit,
         svExit,
-        fvExitRate: safeDivide(fvExit, pv) * 100,
-        svExitRate: safeDivide(svExit, pv - fvExit) * 100,
-        totalExitRate: safeDivide(fvExit + svExit, pv) * 100,
+        fvExitRate: exitMetrics.fvExitRate,
+        svExitRate: exitMetrics.svExitRate,
+        totalExitRate: exitMetrics.totalExitRate,
     };
 }
 

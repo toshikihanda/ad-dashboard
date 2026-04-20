@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics } from '@/lib/dataProcessor';
 
 interface VersionMetricsTableProps {
     data: ProcessedRow[];
@@ -77,6 +77,7 @@ function aggregateByVersion(data: ProcessedRow[]): VersionRow[] {
         const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
         const totalCost = beyondCost > 0 ? beyondCost : metaCost;
         if (totalCost === 0) continue;
@@ -102,8 +103,8 @@ function aggregateByVersion(data: ProcessedRow[]): VersionRow[] {
             cpc: safeDivide(totalCost, metaClicks),
             mcpa: safeDivide(totalCost, beyondClicks),
             cpa: safeDivide(totalCost, cv),
-            fvExitRate: safeDivide(fvExit, pv) * 100,
-            svExitRate: safeDivide(svExit, pv - fvExit) * 100,
+            fvExitRate: exitMetrics.fvExitRate,
+            svExitRate: exitMetrics.svExitRate,
             hasMetaData
         });
     }

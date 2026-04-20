@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ProcessedRow, safeDivide, CreativeMasterItem } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics, CreativeMasterItem } from '@/lib/dataProcessor';
 
 interface CreativeMetricsTableProps {
     data: ProcessedRow[];
@@ -91,6 +91,7 @@ function aggregateByCreative(data: ProcessedRow[]): CreativeRow[] {
         const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
         // User request: Cost for Creative Metrics should come from Meta only.
         const totalCost = metaCost;
@@ -131,8 +132,8 @@ function aggregateByCreative(data: ProcessedRow[]): CreativeRow[] {
             cpc: safeDivide(totalCost, metaClicks),
             mcpa: safeDivide(totalCost, beyondClicks),
             cpa: safeDivide(totalCost, cv),
-            fvExitRate: safeDivide(fvExit, pv) * 100,
-            svExitRate: safeDivide(svExit, pv - fvExit) * 100,
+            fvExitRate: exitMetrics.fvExitRate,
+            svExitRate: exitMetrics.svExitRate,
             video3SecViews,
             video3SecCost,
             video3SecRate

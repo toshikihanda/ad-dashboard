@@ -12,7 +12,7 @@ import {
     Legend,
     ResponsiveContainer,
 } from 'recharts';
-import { ProcessedRow } from '@/lib/dataProcessor';
+import { ProcessedRow, calculateExitMetrics } from '@/lib/dataProcessor';
 
 interface ChartProps {
     data: ProcessedRow[];
@@ -446,9 +446,18 @@ interface GenericRateChartProps extends ChartProps {
     denominatorKey: keyof ProcessedRow;
     multiplier?: number;
     unit?: string;
+    rateType?: 'default' | 'fvExit' | 'svExit';
 }
 
-export function GenericRateChart({ data, title, numeratorKey, denominatorKey, multiplier = 100, unit = '%' }: GenericRateChartProps) {
+export function GenericRateChart({
+    data,
+    title,
+    numeratorKey,
+    denominatorKey,
+    multiplier = 100,
+    unit = '%',
+    rateType = 'default',
+}: GenericRateChartProps) {
     const campaigns = [...new Set(data.map(row => row.Campaign_Name))];
     const colorMap = getCampaignColorMap(campaigns);
     const dateMap = new Map<string, ChartDataPoint>();
@@ -464,20 +473,29 @@ export function GenericRateChart({ data, title, numeratorKey, denominatorKey, mu
     // Calculate rates per campaign per date
     for (const campaign of campaigns) {
         const campaignData = data.filter(row => row.Campaign_Name === campaign);
-        const campaignDateAgg = new Map<string, { num: number; den: number }>();
+        const campaignDateAgg = new Map<string, { num: number; den: number; pv: number; fvExit: number; svExit: number }>();
 
         for (const row of campaignData) {
             const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
             const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
-            const existing = campaignDateAgg.get(dateKey) || { num: 0, den: 0 };
+            const existing = campaignDateAgg.get(dateKey) || { num: 0, den: 0, pv: 0, fvExit: 0, svExit: 0 };
             existing.num += row[numeratorKey] as number;
             existing.den += row[denominatorKey] as number;
+            existing.pv += row.PV;
+            existing.fvExit += row.FV_Exit;
+            existing.svExit += row.SV_Exit;
             campaignDateAgg.set(dateKey, existing);
         }
 
         for (const [dateKey, agg] of campaignDateAgg) {
             const point = dateMap.get(dateKey)!;
-            point[campaign] = agg.den > 0 ? (agg.num / agg.den) * multiplier : 0;
+            if (rateType === 'fvExit') {
+                point[campaign] = calculateExitMetrics(agg.pv, agg.fvExit, agg.svExit).fvExitRate;
+            } else if (rateType === 'svExit') {
+                point[campaign] = calculateExitMetrics(agg.pv, agg.fvExit, agg.svExit).svExitRate;
+            } else {
+                point[campaign] = agg.den > 0 ? (agg.num / agg.den) * multiplier : 0;
+            }
         }
     }
 

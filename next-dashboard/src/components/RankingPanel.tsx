@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics } from '@/lib/dataProcessor';
 
 interface RankingPanelProps {
     data: ProcessedRow[];
@@ -124,6 +124,7 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
     const totalCV = beyondRows.reduce((sum, row) => sum + row.CV, 0);
     const totalFvExit = beyondRows.reduce((sum, row) => sum + row.FV_Exit, 0);
     const totalSvExit = beyondRows.reduce((sum, row) => sum + row.SV_Exit, 0);
+    const exitMetrics = calculateExitMetrics(totalPV, totalFvExit, totalSvExit);
 
     // 表示用項目: 出稿金額はBeyond、売上はBeyond、MetaからはImpとClicksを持ってくる
     const firstBeyond = beyondRows[0];
@@ -150,8 +151,8 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
         cpa: totalCV > 0 ? displayCost / totalCV : Infinity,
         fvExit: totalFvExit,
         svExit: totalSvExit,
-        fvExitRate: safeDivide(totalFvExit, totalPV) * 100,
-        svExitRate: safeDivide(totalSvExit, totalPV - totalFvExit) * 100,
+        fvExitRate: exitMetrics.fvExitRate,
+        svExitRate: exitMetrics.svExitRate,
     };
 }
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useMemo } from 'react';
-import { ProcessedRow, safeDivide, filterByDateRange, filterByCampaign } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics, filterByDateRange, filterByCampaign } from '@/lib/dataProcessor';
 
 interface PeriodComparisonModalProps {
     isOpen: boolean;
@@ -79,6 +79,7 @@ export default function PeriodComparisonModal({ isOpen, onClose, data, campaigns
         const beyondPV = beyondData.reduce((sum, row) => sum + row.PV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const exitMetrics = calculateExitMetrics(beyondPV, fvExit, svExit);
         const revenue = periodData.reduce((sum, row) => sum + row.Revenue, 0);
         // IHの場合は粗利=売上となるため、ProcessedRowのGross_Profitを使用
         const profit = periodData.reduce((sum, row) => sum + row.Gross_Profit, 0);
@@ -101,8 +102,8 @@ export default function PeriodComparisonModal({ isOpen, onClose, data, campaigns
             cpc: safeDivide(metaCost, metaClicks),
             mcpa: safeDivide(beyondCost, beyondClicks),
             cpa: safeDivide(beyondCost, beyondCV),
-            fvExitRate: safeDivide(fvExit, beyondPV) * 100,
-            svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
+            fvExitRate: exitMetrics.fvExitRate,
+            svExitRate: exitMetrics.svExitRate,
         };
     };
 

@@ -6,7 +6,7 @@
 // 商材ごとにテーブルを分けて表示
 
 import { useMemo } from 'react';
-import { ProcessedRow, safeDivide, filterByDateRange } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics, filterByDateRange } from '@/lib/dataProcessor';
 
 interface ReportSummaryTableProps {
     data: ProcessedRow[];
@@ -80,6 +80,7 @@ function aggregateData(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyon
     const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
     const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+    const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
     const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
 
@@ -100,8 +101,8 @@ function aggregateData(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyon
         cpc: viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, displayMetaEntry),
         mcpa: safeDivide(beyondCost, displayBeyondTransition),
         cpa: safeDivide(beyondCost, cv),
-        fvExitRate: safeDivide(fvExit, pv) * 100,
-        svExitRate: safeDivide(svExit, pv - fvExit) * 100,
+        fvExitRate: exitMetrics.fvExitRate,
+        svExitRate: exitMetrics.svExitRate,
     };
 }
 

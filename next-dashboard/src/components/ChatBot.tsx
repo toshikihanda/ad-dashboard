@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { ProcessedRow, safeDivide, CreativeMasterItem } from '@/lib/dataProcessor';
+import { getChatKnowledgeMinRating, getKnowledgeTextForPrompt } from '@/lib/knowledgeStore';
 
 interface ChatBotProps {
     data: ProcessedRow[];
@@ -11,6 +12,8 @@ interface ChatBotProps {
     creativeMasterData?: CreativeMasterItem[];
     articleMasterData?: Record<string, string>[];
     reportListData?: Record<string, string>[];
+    /** 商材フィルタ先頭 — ナレッジ工房の参照に使う */
+    knowledgeProductHint?: string;
 }
 
 interface Message {
@@ -20,7 +23,7 @@ interface Message {
     timestamp: number;
 }
 
-export function ChatBot({ data, masterProjects, creativeMasterData, articleMasterData, reportListData }: ChatBotProps) {
+export function ChatBot({ data, masterProjects, creativeMasterData, articleMasterData, reportListData, knowledgeProductHint = '' }: ChatBotProps) {
     const [isOpen, setIsOpen] = useState(false);
     const [messages, setMessages] = useState<Message[]>([
         {
@@ -198,7 +201,12 @@ ${(reportListData || []).slice(-5).map(r => `Date:${r.Date || r.CreatedAt || ''}
 
         try {
             // Prepare context
-            const contextData = getSummarizedData();
+            const summaryBlock = getSummarizedData();
+            const knowledgeBlock = getKnowledgeTextForPrompt(masterProjects, {
+                productHint: knowledgeProductHint,
+                minRating: getChatKnowledgeMinRating(),
+            });
+            const contextData = [summaryBlock, knowledgeBlock].filter(Boolean).join('\n\n');
 
             const historyForApi = messages
                 .filter(m => m.role !== 'assistant' || m.id !== 'welcome')

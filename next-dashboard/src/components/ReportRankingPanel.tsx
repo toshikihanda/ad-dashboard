@@ -4,7 +4,7 @@
 // 売上・粗利・回収率・ROASは表示しない
 
 import { useMemo, useState } from 'react';
-import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics } from '@/lib/dataProcessor';
 
 interface ReportRankingPanelProps {
     data: ProcessedRow[];
@@ -120,6 +120,7 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
     const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
     const fvExit = rows.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = rows.reduce((sum, row) => sum + row.SV_Exit, 0);
+    const exitMetrics = calculateExitMetrics(totalPV, fvExit, svExit);
 
     // version_name フィルター時は PV をクリック（入口）として扱う
     const displayEntryClicks = isVersionFilterActive ? totalPV : totalClicksRaw;
@@ -141,8 +142,8 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
         cpc: safeDivide(totalCost, totalPV),
         mcpa: safeDivide(totalCost, displayTransitionClicks),
         cpa: totalCV > 0 ? totalCost / totalCV : Infinity,
-        fvExitRate: safeDivide(fvExit, totalPV) * 100,
-        svExitRate: safeDivide(svExit, totalPV - fvExit) * 100,
+        fvExitRate: exitMetrics.fvExitRate,
+        svExitRate: exitMetrics.svExitRate,
     };
 }
 

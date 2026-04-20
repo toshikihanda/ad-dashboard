@@ -3,7 +3,7 @@
 // クライアント共有用日別データテーブル
 // 売上・粗利・回収率・ROASは表示しない
 
-import { ProcessedRow, safeDivide } from '@/lib/dataProcessor';
+import { ProcessedRow, safeDivide, calculateExitMetrics } from '@/lib/dataProcessor';
 
 interface ReportDailyDataTableProps {
     data: ProcessedRow[];
@@ -68,6 +68,7 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
         const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
         const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
 
@@ -96,8 +97,8 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
             mcpa: safeDivide(beyondCost, displayBeyondTransition),
             cpa: safeDivide(beyondCost, cv),
             pv,
-            fvExitRate: safeDivide(fvExit, pv) * 100,
-            svExitRate: safeDivide(svExit, pv - fvExit) * 100,
+            fvExitRate: exitMetrics.fvExitRate,
+            svExitRate: exitMetrics.svExitRate,
         });
     }
 
