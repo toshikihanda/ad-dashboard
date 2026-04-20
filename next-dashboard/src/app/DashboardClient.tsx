@@ -17,7 +17,6 @@ import PeriodComparisonModal from '@/components/PeriodComparisonModal';
 import { MultiSelect } from '@/components/MultiSelect';
 import { ChatBot } from '@/components/ChatBot';
 import { KnowledgeCandidatesPanel } from '@/components/KnowledgeCandidatesPanel';
-import { KnowledgeWorkbench } from '@/components/KnowledgeWorkbench';
 
 interface DashboardClientProps {
     initialData: ProcessedRow[];
@@ -566,7 +565,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                             : 'text-gray-600 hover:bg-gray-200/50 md:text-gray-600 md:hover:bg-gray-200'
                                     )}
                                 >
-                                    ナレッジ候補・工房
+                                    ナレッジ候補
                                 </button>
                             </div>
                         </div>
@@ -786,12 +785,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                 </div>
 
                 {selectedTab === 'knowledge' && (
-                    <>
-                        <KnowledgeCandidatesPanel isDemo={isDemo} />
-                        <div className="mt-8 border-t border-amber-200/60 pt-6">
-                            <KnowledgeWorkbench masterProjects={masterProjects} />
-                        </div>
-                    </>
+                    <KnowledgeCandidatesPanel isDemo={isDemo} masterProjects={masterProjects} />
                 )}
 
                 {/* KPI Cards */}

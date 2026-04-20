@@ -82,7 +82,9 @@ export async function updateCandidateStatus(
   status: 'approved' | 'rejected',
   comment: string,
   reasonCode?: string,
-  reasonText?: string
+  reasonText?: string,
+  /** レビュー時に要約を上書き（採用前の編集内容を保存） */
+  summaryOverride?: string
 ): Promise<KnowledgeCandidate | null> {
   const auth = await getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
@@ -101,6 +103,7 @@ export async function updateCandidateStatus(
   const commentCol = headers.indexOf('review_comment');
   const reasonCodeCol = headers.indexOf('review_reason_code');
   const reasonTextCol = headers.indexOf('review_reason_text');
+  const summaryCol = headers.indexOf('summary');
 
   if (idCol < 0 || statusCol < 0) return null;
 
@@ -136,6 +139,12 @@ export async function updateCandidateStatus(
       values: [[reasonText]],
     });
   }
+  if (summaryCol >= 0 && summaryOverride != null && summaryOverride !== '') {
+    data.push({
+      range: `${CANDIDATES_SHEET_NAME}!${columnLetter(summaryCol)}${rowNum}`,
+      values: [[summaryOverride]],
+    });
+  }
 
   await sheets.spreadsheets.values.batchUpdate({
     spreadsheetId: MASTER_SHEET_ID,
@@ -147,6 +156,9 @@ export async function updateCandidateStatus(
   if (commentCol >= 0) updatedRow[commentCol] = comment;
   if (reasonCodeCol >= 0 && reasonCode) updatedRow[reasonCodeCol] = reasonCode;
   if (reasonTextCol >= 0 && reasonText) updatedRow[reasonTextCol] = reasonText;
+  if (summaryCol >= 0 && summaryOverride != null && summaryOverride !== '') {
+    updatedRow[summaryCol] = summaryOverride;
+  }
 
   const rowObj: Record<string, string> = {};
   headers.forEach((h: string, i: number) => {
@@ -232,15 +244,44 @@ export async function appendReviewLog(
   });
 }
 
+/** 採用時に Knowledge シートへ書くメタ（チャット・人間向けに整形） */
+export type KnowledgeAppendMeta = {
+  summary: string;
+  rating: number;
+  isAllProducts: boolean;
+  /** 商材限定のときの商材名（全商材のときは空でも可） */
+  productScopeName: string;
+  genderTags: string[];
+  ageTags: string[];
+  presetTags: string[];
+};
+
+function buildKnowledgeSheetBody(candidate: KnowledgeCandidate, meta: KnowledgeAppendMeta): string {
+  const lines: string[] = [];
+  lines.push(
+    `[メタ] 星${meta.rating}/5 | ${meta.isAllProducts ? '全商材' : `商材:${meta.productScopeName || candidate.campaign_name || '—'}`} | 性別:${meta.genderTags.join(',') || '—'} | 年齢:${meta.ageTags.join(',') || '—'} | タグ:${meta.presetTags.join(',') || '—'} [/メタ]`
+  );
+  lines.push('');
+  lines.push(meta.summary);
+  return lines.join('\n');
+}
+
 // --- Knowledge シートへの転記 ---
 
-export async function appendToKnowledge(candidate: KnowledgeCandidate): Promise<void> {
+export async function appendToKnowledge(
+  candidate: KnowledgeCandidate,
+  meta?: KnowledgeAppendMeta
+): Promise<void> {
   const auth = await getGoogleAuth();
   const sheets = google.sheets({ version: 'v4', auth });
 
-  const category = candidate.judge_type === 'good' ? '良化パターン' : '悪化パターン';
+  const m = meta;
+  const productLabel = m?.isAllProducts
+    ? '全商材'
+    : m?.productScopeName || candidate.campaign_name || '商材未設定';
+  const category = `${candidate.judge_type === 'good' ? '良化パターン' : '悪化パターン'}｜${productLabel}${m ? `｜★${m.rating}` : ''}`;
   const subcategory = `${candidate.version_name} × ${candidate.creative}`;
-  const knowledgeText = candidate.summary;
+  const knowledgeText = m ? buildKnowledgeSheetBody(candidate, m) : candidate.summary;
 
   await sheets.spreadsheets.values.append({
     spreadsheetId: MASTER_SHEET_ID,

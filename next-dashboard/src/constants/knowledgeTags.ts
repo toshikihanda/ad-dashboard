@@ -1,4 +1,4 @@
-/** 年齢レンジ（ナレッジ工房） */
+/** 年齢レンジ（ナレッジ候補レビュー・チャット連携） */
 export const KNOWLEDGE_AGE_OPTIONS = [
     '10代',
     '20代',
@@ -8,7 +8,7 @@ export const KNOWLEDGE_AGE_OPTIONS = [
     '60代以上',
 ] as const;
 
-/** プリセットタグ（ナレッジ工房） */
+/** プリセットタグ（ナレッジ候補レビュー・チャット連携） */
 export const PRESET_TAGS = [
     '訴求',
     'ターゲット',
