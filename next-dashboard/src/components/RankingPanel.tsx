@@ -350,8 +350,8 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
                         <th onClick={() => onSort('cpc')} className={`${thClass} ${colW.cpc}`}>CPC{getSortIcon('cpc')}</th>
                         <th onClick={() => onSort('mcpa')} className={`${thClass} ${colW.mcpa}`}>MCPA{getSortIcon('mcpa')}</th>
                         <th onClick={() => onSort('cpa')} className={`${thClass} ${colW.cpa}`}>CPA{getSortIcon('cpa')}</th>
-                        <th onClick={() => onSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱{getSortIcon('fvExitRate')}</th>
-                        <th onClick={() => onSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱{getSortIcon('svExitRate')}</th>
+                        <th onClick={() => onSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱率{getSortIcon('fvExitRate')}</th>
+                        <th onClick={() => onSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱率{getSortIcon('svExitRate')}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

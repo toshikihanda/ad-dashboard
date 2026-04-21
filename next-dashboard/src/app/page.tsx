@@ -5,7 +5,7 @@ import DashboardClient from './DashboardClient';
 
 import { generateDemoData, getDemoProjectNames } from '@/lib/demoData';
 
-export const revalidate = 300; // Revalidate every 5 minutes
+export const revalidate = 0; // Always fetch latest sheets data
 export const dynamic = 'force-dynamic';
 
 interface PageProps {

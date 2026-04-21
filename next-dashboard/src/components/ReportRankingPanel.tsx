@@ -286,8 +286,8 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                         <th className={`${thClass} ${colW.cpc}`}>CPC</th>
                         <th className={`${thClass} ${colW.mcpa}`}>MCPA</th>
                         <th className={`${thClass} ${colW.cpa}`}>CPA</th>
-                        <th className={`${thClass} ${colW.fvExit}`}>FV離脱</th>
-                        <th className={`${thClass} ${colW.svExit}`}>SV離脱</th>
+                        <th className={`${thClass} ${colW.fvExit}`}>FV離脱率</th>
+                        <th className={`${thClass} ${colW.svExit}`}>SV離脱率</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">

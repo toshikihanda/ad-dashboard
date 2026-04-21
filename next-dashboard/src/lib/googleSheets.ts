@@ -39,7 +39,8 @@ export async function loadSheetData(sheetName: string, options?: { cache?: Reque
   const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}&tq=${encodeURIComponent('SELECT * LIMIT 50000')}`;
 
   try {
-    const response = await fetch(url, options?.cache !== undefined ? { cache: options.cache } : { next: { revalidate: 600, tags: ['sheets-data'] } });
+    // ダッシュボード値とシートの整合を優先し、デフォルトは no-store で常に最新を読む
+    const response = await fetch(url, options?.cache !== undefined ? { cache: options.cache } : { cache: 'no-store' });
     if (!response.ok) {
       console.error(`Sheet fetch failed: ${response.status}`);
       return [];

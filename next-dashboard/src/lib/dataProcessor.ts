@@ -92,32 +92,27 @@ function firstPresentNumber(row: Record<string, string>, keys: string[]): number
 }
 
 function normalizeBeyondExitCounts(row: Record<string, string>, pv: number): { fvExit: number; svExit: number } {
-    const rawFvExit = firstPresentNumber(row, ['fv_exit']) ?? 0;
-    const rawSvExit = firstPresentNumber(row, ['sv_exit']) ?? 0;
-    const rawFvRate = firstPresentNumber(row, ['fver']);
-    const rawSvRate = firstPresentNumber(row, ['sver']);
+    // 2026-04 以降はシートの I/J を「離脱率（0〜100、%記号なし）」として運用する。
+    // ここでは表示・集計互換のため、率を一旦「離脱数」に正規化して ProcessedRow に入れる。
+    // 優先: fver/sver -> fv_exit/sv_exit（どちらも率として解釈）
+    const rawFvRate = firstPresentNumber(row, ['fver', 'fv_exit']);
+    const rawSvRate = firstPresentNumber(row, ['sver', 'sv_exit']);
 
     const normalizedPv = Math.max(pv, 0);
 
-    let fvExit = rawFvExit;
-    if (rawFvRate !== null && rawFvRate >= 0 && rawFvRate <= 100) {
-        fvExit = normalizedPv * (rawFvRate / 100);
-    } else if (rawFvExit > normalizedPv && rawFvExit <= 100 && normalizedPv > 0) {
-        // Older rows sometimes store FV離脱率 in the fv_exit column.
-        fvExit = normalizedPv * (rawFvExit / 100);
-    }
-    fvExit = Math.min(Math.max(fvExit, 0), normalizedPv);
+    const normalizeRateTo01 = (raw: number | null): number => {
+        if (raw === null || !isFinite(raw)) return 0;
+        if (raw <= 0) return 0;
+        // 0〜1 は小数率、1超は 0〜100 の百分率として扱う
+        return raw <= 1 ? Math.min(raw, 1) : Math.min(raw / 100, 1);
+    };
+
+    const fvRate01 = normalizeRateTo01(rawFvRate);
+    const fvExit = Math.min(Math.max(normalizedPv * fvRate01, 0), normalizedPv);
 
     const remainingAfterFv = Math.max(normalizedPv - fvExit, 0);
-
-    let svExit = rawSvExit;
-    if (rawSvRate !== null && rawSvRate >= 0 && rawSvRate <= 100) {
-        svExit = remainingAfterFv * (rawSvRate / 100);
-    } else if (rawSvExit > remainingAfterFv && rawSvExit <= 100 && remainingAfterFv > 0) {
-        // Older rows sometimes store SV離脱率 in the sv_exit column.
-        svExit = remainingAfterFv * (rawSvExit / 100);
-    }
-    svExit = Math.min(Math.max(svExit, 0), remainingAfterFv);
+    const svRate01 = normalizeRateTo01(rawSvRate);
+    const svExit = Math.min(Math.max(remainingAfterFv * svRate01, 0), remainingAfterFv);
 
     return { fvExit, svExit };
 }

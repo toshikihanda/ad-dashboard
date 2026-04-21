@@ -313,8 +313,8 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
                                 <th onClick={() => handleSort('cpc')} className={`${thClass} ${colW.cpc}`}>CPC{getSortIcon('cpc')}</th>
                                 <th onClick={() => handleSort('mcpa')} className={`${thClass} ${colW.mcpa}`}>MCPA{getSortIcon('mcpa')}</th>
                                 <th onClick={() => handleSort('cpa')} className={`${thClass} ${colW.cpa}`}>CPA{getSortIcon('cpa')}</th>
-                                <th onClick={() => handleSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱{getSortIcon('fvExitRate')}</th>
-                                <th onClick={() => handleSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱{getSortIcon('svExitRate')}</th>
+                                <th onClick={() => handleSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱率{getSortIcon('fvExitRate')}</th>
+                                <th onClick={() => handleSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱率{getSortIcon('svExitRate')}</th>
                                 <th onClick={() => handleSort('video3SecViews')} className={`${thClass} ${colW.vid3} bg-blue-50 text-blue-700`}>3秒再生数{getSortIcon('video3SecViews')}</th>
                                 <th onClick={() => handleSort('video3SecCost')} className={`${thClass} ${colW.vid3Cost} bg-blue-50 text-blue-700`}>3秒再生単価{getSortIcon('video3SecCost')}</th>
                                 <th onClick={() => handleSort('video3SecRate')} className={`${thClass} ${colW.vid3Rate} bg-blue-50 text-blue-700`}>3秒再生率{getSortIcon('video3SecRate')}</th>
