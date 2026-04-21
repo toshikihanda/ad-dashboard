@@ -28,6 +28,7 @@ export interface ProcessedRow {
     PV: number;
     FV_Exit: number;
     SV_Exit: number;
+    OAR: number;
     Revenue: number;
     Gross_Profit: number;
     // New Video Metrics
@@ -115,6 +116,11 @@ function normalizeBeyondExitCounts(row: Record<string, string>, pv: number): { f
     const svExit = Math.min(Math.max(remainingAfterFv * svRate01, 0), remainingAfterFv);
 
     return { fvExit, svExit };
+}
+
+function normalizeRatePercent(raw: number | null): number {
+    if (raw === null || !isFinite(raw) || raw <= 0) return 0;
+    return raw <= 1 ? Math.min(raw * 100, 100) : Math.min(raw, 100);
 }
 
 function parseDate(dateStr: string): Date {
@@ -386,6 +392,7 @@ function processMetaData(
             PV: 0,
             FV_Exit: 0,
             SV_Exit: 0,
+            OAR: 0,
             Revenue: revenue,
             Gross_Profit: profit,
             Video_3Sec_Views: video3SecViews,
@@ -473,10 +480,11 @@ function processBeyondData(
 
         const versionName = (row['version_name'] || '').trim();
 
-        const cost = parseNumber(row['cost']);
+        const cost = firstPresentNumber(row, ['cost', 'ad_spending']) ?? 0;
         const cv = parseNumber(row['cv']);
         const pv = parseNumber(row['pv']);
         const { fvExit, svExit } = normalizeBeyondExitCounts(row, pv);
+        const oar = normalizeRatePercent(firstPresentNumber(row, ['oar']));
 
         let revenue = 0;
         let profit = 0;
@@ -507,6 +515,7 @@ function processBeyondData(
             PV: pv,
             FV_Exit: fvExit,
             SV_Exit: svExit,
+            OAR: oar,
             Revenue: revenue,
             Gross_Profit: profit,
             Video_3Sec_Views: 0,
@@ -555,6 +564,10 @@ export function aggregateByDate(data: ProcessedRow[], media?: 'Meta' | 'Beyond')
             existing.PV += row.PV;
             existing.FV_Exit += row.FV_Exit;
             existing.SV_Exit += row.SV_Exit;
+            const currentPv = existing.PV;
+            existing.OAR = currentPv > 0
+                ? (((existing.OAR * (currentPv - row.PV)) + (row.OAR * row.PV)) / currentPv)
+                : 0;
             existing.Revenue += row.Revenue;
             existing.Gross_Profit += row.Gross_Profit;
             existing.Video_3Sec_Views += row.Video_3Sec_Views;

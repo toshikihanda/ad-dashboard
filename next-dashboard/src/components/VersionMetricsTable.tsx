@@ -7,6 +7,7 @@ interface VersionMetricsTableProps {
     data: ProcessedRow[];
     title?: string;
     isReport?: boolean;
+    viewMode?: 'total' | 'meta' | 'beyond';
 }
 
 interface VersionRow {
@@ -30,6 +31,7 @@ interface VersionRow {
     cpa: number;
     fvExitRate: number;
     svExitRate: number;
+    oar: number;
     hasMetaData: boolean;
 }
 
@@ -45,7 +47,7 @@ function formatPercent(value: number): string {
     return `${value.toFixed(1)}%`;
 }
 
-function aggregateByVersion(data: ProcessedRow[]): VersionRow[] {
+function aggregateByVersion(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): VersionRow[] {
     const grouped = new Map<string, ProcessedRow[]>();
 
     for (const row of data) {
@@ -77,9 +79,12 @@ function aggregateByVersion(data: ProcessedRow[]): VersionRow[] {
         const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const oarWeightedSum = beyondData.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
         const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
-        const totalCost = beyondCost > 0 ? beyondCost : metaCost;
+        const totalCost = viewMode === 'beyond' ? beyondCost : (viewMode === 'meta' ? metaCost : (beyondCost > 0 ? beyondCost : metaCost));
+        const displayClicks = viewMode === 'beyond' ? beyondClicks : metaClicks;
+        const displayCpc = viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, metaClicks);
         if (totalCost === 0) continue;
 
         const campaign = rowData[0].Campaign_Name;
@@ -93,25 +98,26 @@ function aggregateByVersion(data: ProcessedRow[]): VersionRow[] {
             profit,
             roas: Math.floor(safeDivide(revenue, totalCost) * 100),
             impressions,
-            clicks: metaClicks,
+            clicks: displayClicks,
             mcv: beyondClicks,
             cv,
             ctr: safeDivide(metaClicks, impressions) * 100,
             mcvr: safeDivide(beyondClicks, pv) * 100,
             cvr: safeDivide(cv, beyondClicks) * 100,
             cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: safeDivide(totalCost, metaClicks),
-            mcpa: safeDivide(totalCost, beyondClicks),
-            cpa: safeDivide(totalCost, cv),
+            cpc: displayCpc,
+            mcpa: safeDivide(beyondCost, beyondClicks),
+            cpa: safeDivide(beyondCost, cv),
             fvExitRate: exitMetrics.fvExitRate,
             svExitRate: exitMetrics.svExitRate,
+            oar: safeDivide(oarWeightedSum, pv),
             hasMetaData
         });
     }
     return rows;
 }
 
-export function VersionMetricsTable({ data, title = '記事別数値', isReport = false }: VersionMetricsTableProps) {
+export function VersionMetricsTable({ data, title = '記事別数値', isReport = false, viewMode = 'total' }: VersionMetricsTableProps) {
     const [sortKey, setSortKey] = useState<SortType>('cost');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
 
@@ -131,7 +137,7 @@ export function VersionMetricsTable({ data, title = '記事別数値', isReport 
     };
 
     const sortedRows = useMemo(() => {
-        const rows = aggregateByVersion(data);
+        const rows = aggregateByVersion(data, viewMode);
         return rows.sort((a, b) => {
             const aVal = a[sortKey];
             const bVal = b[sortKey];
@@ -143,7 +149,7 @@ export function VersionMetricsTable({ data, title = '記事別数値', isReport 
             const bNum = (typeof bVal === 'number') ? bVal : 0;
             return sortOrder === 'asc' ? aNum - bNum : bNum - aNum;
         });
-    }, [data, sortKey, sortOrder]);
+    }, [data, sortKey, sortOrder, viewMode]);
 
     if (sortedRows.length === 0) {
         return (
@@ -173,7 +179,8 @@ export function VersionMetricsTable({ data, title = '記事別数値', isReport 
         mcpa: 'w-[65px]',
         cpa: 'w-[70px]',
         fvExit: 'w-[50px]',
-        svExit: 'w-[50px]'
+        svExit: 'w-[50px]',
+        oar: 'w-[50px]'
     };
 
     const thClass = "px-1.5 py-1 text-right text-[10px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors select-none";
@@ -207,6 +214,7 @@ export function VersionMetricsTable({ data, title = '記事別数値', isReport 
                                 <th onClick={() => handleSort('cpa')} className={`${thClass} ${colW.cpa}`}>CPA{getSortIcon('cpa')}</th>
                                 <th onClick={() => handleSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱率{getSortIcon('fvExitRate')}</th>
                                 <th onClick={() => handleSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱率{getSortIcon('svExitRate')}</th>
+                                <th onClick={() => handleSort('oar')} className={`${thClass} ${colW.oar}`}>OAR{getSortIcon('oar')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -233,6 +241,7 @@ export function VersionMetricsTable({ data, title = '記事別数値', isReport 
                                     <td className={`${tdClass} ${colW.cpa}`}>{formatNumber(row.cpa)}円</td>
                                     <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(row.fvExitRate)}</td>
                                     <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(row.svExitRate)}</td>
+                                    <td className={`${tdClass} ${colW.oar}`}>{formatPercent(row.oar)}</td>
                                 </tr>
                             ))}
                         </tbody>

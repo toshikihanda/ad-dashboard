@@ -43,6 +43,7 @@ interface TableRow {
     fvExitRate: number;
     svExitRate: number;
     totalExitRate: number;
+    oar: number;
 }
 
 // 組み合わせを生成
@@ -174,6 +175,7 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
     const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
     const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+    const oarWeightedSum = beyondData.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
     const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
     // Revenue and Profit are already calculated in ProcessedRow
@@ -218,6 +220,7 @@ function aggregateData(data: ProcessedRow[], label: string, viewMode: 'total' | 
         fvExitRate: exitMetrics.fvExitRate,
         svExitRate: exitMetrics.svExitRate,
         totalExitRate: exitMetrics.totalExitRate,
+        oar: safeDivide(oarWeightedSum, pv),
     };
 }
 
@@ -323,6 +326,7 @@ export function DataTable({ data, title, viewMode, filters, isReport = false }: 
         cpa: 'w-[70px]',
         fvExit: 'w-[50px]',
         svExit: 'w-[50px]',
+        oar: 'w-[50px]',
         totalExit: 'w-[55px]',
         pv: 'w-[55px]',
     };
@@ -406,6 +410,7 @@ export function DataTable({ data, title, viewMode, filters, isReport = false }: 
                                 <th onClick={() => handleSort('cpa')} className={`${thClass} ${colW.cpa}`}>CPA{getSortIcon('cpa')}</th>
                                 <th onClick={() => handleSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱率{getSortIcon('fvExitRate')}</th>
                                 <th onClick={() => handleSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱率{getSortIcon('svExitRate')}</th>
+                                <th onClick={() => handleSort('oar')} className={`${thClass} ${colW.oar}`}>OAR{getSortIcon('oar')}</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -424,6 +429,7 @@ export function DataTable({ data, title, viewMode, filters, isReport = false }: 
                                     <td className={`${tdClass} ${colW.cpa}`}>{formatNumber(row.cpa)}円</td>
                                     <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(row.fvExitRate)}</td>
                                     <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(row.svExitRate)}</td>
+                                    <td className={`${tdClass} ${colW.oar}`}>{formatPercent(row.oar)}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -460,6 +466,7 @@ export function DataTable({ data, title, viewMode, filters, isReport = false }: 
                             <th onClick={() => handleSort('cpa')} className={`${thClass} ${colW.cpa}`}>CPA{getSortIcon('cpa')}</th>
                             <th onClick={() => handleSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱率{getSortIcon('fvExitRate')}</th>
                             <th onClick={() => handleSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱率{getSortIcon('svExitRate')}</th>
+                            <th onClick={() => handleSort('oar')} className={`${thClass} ${colW.oar}`}>OAR{getSortIcon('oar')}</th>
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-100">
@@ -484,6 +491,7 @@ export function DataTable({ data, title, viewMode, filters, isReport = false }: 
                                 <td className={`${tdClass} ${colW.cpa}`}>{formatNumber(row.cpa)}円</td>
                                 <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(row.fvExitRate)}</td>
                                 <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(row.svExitRate)}</td>
+                                <td className={`${tdClass} ${colW.oar}`}>{formatPercent(row.oar)}</td>
                             </tr>
                         ))}
                     </tbody>

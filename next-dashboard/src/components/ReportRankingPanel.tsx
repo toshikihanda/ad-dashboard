@@ -31,6 +31,7 @@ interface RankingItem {
     cpa: number;
     fvExitRate: number;
     svExitRate: number;
+    oar: number;
     date?: string;
 }
 
@@ -120,6 +121,7 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
     const totalCV = rows.reduce((sum, row) => sum + row.CV, 0);
     const fvExit = rows.reduce((sum, row) => sum + row.FV_Exit, 0);
     const svExit = rows.reduce((sum, row) => sum + row.SV_Exit, 0);
+    const oarWeightedSum = rows.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
     const exitMetrics = calculateExitMetrics(totalPV, fvExit, svExit);
 
     // version_name フィルター時は PV をクリック（入口）として扱う
@@ -144,6 +146,7 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
         cpa: totalCV > 0 ? totalCost / totalCV : Infinity,
         fvExitRate: exitMetrics.fvExitRate,
         svExitRate: exitMetrics.svExitRate,
+        oar: safeDivide(oarWeightedSum, totalPV),
     };
 }
 
@@ -261,6 +264,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
         cpa: 'w-[70px]',
         fvExit: 'w-[50px]',
         svExit: 'w-[50px]',
+        oar: 'w-[50px]',
     };
 
     const thClass = "px-1.5 py-1 text-right text-[10px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
@@ -288,6 +292,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                         <th className={`${thClass} ${colW.cpa}`}>CPA</th>
                         <th className={`${thClass} ${colW.fvExit}`}>FV離脱率</th>
                         <th className={`${thClass} ${colW.svExit}`}>SV離脱率</th>
+                        <th className={`${thClass} ${colW.oar}`}>OAR</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -319,6 +324,7 @@ function RankingTable({ ranking, showDate }: RankingTableProps) {
                             <td className={`${tdClass} ${colW.cpa} font-bold text-orange-600`}>{formatNumber(item.cpa)}円</td>
                             <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(item.fvExitRate)}</td>
                             <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(item.svExitRate)}</td>
+                            <td className={`${tdClass} ${colW.oar}`}>{formatPercent(item.oar)}</td>
                         </tr>
                     ))}
                 </tbody>

@@ -465,7 +465,7 @@ interface GenericRateChartProps extends ChartProps {
     denominatorKey: keyof ProcessedRow;
     multiplier?: number;
     unit?: string;
-    rateType?: 'default' | 'fvExit' | 'svExit';
+    rateType?: 'default' | 'fvExit' | 'svExit' | 'oar';
 }
 
 export function GenericRateChart({
@@ -492,17 +492,18 @@ export function GenericRateChart({
     // Calculate rates per campaign per date
     for (const campaign of campaigns) {
         const campaignData = data.filter(row => row.Campaign_Name === campaign);
-        const campaignDateAgg = new Map<string, { num: number; den: number; pv: number; fvExit: number; svExit: number }>();
+        const campaignDateAgg = new Map<string, { num: number; den: number; pv: number; fvExit: number; svExit: number; oarWeighted: number }>();
 
         for (const row of campaignData) {
             const d = row.Date instanceof Date ? row.Date : new Date(row.Date);
             const dateKey = isNaN(d.getTime()) ? 'unknown' : d.toISOString().split('T')[0];
-            const existing = campaignDateAgg.get(dateKey) || { num: 0, den: 0, pv: 0, fvExit: 0, svExit: 0 };
+            const existing = campaignDateAgg.get(dateKey) || { num: 0, den: 0, pv: 0, fvExit: 0, svExit: 0, oarWeighted: 0 };
             existing.num += row[numeratorKey] as number;
             existing.den += row[denominatorKey] as number;
             existing.pv += row.PV;
             existing.fvExit += row.FV_Exit;
             existing.svExit += row.SV_Exit;
+            existing.oarWeighted += row.OAR * row.PV;
             campaignDateAgg.set(dateKey, existing);
         }
 
@@ -512,6 +513,8 @@ export function GenericRateChart({
                 point[campaign] = calculateExitMetrics(agg.pv, agg.fvExit, agg.svExit).fvExitRate;
             } else if (rateType === 'svExit') {
                 point[campaign] = calculateExitMetrics(agg.pv, agg.fvExit, agg.svExit).svExitRate;
+            } else if (rateType === 'oar') {
+                point[campaign] = agg.pv > 0 ? (agg.oarWeighted / agg.pv) : 0;
             } else {
                 point[campaign] = agg.den > 0 ? (agg.num / agg.den) * multiplier : 0;
             }

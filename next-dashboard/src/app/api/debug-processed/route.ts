@@ -49,6 +49,43 @@ export async function GET() {
             row.Date.toISOString().split('T')[0] === jstTodayStr
         );
 
+        // Debug for latest history date: inspect Beyond exit metrics by creative
+        const latestHistoryDate = uniqueBeyondHistoryDates[0] || '';
+        const latestHistoryRows = processedData.filter(row =>
+            row.Media === 'Beyond' && row.Date.toISOString().split('T')[0] === latestHistoryDate.replace(/\//g, '-')
+        );
+        const exitByCreative: Record<string, { pv: number; fvExit: number; svExit: number }> = {};
+        const exitByVersion: Record<string, { pv: number; fvExit: number; svExit: number }> = {};
+        for (const row of latestHistoryRows) {
+            const key = row.creative_value || row.Creative || '(empty)';
+            if (!exitByCreative[key]) exitByCreative[key] = { pv: 0, fvExit: 0, svExit: 0 };
+            exitByCreative[key].pv += row.PV;
+            exitByCreative[key].fvExit += row.FV_Exit;
+            exitByCreative[key].svExit += row.SV_Exit;
+
+            const versionKey = row.version_name || '(empty)';
+            if (!exitByVersion[versionKey]) exitByVersion[versionKey] = { pv: 0, fvExit: 0, svExit: 0 };
+            exitByVersion[versionKey].pv += row.PV;
+            exitByVersion[versionKey].fvExit += row.FV_Exit;
+            exitByVersion[versionKey].svExit += row.SV_Exit;
+        }
+        const latestExitSample = Object.entries(exitByCreative).slice(0, 30).map(([creative, v]) => ({
+            creative,
+            pv: v.pv,
+            fvExit: Math.round(v.fvExit * 100) / 100,
+            svExit: Math.round(v.svExit * 100) / 100,
+            fvExitRate: v.pv > 0 ? Math.round((v.fvExit / v.pv) * 10000) / 100 : 0,
+            svExitRate: v.pv - v.fvExit > 0 ? Math.round((v.svExit / (v.pv - v.fvExit)) * 10000) / 100 : 0,
+        }));
+        const latestExitByVersion = Object.entries(exitByVersion).slice(0, 30).map(([version, v]) => ({
+            version,
+            pv: v.pv,
+            fvExit: Math.round(v.fvExit * 100) / 100,
+            svExit: Math.round(v.svExit * 100) / 100,
+            fvExitRate: v.pv > 0 ? Math.round((v.fvExit / v.pv) * 10000) / 100 : 0,
+            svExitRate: v.pv - v.fvExit > 0 ? Math.round((v.svExit / (v.pv - v.fvExit)) * 10000) / 100 : 0,
+        }));
+
         // Check for matching issues - sample Beyond_Live rows
         const beyondLiveSample = rawData.Beyond_Live.slice(0, 5).map(row => ({
             date_jst: row['date_jst'],
@@ -91,6 +128,10 @@ export async function GET() {
                 byMedia,
                 todayRowCount: todayProcessed.length,
             },
+            latestHistoryDate,
+            latestHistoryBeyondRows: latestHistoryRows.length,
+            latestExitSample,
+            latestExitByVersion,
             beyondLiveSample,
             configsSummary,
         });

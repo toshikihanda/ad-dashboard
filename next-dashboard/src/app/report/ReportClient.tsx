@@ -462,6 +462,7 @@ export default function ReportClient({
         const beyondCV = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const oarWeightedSum = beyondData.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
 
         // --- version_name フィルター有効時の切り替え ---
         // フィルター時は PV を Clicks として扱う
@@ -502,6 +503,7 @@ export default function ReportClient({
                     : safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
             svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
+            oar: safeDivide(oarWeightedSum, beyondPV),
             totalExitRate: safeDivide(fvExit + svExit, beyondPV) * 100,
         };
     }, [filteredData, selectedTab, isVersionFilterActive]);
@@ -812,6 +814,7 @@ export default function ReportClient({
                         <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
                             <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            <KPICard label="OAR" value={fmtRate(kpis.oar)} unit="%" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                         </div>
                     </div>
                 )}
@@ -882,12 +885,14 @@ export default function ReportClient({
                         data={filteredData}
                         title={`■クリエイティブ別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
                         isReport={true}
+                        viewMode={selectedTab}
                     />
 
                     <VersionMetricsTable
                         data={filteredData}
                         title={`■記事別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
                         isReport={true}
+                        viewMode={selectedTab}
                     />
 
                     {reportPeriodDates && (
@@ -926,13 +931,14 @@ export default function ReportClient({
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CVR" numeratorKey="CV" denominatorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                             </div>
                             <div className="h-4" />
-                            {/* Row 3: CPM、CPC、MCPA、FV離脱率、SV離脱率 */}
+                            {/* Row 3: CPM、CPC、MCPA、FV離脱率、SV離脱率、OAR */}
                             <div className="grid grid-cols-3 gap-4">
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPC" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCPA" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" rateType="fvExit" />
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" rateType="svExit" />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="OAR" numeratorKey="OAR" denominatorKey="PV" rateType="oar" />
                             </div>
                         </>
                     )}
@@ -976,10 +982,11 @@ export default function ReportClient({
                                 <CostMetricChart data={filteredData} title="MCPA" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                             </div>
                             <div className="h-4" />
-                            {/* Row 3: FV離脱率、SV離脱率 */}
-                            <div className="grid grid-cols-2 gap-4">
+                            {/* Row 3: FV離脱率、SV離脱率、OAR */}
+                            <div className="grid grid-cols-3 gap-4">
                                 <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" rateType="fvExit" />
                                 <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" rateType="svExit" />
+                                <GenericRateChart data={filteredData} title="OAR" numeratorKey="OAR" denominatorKey="PV" rateType="oar" />
                             </div>
                         </>
                     )}

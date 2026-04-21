@@ -38,6 +38,7 @@ export function generateDemoData(): ProcessedRow[] {
                 PV: 0,
                 FV_Exit: 0,
                 SV_Exit: 0,
+                OAR: 0,
                 Revenue: 0,
                 Gross_Profit: 0,
                 Video_3Sec_Views: video3SecViews,
@@ -51,6 +52,7 @@ export function generateDemoData(): ProcessedRow[] {
             const pv = Math.floor(clicks * 1.2); // Metaクリック < PV (LP直接流入など含む想定)
             const fvExit = Math.floor(pv * 0.4);
             const svExit = Math.floor((pv - fvExit) * 0.2);
+            const oar = Math.random() * 45;
 
             data.push({
                 Date: date,
@@ -65,6 +67,7 @@ export function generateDemoData(): ProcessedRow[] {
                 PV: pv,
                 FV_Exit: fvExit,
                 SV_Exit: svExit,
+                OAR: oar,
                 Revenue: revenue,
                 Gross_Profit: profit,
                 Video_3Sec_Views: 0,

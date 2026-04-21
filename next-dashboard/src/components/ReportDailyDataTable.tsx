@@ -31,6 +31,7 @@ interface DailyTableRow {
     pv: number;
     fvExitRate: number;
     svExitRate: number;
+    oar: number;
 }
 
 function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond', isVersionFilterActive: boolean): DailyTableRow[] {
@@ -68,6 +69,7 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
         const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const oarWeightedSum = beyondData.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
         const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
         const displayCost = viewMode === 'meta' ? metaCost : beyondCost;
@@ -99,6 +101,7 @@ function aggregateByDateAndCampaign(data: ProcessedRow[], viewMode: 'total' | 'm
             pv,
             fvExitRate: exitMetrics.fvExitRate,
             svExitRate: exitMetrics.svExitRate,
+            oar: safeDivide(oarWeightedSum, pv),
         });
     }
 
@@ -151,6 +154,7 @@ export function ReportDailyDataTable({ data, title, viewMode, isVersionFilterAct
         cpa: 'w-[70px]',
         fvExit: 'w-[50px]',
         svExit: 'w-[50px]',
+        oar: 'w-[50px]',
     };
 
     const thClass = "px-1.5 py-1 text-right text-[10px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50";
@@ -181,6 +185,7 @@ export function ReportDailyDataTable({ data, title, viewMode, isVersionFilterAct
                                 <th className={`${thClass} ${colW.cpa}`}>CPA</th>
                                 <th className={`${thClass} ${colW.fvExit}`}>FV離脱率</th>
                                 <th className={`${thClass} ${colW.svExit}`}>SV離脱率</th>
+                                <th className={`${thClass} ${colW.oar}`}>OAR</th>
                             </tr>
                         </thead>
                         <tbody className="divide-y divide-gray-100">
@@ -203,6 +208,7 @@ export function ReportDailyDataTable({ data, title, viewMode, isVersionFilterAct
                                     <td className={`${tdClass} ${colW.cpa}`}>{formatNumber(row.cpa)}円</td>
                                     <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(row.fvExitRate)}</td>
                                     <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(row.svExitRate)}</td>
+                                    <td className={`${tdClass} ${colW.oar}`}>{formatPercent(row.oar)}</td>
                                 </tr>
                             ))}
                         </tbody>

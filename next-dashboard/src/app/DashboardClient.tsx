@@ -413,6 +413,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         const beyondCV = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const oarWeightedSum = beyondData.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
 
         // --- version_name フィルター有効時の切り替え ---
         // フィルター時は PV を Clicks として扱う
@@ -456,6 +457,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     : safeDivide(beyondCost, beyondCV),
             fvExitRate: safeDivide(fvExit, beyondPV) * 100,
             svExitRate: safeDivide(svExit, beyondPV - fvExit) * 100,
+            oar: safeDivide(oarWeightedSum, beyondPV),
             totalExitRate: safeDivide(fvExit + svExit, beyondPV) * 100,
             roas: Math.floor(safeDivide(revenue, selectedTab === 'meta' ? metaCost : beyondCost) * 100),
         };
@@ -816,6 +818,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source="Beyond" />
                                     <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source="Beyond" />
                                     <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source="Beyond" />
+                                    <KPICard label="OAR" value={fmtRate(kpis.oar)} unit="%" source="Beyond" />
                                 </>
                             ) : (
                                 <>
@@ -830,6 +833,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     <KPICard label="MCPA" value={fmtAmt(kpis.mcpa)} unit="円" source="Beyond" />
                                     <KPICard label="FV離脱率" value={fmtRate(kpis.fvExitRate)} unit="%" source="Beyond" />
                                     <KPICard label="SV離脱率" value={fmtRate(kpis.svExitRate)} unit="%" source="Beyond" />
+                                    <KPICard label="OAR" value={fmtRate(kpis.oar)} unit="%" source="Beyond" />
                                 </>
                             )}
                         </div>
@@ -899,11 +903,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                         data={filteredData}
                         title={`■クリエイティブ別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
                         creativeMasterData={creativeMasterData}
+                        viewMode={tableViewMode}
                     />
 
                     <VersionMetricsTable
                         data={filteredData}
                         title={`■記事別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
+                        viewMode={tableViewMode}
                     />
 
                     <DataTable data={todayData} title={`■案件別数値（${formatDateForTitle(today)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
@@ -942,13 +948,14 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CVR" numeratorKey="CV" denominatorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                             </div>
                             <div className="h-4" />
-                            {/* Row 3: CPM、CPC、MCPA、FV離脱率、SV離脱率、回収率 */}
+                            {/* Row 3: CPM、CPC、MCPA、FV離脱率、SV離脱率、OAR */}
                             <div className="grid grid-cols-3 gap-4">
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPM" costDivisorKey="Impressions" multiplier={1000} />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Meta')} title="CPC" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="MCPA" costDivisorKey={isVersionFilterActive ? "PV" : "Clicks"} />
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" rateType="fvExit" />
                                 <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" rateType="svExit" />
+                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="OAR" numeratorKey="OAR" denominatorKey="PV" rateType="oar" />
                             </div>
                         </>
                     )}
@@ -995,11 +1002,11 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 <CostMetricChart data={filteredData} title="MCPA" costDivisorKey="Clicks" />
                             </div>
                             <div className="h-4" />
-                            {/* Row 3: FV離脱率、SV離脱率、回収率 */}
+                            {/* Row 3: FV離脱率、SV離脱率、OAR */}
                             <div className="grid grid-cols-3 gap-4">
                                 <GenericRateChart data={filteredData} title="FV離脱率" numeratorKey="FV_Exit" denominatorKey="PV" rateType="fvExit" />
                                 <GenericRateChart data={filteredData} title="SV離脱率" numeratorKey="SV_Exit" denominatorKey="PV" rateType="svExit" />
-                                <GenericRateChart data={filteredData} title="回収率" numeratorKey="Revenue" denominatorKey="Cost" />
+                                <GenericRateChart data={filteredData} title="OAR" numeratorKey="OAR" denominatorKey="PV" rateType="oar" />
                             </div>
                         </>
                     )}

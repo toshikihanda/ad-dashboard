@@ -79,6 +79,7 @@ export default function PeriodComparisonModal({ isOpen, onClose, data, campaigns
         const beyondPV = beyondData.reduce((sum, row) => sum + row.PV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const oarWeightedSum = beyondData.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
         const exitMetrics = calculateExitMetrics(beyondPV, fvExit, svExit);
         const revenue = periodData.reduce((sum, row) => sum + row.Revenue, 0);
         // IHの場合は粗利=売上となるため、ProcessedRowのGross_Profitを使用
@@ -104,6 +105,7 @@ export default function PeriodComparisonModal({ isOpen, onClose, data, campaigns
             cpa: safeDivide(beyondCost, beyondCV),
             fvExitRate: exitMetrics.fvExitRate,
             svExitRate: exitMetrics.svExitRate,
+            oar: safeDivide(oarWeightedSum, beyondPV),
         };
     };
 
@@ -138,6 +140,7 @@ export default function PeriodComparisonModal({ isOpen, onClose, data, campaigns
             { label: 'CPA', valueA: metricsA.cpa, valueB: metricsB.cpa, unit: '円', goodIfLower: true },
             { label: 'FV離脱率', valueA: metricsA.fvExitRate, valueB: metricsB.fvExitRate, unit: '%', goodIfLower: true },
             { label: 'SV離脱率', valueA: metricsA.svExitRate, valueB: metricsB.svExitRate, unit: '%', goodIfLower: true },
+            { label: 'OAR', valueA: metricsA.oar, valueB: metricsB.oar, unit: '%', goodIfLower: false },
         ].map(m => ({
             ...m,
             diff: m.valueB - m.valueA,

@@ -32,6 +32,7 @@ interface RankingItem {
     svExit: number;
     fvExitRate: number;
     svExitRate: number;
+    oar: number;
     date?: string;
 }
 
@@ -124,6 +125,7 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
     const totalCV = beyondRows.reduce((sum, row) => sum + row.CV, 0);
     const totalFvExit = beyondRows.reduce((sum, row) => sum + row.FV_Exit, 0);
     const totalSvExit = beyondRows.reduce((sum, row) => sum + row.SV_Exit, 0);
+    const oarWeightedSum = beyondRows.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
     const exitMetrics = calculateExitMetrics(totalPV, totalFvExit, totalSvExit);
 
     // 表示用項目: 出稿金額はBeyond、売上はBeyond、MetaからはImpとClicksを持ってくる
@@ -153,6 +155,7 @@ function aggregateRows(rows: ProcessedRow[], isVersionFilterActive: boolean): Ra
         svExit: totalSvExit,
         fvExitRate: exitMetrics.fvExitRate,
         svExitRate: exitMetrics.svExitRate,
+        oar: safeDivide(oarWeightedSum, totalPV),
     };
 }
 
@@ -322,6 +325,7 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
         cpa: 'w-[70px]',
         fvExit: 'w-[50px]',
         svExit: 'w-[50px]',
+        oar: 'w-[50px]',
     };
 
     const thClass = "px-1.5 py-1 text-right text-[10px] font-semibold text-gray-500 whitespace-nowrap bg-gray-50 cursor-pointer hover:bg-gray-100 transition-colors select-none";
@@ -352,6 +356,7 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
                         <th onClick={() => onSort('cpa')} className={`${thClass} ${colW.cpa}`}>CPA{getSortIcon('cpa')}</th>
                         <th onClick={() => onSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱率{getSortIcon('fvExitRate')}</th>
                         <th onClick={() => onSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱率{getSortIcon('svExitRate')}</th>
+                        <th onClick={() => onSort('oar')} className={`${thClass} ${colW.oar}`}>OAR{getSortIcon('oar')}</th>
                     </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-100">
@@ -382,6 +387,7 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
                             <td className={`${tdClass} ${colW.cpa} font-bold text-orange-600`}>{formatNumber(item.cpa)}円</td>
                             <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(item.fvExitRate)}</td>
                             <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(item.svExitRate)}</td>
+                            <td className={`${tdClass} ${colW.oar}`}>{formatPercent(item.oar)}</td>
                         </tr>
                     ))}
                 </tbody>

@@ -8,6 +8,7 @@ interface CreativeMetricsTableProps {
     title?: string;
     creativeMasterData?: CreativeMasterItem[];
     isReport?: boolean;
+    viewMode?: 'total' | 'meta' | 'beyond';
 }
 
 interface CreativeRow {
@@ -31,6 +32,7 @@ interface CreativeRow {
     cpa: number;
     fvExitRate: number;
     svExitRate: number;
+    oar: number;
     video3SecViews: number;
     video3SecCost: number;
     video3SecRate: number;
@@ -60,7 +62,7 @@ function normalizeCreativeLookupId(value: string): string {
     return normalized.replace(/\s+/g, '');
 }
 
-function aggregateByCreative(data: ProcessedRow[]): CreativeRow[] {
+function aggregateByCreative(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): CreativeRow[] {
     const grouped = new Map<string, ProcessedRow[]>();
 
     for (const row of data) {
@@ -91,10 +93,12 @@ function aggregateByCreative(data: ProcessedRow[]): CreativeRow[] {
         const cv = beyondData.reduce((sum, row) => sum + row.CV, 0);
         const fvExit = beyondData.reduce((sum, row) => sum + row.FV_Exit, 0);
         const svExit = beyondData.reduce((sum, row) => sum + row.SV_Exit, 0);
+        const oarWeightedSum = beyondData.reduce((sum, row) => sum + (row.OAR * row.PV), 0);
         const exitMetrics = calculateExitMetrics(pv, fvExit, svExit);
 
-        // User request: Cost for Creative Metrics should come from Meta only.
-        const totalCost = metaCost;
+        const totalCost = viewMode === 'beyond' ? beyondCost : (viewMode === 'meta' ? metaCost : beyondCost);
+        const displayClicks = viewMode === 'beyond' ? beyondClicks : metaClicks;
+        const displayCpc = viewMode === 'beyond' ? safeDivide(beyondCost, pv) : safeDivide(metaCost, metaClicks);
         if (totalCost === 0 && beyondCost === 0 && revenue === 0 && impressions === 0) continue;
 
         const campaign = rowData[0].Campaign_Name;
@@ -122,18 +126,19 @@ function aggregateByCreative(data: ProcessedRow[]): CreativeRow[] {
             profit: adjustedProfit,
             roas: Math.floor(safeDivide(revenue, totalCost) * 100),
             impressions,
-            clicks: metaClicks,
             mcv: beyondClicks,
             cv,
             ctr: safeDivide(metaClicks, impressions) * 100,
             mcvr: safeDivide(beyondClicks, pv) * 100,
             cvr: safeDivide(cv, beyondClicks) * 100,
             cpm: safeDivide(metaCost, impressions) * 1000,
-            cpc: safeDivide(totalCost, metaClicks),
-            mcpa: safeDivide(totalCost, beyondClicks),
-            cpa: safeDivide(totalCost, cv),
+            cpc: displayCpc,
+            mcpa: safeDivide(beyondCost, beyondClicks),
+            cpa: safeDivide(beyondCost, cv),
             fvExitRate: exitMetrics.fvExitRate,
             svExitRate: exitMetrics.svExitRate,
+            oar: safeDivide(oarWeightedSum, pv),
+            clicks: displayClicks,
             video3SecViews,
             video3SecCost,
             video3SecRate
@@ -142,7 +147,7 @@ function aggregateByCreative(data: ProcessedRow[]): CreativeRow[] {
     return rows;
 }
 
-export function CreativeMetricsTable({ data, title = 'クリエイティブ別数値', creativeMasterData, isReport = false }: CreativeMetricsTableProps) {
+export function CreativeMetricsTable({ data, title = 'クリエイティブ別数値', creativeMasterData, isReport = false, viewMode = 'total' }: CreativeMetricsTableProps) {
     const [sortKey, setSortKey] = useState<SortType>('cost');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('desc');
     // Preview Modal State
@@ -166,7 +171,7 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
     };
 
     const sortedRows = useMemo(() => {
-        const rows = aggregateByCreative(data);
+        const rows = aggregateByCreative(data, viewMode);
         return rows.sort((a, b) => {
             const aVal = a[sortKey];
             const bVal = b[sortKey];
@@ -178,7 +183,7 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
             const bNum = (typeof bVal === 'number') ? bVal : 0;
             return sortOrder === 'asc' ? aNum - bNum : bNum - aNum;
         });
-    }, [data, sortKey, sortOrder]);
+    }, [data, sortKey, sortOrder, viewMode]);
 
     // Preview Logic
     const getPreviewUrl = (campaign: string, creativeId: string) => {
@@ -279,6 +284,7 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
         cpa: 'w-[70px]',
         fvExit: 'w-[50px]',
         svExit: 'w-[50px]',
+        oar: 'w-[50px]',
         vid3: 'w-[60px]',
         vid3Cost: 'w-[60px]',
         vid3Rate: 'w-[60px]'
@@ -315,6 +321,7 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
                                 <th onClick={() => handleSort('cpa')} className={`${thClass} ${colW.cpa}`}>CPA{getSortIcon('cpa')}</th>
                                 <th onClick={() => handleSort('fvExitRate')} className={`${thClass} ${colW.fvExit}`}>FV離脱率{getSortIcon('fvExitRate')}</th>
                                 <th onClick={() => handleSort('svExitRate')} className={`${thClass} ${colW.svExit}`}>SV離脱率{getSortIcon('svExitRate')}</th>
+                                <th onClick={() => handleSort('oar')} className={`${thClass} ${colW.oar}`}>OAR{getSortIcon('oar')}</th>
                                 <th onClick={() => handleSort('video3SecViews')} className={`${thClass} ${colW.vid3} bg-blue-50 text-blue-700`}>3秒再生数{getSortIcon('video3SecViews')}</th>
                                 <th onClick={() => handleSort('video3SecCost')} className={`${thClass} ${colW.vid3Cost} bg-blue-50 text-blue-700`}>3秒再生単価{getSortIcon('video3SecCost')}</th>
                                 <th onClick={() => handleSort('video3SecRate')} className={`${thClass} ${colW.vid3Rate} bg-blue-50 text-blue-700`}>3秒再生率{getSortIcon('video3SecRate')}</th>
@@ -361,6 +368,7 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
                                         <td className={`${tdClass} ${colW.cpa}`}>{formatNumber(row.cpa)}円</td>
                                         <td className={`${tdClass} ${colW.fvExit}`}>{formatPercent(row.fvExitRate)}</td>
                                         <td className={`${tdClass} ${colW.svExit}`}>{formatPercent(row.svExitRate)}</td>
+                                        <td className={`${tdClass} ${colW.oar}`}>{formatPercent(row.oar)}</td>
                                         <td className={`${tdClass} ${colW.vid3} bg-blue-50/30`}>{formatNumber(row.video3SecViews)}</td>
                                         <td className={`${tdClass} ${colW.vid3Cost} bg-blue-50/30`}>{formatNumber(row.video3SecCost)}円</td>
                                         <td className={`${tdClass} ${colW.vid3Rate} bg-blue-50/30`}>{formatPercent(row.video3SecRate)}</td>
