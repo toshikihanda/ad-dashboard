@@ -1,14 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createSessionToken, getSessionCookieOptions } from '@/lib/session';
+import { resolveCampaignAccessFromSheet } from '@/lib/accessControl';
 
 export async function POST(request: NextRequest) {
     try {
         const body = await request.json();
         const { password } = body;
-        const envPassword = process.env.LOGIN_KEY;
+        const access = typeof password === 'string' ? await resolveCampaignAccessFromSheet(password) : null;
 
         // Validate
-        if (!password || password !== envPassword) {
+        if (!access) {
             return NextResponse.json(
                 { success: false, error: 'パスワードが間違っています' },
                 { status: 401 }
@@ -16,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create signed token
-        const token = await createSessionToken();
+        const token = await createSessionToken(access.allowedCampaigns);
         const cookieOptions = getSessionCookieOptions();
 
         // Log (no sensitive values)

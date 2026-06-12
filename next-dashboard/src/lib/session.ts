@@ -18,6 +18,12 @@ export interface VerifyResult {
     reason?: VerifyFailReason;
 }
 
+export interface SessionPayload {
+    authenticated: true;
+    expires: number;
+    allowedCampaigns?: string[];
+}
+
 // --- Base64URL helpers (RFC 4648) ---
 // Avoid +, /, = which can cause issues in cookies
 function toBase64Url(str: string): string {
@@ -57,12 +63,13 @@ async function getCryptoKey() {
 }
 
 // --- Token Creation (base64url encoded) ---
-export async function createSessionToken(): Promise<string> {
+export async function createSessionToken(allowedCampaigns: string[] = ['*']): Promise<string> {
     const key = await getCryptoKey();
     const enc = new TextEncoder();
     const payload = JSON.stringify({
         authenticated: true,
-        expires: Date.now() + TOKEN_EXPIRY_MS
+        expires: Date.now() + TOKEN_EXPIRY_MS,
+        allowedCampaigns,
     });
 
     const signature = await crypto.subtle.sign(
@@ -75,6 +82,28 @@ export async function createSessionToken(): Promise<string> {
     const b64urlSignature = uint8ArrayToBase64Url(new Uint8Array(signature));
 
     return `${b64urlPayload}.${b64urlSignature}`;
+}
+
+export async function readSessionPayload(token: string): Promise<SessionPayload | null> {
+    const verifyResult = await verifySessionTokenWithReason(token);
+    if (!verifyResult.valid) return null;
+
+    try {
+        const [b64urlPayload] = token.split('.');
+        const payload = fromBase64Url(b64urlPayload);
+        const data = JSON.parse(payload);
+        if (data?.authenticated !== true || typeof data.expires !== 'number') return null;
+
+        return {
+            authenticated: true,
+            expires: data.expires,
+            allowedCampaigns: Array.isArray(data.allowedCampaigns)
+                ? data.allowedCampaigns.map((campaign: unknown) => String(campaign || '').trim()).filter(Boolean)
+                : ['*'],
+        };
+    } catch {
+        return null;
+    }
 }
 
 // --- Token Verification with Detailed Reason ---

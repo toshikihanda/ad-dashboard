@@ -3,6 +3,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 import { createSessionToken, getSessionCookieOptions } from '@/lib/session';
+import { resolveCampaignAccessFromSheet } from '@/lib/accessControl';
 
 interface AuthState {
     error?: string;
@@ -10,11 +11,11 @@ interface AuthState {
 
 export async function login(prevState: AuthState | null, formData: FormData): Promise<AuthState> {
     const password = formData.get('password');
-    const envPassword = process.env.LOGIN_KEY;
+    const access = typeof password === 'string' ? await resolveCampaignAccessFromSheet(password) : null;
 
-    if (password === envPassword) {
+    if (access) {
         // Create signed token
-        const token = await createSessionToken();
+        const token = await createSessionToken(access.allowedCampaigns);
 
         // Set cookie with configurable options
         const cookieStore = await cookies();

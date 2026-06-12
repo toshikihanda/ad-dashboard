@@ -26,6 +26,7 @@ interface DashboardClientProps {
     articleMasterData?: Record<string, string>[];
     reportListData?: Record<string, string>[];
     isDemo?: boolean;
+    canUseGlobalAssistant?: boolean;
 }
 
 type TabType = 'total' | 'meta' | 'beyond' | 'knowledge';
@@ -49,7 +50,7 @@ function formatDateForTitle(date: Date): string {
     return `${month}/${day}`;
 }
 
-export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData, isDemo }: DashboardClientProps) {
+export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData, isDemo, canUseGlobalAssistant = true }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
     // 複数選択対応（配列で管理）
@@ -1091,7 +1092,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                                         yesterday.setDate(yesterday.getDate() - 1);
 
                                                         let start = new Date(yesterday);
-                                                        let end = new Date(yesterday);
+                                                        const end = new Date(yesterday);
 
                                                         if (preset === '7days') start.setDate(yesterday.getDate() - 6);
                                                         else if (preset === '14days') start.setDate(yesterday.getDate() - 13);
@@ -1195,8 +1196,9 @@ export default function DashboardClient({ initialData, baselineData, masterProje
 
                                                 setGeneratedReportInfo(data);
                                                 setReportStep(2);
-                                            } catch (e: any) {
-                                                alert(`エラーが発生しました: ${e.message}`);
+                                            } catch (e: unknown) {
+                                                const message = e instanceof Error ? e.message : '不明なエラー';
+                                                alert(`エラーが発生しました: ${message}`);
                                             } finally {
                                                 setIsGeneratingReport(false);
                                             }
@@ -1290,15 +1292,16 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     </div>
                 </div>
             )}
-            <ChatBot
-                data={initialData}
-                masterProjects={masterProjects}
-                articleMasterData={articleMasterData}
-                creativeMasterData={creativeMasterData}
-                reportListData={reportListData}
-                knowledgeProductHint={selectedCampaigns[0] ?? ''}
-            />
+            {canUseGlobalAssistant && (
+                <ChatBot
+                    data={initialData}
+                    masterProjects={masterProjects}
+                    articleMasterData={articleMasterData}
+                    creativeMasterData={creativeMasterData}
+                    reportListData={reportListData}
+                    knowledgeProductHint={selectedCampaigns[0] ?? ''}
+                />
+            )}
         </>
     );
 }
-
