@@ -13,6 +13,14 @@ export interface ProjectConfig {
     metaCvName: string;       // Meta CV名（CVとしてカウントする列名）
     metaAccountNames: string[];   // Meta Account Names（過去データ用）
     parameterType: string;    // パラメーター種別 (utm_creative, utm_source, etc.)
+    contentProductNames: string[]; // Creative_Master / Article_Master の商材名別名
+    creativeSourceSheet: string;
+    bannerSourceSheet: string;
+    articleSourceSheet: string;
+    creativeDriveFolderId: string;
+    bannerDriveFolderId: string;
+    articleDriveFolderId: string;
+    active: boolean;
 }
 
 export interface ProcessedRow {
@@ -134,7 +142,8 @@ function parseDate(dateStr: string): Date {
     return isNaN(date.getTime()) ? new Date() : date;
 }
 
-function formatDateStr(date: Date | any): string {
+function formatDateStr(date: Date | string | number | null | undefined): string {
+    if (date == null) return '';
     const d = date instanceof Date ? date : new Date(date);
     if (isNaN(d.getTime())) return '';
 
@@ -148,6 +157,25 @@ function formatDateStr(date: Date | any): string {
 function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectConfig[] {
     const configs: ProjectConfig[] = [];
 
+    const splitList = (value: string | undefined): string[] =>
+        (value || '')
+            .split(/[,，、]/)
+            .map(s => s.trim())
+            .filter(Boolean);
+
+    const firstValue = (row: Record<string, string>, keys: string[]): string => {
+        for (const key of keys) {
+            const value = row[key];
+            if (value !== undefined && value !== '') return value.trim();
+        }
+        return '';
+    };
+
+    const isActive = (value: string): boolean => {
+        const normalized = value.trim().toLowerCase();
+        return !['false', '0', 'no', 'off', '無効', '停止'].includes(normalized);
+    };
+
     for (const row of masterSetting) {
         const projectName = (row['管理用案件名'] || '').trim();
         const metaKeyword = (row['Meta名'] || '').trim();
@@ -159,9 +187,23 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
 
         // Meta Account Names を読み込み
         const metaAccountNamesRaw = (row['Meta Account Names'] || '').trim();
+        const contentProductNames = splitList(firstValue(row, [
+            'コンテンツ商材名',
+            '商材別名',
+            'Creative/Article商材名',
+            'Content Product Names',
+        ]));
+        const creativeSourceSheet = firstValue(row, ['movie_sheet', 'クリエイティブ元シート', 'Creative Source Sheet']);
+        const bannerSourceSheet = firstValue(row, ['banner_sheet', 'バナー元シート', 'Banner Source Sheet']);
+        const articleSourceSheet = firstValue(row, ['記事LP_sheet', '記事LP元シート', 'Article Source Sheet']);
+        const creativeDriveFolderId = firstValue(row, ['movieCR_ID', 'クリエイティブDriveフォルダID', 'Creative Drive Folder ID']);
+        const bannerDriveFolderId = firstValue(row, ['bannerCR_ID', 'バナーDriveフォルダID', 'Banner Drive Folder ID']);
+        const articleDriveFolderId = firstValue(row, ['記事LP_ID', '記事LPDriveフォルダID', 'Article Drive Folder ID']);
+        const activeRaw = firstValue(row, ['有効', 'Active']);
 
         // Skip rows without project name
         if (!projectName) continue;
+        if (!isActive(activeRaw)) continue;
 
         let type: '成果' | '予算' | 'IH' = '予算';
         if (typeRaw === '成果') type = '成果';
@@ -189,6 +231,14 @@ function parseMasterSetting(masterSetting: Record<string, string>[]): ProjectCon
             metaCvName,
             metaAccountNames,
             parameterType,
+            contentProductNames,
+            creativeSourceSheet,
+            bannerSourceSheet,
+            articleSourceSheet,
+            creativeDriveFolderId,
+            bannerDriveFolderId,
+            articleDriveFolderId,
+            active: true,
         });
     }
 
@@ -285,6 +335,20 @@ export function extractCreativeFromAdName(adName: string): string {
     return '';
 }
 
+function isChurableProject(projectName: string): boolean {
+    return projectName.includes('チュアブル');
+}
+
+function extractBannerCreativeName(value: string): string {
+    const text = String(value || '').trim();
+    if (!text) return '';
+
+    const matches = [...text.matchAll(/(?:^|[^0-9A-Za-z])(\d+_\d{3})(?!\d)/g)];
+    if (matches.length === 0) return '';
+
+    return matches[matches.length - 1][1];
+}
+
 function processMetaData(
     metaLive: Record<string, string>[],
     metaHistory: Record<string, string>[],
@@ -368,7 +432,9 @@ function processMetaData(
         const cvValue = parseNumber(row[cvColumnName]);
 
         // Meta側のcreative_valueはAd Nameから抽出
-        const metaCreativeValue = extractCreativeFromAdName(adName);
+        const metaCreativeValue = isChurableProject(config.projectName)
+            ? (extractBannerCreativeName(adName) || extractCreativeFromAdName(adName))
+            : extractCreativeFromAdName(adName);
 
         // 新規指標: 動画3秒再生数, 単価
         // カラム名の揺らぎ（スペースや大文字小文字）に対応
@@ -473,7 +539,9 @@ function processBeyondData(
         const rawCreativeValue = parameter.replace(pType + '=', '');
         // Normalize using the same logic as Meta (extract core ID like "116")
         // Use extracted ID if possible, otherwise fallback to raw value
-        const creativeValue = extractCreativeFromAdName(rawCreativeValue) || rawCreativeValue;
+        const creativeValue = isChurableProject(config.projectName)
+            ? (extractBannerCreativeName(rawCreativeValue) || extractCreativeFromAdName(rawCreativeValue) || rawCreativeValue)
+            : (extractCreativeFromAdName(rawCreativeValue) || rawCreativeValue);
 
         // Lookup meta mapping
         const metaInfo = creativeToMetaMap.get(creativeValue) || { campaign: '', adset: '', ad: '' };

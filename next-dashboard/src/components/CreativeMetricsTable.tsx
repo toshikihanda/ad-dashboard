@@ -54,6 +54,10 @@ function normalizeCreativeLookupId(value: string): string {
     const normalized = value.trim().toLowerCase();
     if (!normalized) return '';
 
+    if (/^\d{1,2}$/.test(normalized)) {
+        return normalized.padStart(3, '0');
+    }
+
     const compactVariant = normalized.match(/^(\d{3})[_-]?([a-z]{1,2})$/);
     if (compactVariant) {
         return `${compactVariant[1]}${compactVariant[2]}`;
