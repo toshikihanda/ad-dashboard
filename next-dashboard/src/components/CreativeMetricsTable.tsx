@@ -78,6 +78,25 @@ function getThumbnailUrl(item: CreativeMasterItem): string {
     return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w400` : '';
 }
 
+function getDrivePreviewUrl(url: string): string {
+    let embedUrl = url;
+    if (embedUrl.includes('/view')) {
+        return embedUrl.replace('/view', '/preview');
+    }
+
+    if (embedUrl.includes('drive.google.com/file/d/') && !embedUrl.endsWith('/preview')) {
+        const parts = embedUrl.split('/');
+        if (parts[parts.length - 1].startsWith('view')) {
+            parts[parts.length - 1] = 'preview';
+            embedUrl = parts.join('/');
+        } else {
+            embedUrl = `${embedUrl}/preview`;
+        }
+    }
+
+    return embedUrl;
+}
+
 function aggregateByCreative(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): CreativeRow[] {
     const grouped = new Map<string, ProcessedRow[]>();
 
@@ -169,7 +188,14 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
     // Preview Modal State
     const [previewItem, setPreviewItem] = useState<{ url: string; title: string; isVertical?: boolean } | null>(null);
     // Hover Thumbnail State
-    const [hoveredItem, setHoveredItem] = useState<{ url: string; x: number; y: number } | null>(null);
+    const [hoveredItem, setHoveredItem] = useState<{
+        thumbnailUrl: string;
+        previewUrl: string;
+        title: string;
+        x: number;
+        y: number;
+        useEmbed: boolean;
+    } | null>(null);
 
     const handleSort = (key: SortType) => {
         if (sortKey === key) {
@@ -242,23 +268,7 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
     };
 
     const handleCreativeClick = (fileName: string, url: string, thumbnailUrl?: string) => {
-        // Convert view/open URLs to preview for iframe embedding
-        let embedUrl = url;
-        if (embedUrl.includes('/view')) {
-            embedUrl = embedUrl.replace('/view', '/preview');
-        } else if (embedUrl.includes('drive.google.com/file/d/')) {
-            // ensure it ends with /preview
-            if (!embedUrl.endsWith('/preview')) {
-                const parts = embedUrl.split('/');
-                // if last part is 'view' or params
-                if (parts[parts.length - 1].startsWith('view')) {
-                    parts[parts.length - 1] = 'preview';
-                    embedUrl = parts.join('/');
-                } else {
-                    embedUrl = `${embedUrl}/preview`;
-                }
-            }
-        }
+        const embedUrl = getDrivePreviewUrl(url);
 
         let isVertical = false;
         if (thumbnailUrl) {
@@ -358,14 +368,30 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
                                 return (
                                     <tr key={`${row.id}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
                                         <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                        <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.creative}`} title={masterItem ? `${row.creative} / ${masterItem.fileName}` : row.creative}>
+                                        <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.creative}`}>
                                             <div
                                                 className={`break-words w-full ${hasLink ? 'text-blue-600 cursor-pointer hover:underline font-medium' : ''}`}
                                                 onClick={() => hasLink && masterItem && handleCreativeClick(masterItem.fileName, masterItem.url, masterItem.thumbnailUrl)}
                                                 onMouseEnter={(e) => {
-                                                    if (hasLink && thumbnailUrl) {
+                                                    if (hasLink && masterItem) {
                                                         const rect = e.currentTarget.getBoundingClientRect();
-                                                        setHoveredItem({ url: thumbnailUrl, x: rect.right + 10, y: rect.top });
+                                                        setHoveredItem({
+                                                            thumbnailUrl,
+                                                            previewUrl: getDrivePreviewUrl(masterItem.url),
+                                                            title: masterItem.fileName,
+                                                            x: rect.right + 10,
+                                                            y: Math.max(12, rect.top - 24),
+                                                            useEmbed: !thumbnailUrl
+                                                        });
+                                                    }
+                                                }}
+                                                onMouseMove={(e) => {
+                                                    if (hasLink && hoveredItem) {
+                                                        setHoveredItem(prev => prev ? {
+                                                            ...prev,
+                                                            x: Math.min(e.clientX + 18, window.innerWidth - 300),
+                                                            y: Math.min(e.clientY + 18, window.innerHeight - 260)
+                                                        } : prev);
                                                     }
                                                 }}
                                                 onMouseLeave={() => setHoveredItem(null)}
@@ -406,24 +432,31 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
             {/* Hover Tooltip - Fixed Position Portal-like behavior */}
             {hoveredItem && (
                 <div
-                    className="fixed z-50 pointer-events-none rounded shadow-lg overflow-hidden border border-gray-200 bg-black animate-in fade-in duration-200"
+                    className="fixed z-[9999] pointer-events-none rounded-md shadow-xl overflow-hidden border border-gray-300 bg-black animate-in fade-in duration-150"
                     style={{
                         left: hoveredItem.x,
                         top: hoveredItem.y,
-                        width: '150px',
-                        height: 'auto'
+                        width: '280px',
+                        height: '220px'
                     }}
                 >
-                    {/* Maintain aspect ratio of image or fixed height? Request says 150x200px approx */}
-                    <img
-                        src={hoveredItem.url}
-                        alt="Preview"
-                        className="w-full h-auto object-cover max-h-[300px]"
-                        onError={(e) => {
-                            // Hide on error
-                            e.currentTarget.style.display = 'none';
-                        }}
-                    />
+                    {hoveredItem.useEmbed ? (
+                        <iframe
+                            src={hoveredItem.previewUrl}
+                            title={hoveredItem.title}
+                            className="w-full h-full border-0 bg-black"
+                            allow="autoplay; fullscreen"
+                        />
+                    ) : (
+                        <img
+                            src={hoveredItem.thumbnailUrl}
+                            alt={hoveredItem.title}
+                            className="w-full h-full object-contain bg-black"
+                            onError={() => {
+                                setHoveredItem(prev => prev ? { ...prev, useEmbed: true } : prev);
+                            }}
+                        />
+                    )}
                 </div>
             )}
 
