@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ProcessedRow, safeDivide, calculateExitMetrics, CreativeMasterItem } from '@/lib/dataProcessor';
 
 interface CreativeMetricsTableProps {
@@ -228,7 +228,7 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
     }, [data, sortKey, sortOrder, viewMode]);
 
     // Preview Logic
-    const getPreviewUrl = (campaign: string, creativeId: string) => {
+    const getPreviewUrl = useCallback((campaign: string, creativeId: string) => {
         if (!creativeMasterData) return null;
         // マッチング: 商材名の _以降（運用タイプ）を除去して比較
         const baseCampaign = campaign.split('_')[0];
@@ -265,7 +265,36 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
         if (exactFileMatch) return exactFileMatch;
 
         return null;
-    };
+    }, [creativeMasterData]);
+
+    const preloadThumbnailUrls = useMemo(() => {
+        const urls = new Set<string>();
+        for (const row of sortedRows.slice(0, 80)) {
+            const masterItem = getPreviewUrl(row.campaign, row.id);
+            if (!masterItem?.url) continue;
+
+            const thumbnailUrl = getThumbnailUrl(masterItem);
+            if (thumbnailUrl) urls.add(thumbnailUrl);
+        }
+
+        return Array.from(urls);
+    }, [sortedRows, getPreviewUrl]);
+
+    useEffect(() => {
+        const preloadedImages = preloadThumbnailUrls.map(url => {
+            const img = new Image();
+            img.decoding = 'async';
+            img.src = url;
+            return img;
+        });
+
+        return () => {
+            preloadedImages.forEach(img => {
+                img.onload = null;
+                img.onerror = null;
+            });
+        };
+    }, [preloadThumbnailUrls]);
 
     const handleCreativeClick = (fileName: string, url: string, thumbnailUrl?: string) => {
         const embedUrl = getDrivePreviewUrl(url);
