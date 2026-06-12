@@ -66,6 +66,18 @@ function normalizeCreativeLookupId(value: string): string {
     return normalized.replace(/\s+/g, '');
 }
 
+function extractDriveFileId(url: string): string {
+    const match = url.match(/\/file\/d\/([^/]+)/) || url.match(/[?&]id=([^&]+)/);
+    return match ? match[1] : '';
+}
+
+function getThumbnailUrl(item: CreativeMasterItem): string {
+    if (item.thumbnailUrl) return item.thumbnailUrl;
+
+    const fileId = extractDriveFileId(item.url);
+    return fileId ? `https://drive.google.com/thumbnail?id=${fileId}&sz=w400` : '';
+}
+
 function aggregateByCreative(data: ProcessedRow[], viewMode: 'total' | 'meta' | 'beyond'): CreativeRow[] {
     const grouped = new Map<string, ProcessedRow[]>();
 
@@ -213,6 +225,12 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
         // 2. fileName 側の安全な一致のみ許可
         //    例: SAC_219_b / SAC_219b / 219b.mp4 を同一扱い
         const exactFileMatch = campaignCandidates.find(item => {
+            const plainThreeDigitCreative = /^\d{3}$/.test(normalizedCreativeId);
+            const bannerStyleFile = /^\d+[_-]\d{3}(?:\.[^.]+)?$/i.test(item.fileName.trim());
+            if (plainThreeDigitCreative && bannerStyleFile) {
+                return false;
+            }
+
             const normalizedFileName = normalizeCreativeLookupId(
                 item.fileName.replace(/^.*?(\d{3}(?:[_-]?[a-z]{1,2})?).*$/i, '$1')
             );
@@ -335,18 +353,19 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
                             {sortedRows.map((row, idx) => {
                                 const masterItem = getPreviewUrl(row.campaign, row.id);
                                 const hasLink = !!masterItem?.url;
+                                const thumbnailUrl = masterItem ? getThumbnailUrl(masterItem) : '';
 
                                 return (
                                     <tr key={`${row.id}-${idx}`} className="hover:bg-gray-50 bg-inherit group">
                                         <td className={`px-1 py-1 text-center sticky left-0 bg-white group-hover:bg-gray-50 z-10 text-[10px] text-gray-400 ${colW.rank}`}>{idx + 1}</td>
-                                        <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.creative}`} title={row.creative}>
+                                        <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-normal break-words sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.creative}`} title={masterItem ? `${row.creative} / ${masterItem.fileName}` : row.creative}>
                                             <div
                                                 className={`break-words w-full ${hasLink ? 'text-blue-600 cursor-pointer hover:underline font-medium' : ''}`}
                                                 onClick={() => hasLink && masterItem && handleCreativeClick(masterItem.fileName, masterItem.url, masterItem.thumbnailUrl)}
                                                 onMouseEnter={(e) => {
-                                                    if (hasLink && masterItem?.thumbnailUrl) {
+                                                    if (hasLink && thumbnailUrl) {
                                                         const rect = e.currentTarget.getBoundingClientRect();
-                                                        setHoveredItem({ url: masterItem.thumbnailUrl, x: rect.right + 10, y: rect.top });
+                                                        setHoveredItem({ url: thumbnailUrl, x: rect.right + 10, y: rect.top });
                                                     }
                                                 }}
                                                 onMouseLeave={() => setHoveredItem(null)}
