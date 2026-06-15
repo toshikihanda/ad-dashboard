@@ -26,28 +26,39 @@ export interface SessionPayload {
 
 // --- Base64URL helpers (RFC 4648) ---
 // Avoid +, /, = which can cause issues in cookies
-function toBase64Url(str: string): string {
-    return btoa(str)
+function bytesToBase64Url(bytes: Uint8Array): string {
+    let binary = '';
+    for (let i = 0; i < bytes.length; i++) {
+        binary += String.fromCharCode(bytes[i]);
+    }
+
+    return btoa(binary)
         .replace(/\+/g, '-')
         .replace(/\//g, '_')
         .replace(/=+$/, '');
 }
 
-function fromBase64Url(b64url: string): string {
+function base64UrlToBytes(b64url: string): Uint8Array {
     let b64 = b64url.replace(/-/g, '+').replace(/_/g, '/');
     while (b64.length % 4) {
         b64 += '=';
     }
-    return atob(b64);
+
+    const binary = atob(b64);
+    const bytes = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+    }
+
+    return bytes;
 }
 
-function uint8ArrayToBase64Url(arr: Uint8Array): string {
-    return toBase64Url(String.fromCharCode(...arr));
+function textToBase64Url(str: string): string {
+    return bytesToBase64Url(new TextEncoder().encode(str));
 }
 
-function base64UrlToUint8Array(b64url: string): Uint8Array {
-    const str = fromBase64Url(b64url);
-    return new Uint8Array(str.split('').map(c => c.charCodeAt(0)));
+function textFromBase64Url(b64url: string): string {
+    return new TextDecoder().decode(base64UrlToBytes(b64url));
 }
 
 // --- Crypto Key Helper ---
@@ -78,8 +89,8 @@ export async function createSessionToken(allowedCampaigns: string[] = ['*']): Pr
         enc.encode(payload)
     );
 
-    const b64urlPayload = toBase64Url(payload);
-    const b64urlSignature = uint8ArrayToBase64Url(new Uint8Array(signature));
+    const b64urlPayload = textToBase64Url(payload);
+    const b64urlSignature = bytesToBase64Url(new Uint8Array(signature));
 
     return `${b64urlPayload}.${b64urlSignature}`;
 }
@@ -90,7 +101,7 @@ export async function readSessionPayload(token: string): Promise<SessionPayload 
 
     try {
         const [b64urlPayload] = token.split('.');
-        const payload = fromBase64Url(b64urlPayload);
+        const payload = textFromBase64Url(b64urlPayload);
         const data = JSON.parse(payload);
         if (data?.authenticated !== true || typeof data.expires !== 'number') return null;
 
@@ -123,8 +134,8 @@ export async function verifySessionTokenWithReason(token: string): Promise<Verif
         let payload: string;
         let signatureArr: Uint8Array;
         try {
-            payload = fromBase64Url(b64urlPayload);
-            signatureArr = base64UrlToUint8Array(b64urlSignature);
+            payload = textFromBase64Url(b64urlPayload);
+            signatureArr = base64UrlToBytes(b64urlSignature);
         } catch (e) {
             return { valid: false, reason: 'invalid_format' };
         }

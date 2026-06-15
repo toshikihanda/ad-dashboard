@@ -41,7 +41,7 @@ export async function POST(request: NextRequest) {
         return response;
 
     } catch (error) {
-        console.error('[/api/login] Error occurred');
+        console.error('[/api/login] Error occurred', error);
         return NextResponse.json(
             { success: false, error: 'ログインに失敗しました' },
             { status: 500 }
