@@ -380,6 +380,16 @@ export default function DashboardClient({ initialData, baselineData, masterProje
         }
     };
 
+    const handleLogout = async () => {
+        try {
+            await fetch('/api/logout', { method: 'POST' });
+        } catch (error) {
+            console.error('Logout failed:', error);
+        } finally {
+            window.location.href = '/login';
+        }
+    };
+
     const isVersionFilterActive = selectedVersionNames.length > 0;
 
     // --- 固定期間のテーブル用データ抽出 ---
@@ -520,6 +530,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 >
                                     <span className="text-xs">📈</span>
                                 </button>
+                                <button
+                                    onClick={handleLogout}
+                                    className="p-1 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-200"
+                                    title="ログアウト"
+                                >
+                                    <span className="text-xs">🚪</span>
+                                </button>
                             </div>
                         </div>
 
@@ -609,6 +626,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             >
                                 <span>📈</span>
                                 <span>比較</span>
+                            </button>
+                            <button
+                                onClick={handleLogout}
+                                className="px-3 py-1.5 text-xs font-bold bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm flex items-center gap-1.5"
+                            >
+                                <span>🚪</span>
+                                <span>ログアウト</span>
                             </button>
                         </div>
                     </div>

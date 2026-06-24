@@ -48,9 +48,10 @@ export const config = {
          * - _next/image (image optimization files)
          * - favicon.ico (favicon file)
          * - api/login (login endpoint)
+         * - api/logout (logout endpoint)
          * - api/auth-debug (auth debugging endpoint)
          * - api/auth-debug-headers (auth header debugging)
          */
-        '/((?!_next/static|_next/image|favicon.ico|api/login|api/auth-debug|api/auth-debug-headers|api/debug-urara).*)',
+        '/((?!_next/static|_next/image|favicon.ico|api/login|api/logout|api/auth-debug|api/auth-debug-headers|api/debug-urara).*)',
     ],
 };
