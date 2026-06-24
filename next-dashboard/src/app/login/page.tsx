@@ -1,7 +1,6 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useRouter } from 'next/navigation';
 
 // WebView detection patterns (major apps)
 const WEBVIEW_PATTERNS = [
@@ -18,7 +17,6 @@ function isWebView(userAgent: string): boolean {
 }
 
 export default function LoginPage() {
-    const router = useRouter();
     const [password, setPassword] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [isPending, setIsPending] = useState(false);
@@ -47,18 +45,18 @@ export default function LoginPage() {
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ password }),
                 credentials: 'include', // Important for cookies
+                cache: 'no-store',
             });
 
             const data = await response.json();
 
             if (response.ok && data.success) {
-                // Success - redirect to dashboard
-                router.push('/');
-                router.refresh();
+                // Full navigation ensures the freshly set auth cookie is used on the first dashboard request.
+                window.location.replace('/');
             } else {
                 setError(data.error || 'ログインに失敗しました');
             }
-        } catch (err) {
+        } catch {
             setError('通信エラーが発生しました。再度お試しください。');
         } finally {
             setIsPending(false);
