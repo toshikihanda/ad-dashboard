@@ -291,11 +291,12 @@ function findProjectByBeyondKeyword(
 /**
  * Meta の Ad Name / Beyond の utm 値などからクリエイティブIDを抽出する。
  * 優先順:
- * 1) 3桁 + _ + 英字1〜2文字（例: 219_g, 219_ab）
- * 2) bt + 数字（例: bt005）
- * 3) 最後の _ に続く3桁 + 任意の英字（例: 60_106_288, 60_106_288b）
- * 4) 3桁 + 英字1〜2文字 直結（例: 219g, 219ab）※ 219 と 219g は別クリエイティブ
- * 5) 3桁の数字のみ（例: 219）※ 直後に英数字がある場合は別パターンへ委ねる
+ * 1) Meta入稿名のカッコ直後（例: 【60_109】286, 【60_109】286b）
+ * 2) 3桁 + _ + 英字1〜2文字（例: 219_g, 219_ab）
+ * 3) bt + 数字（例: bt005）
+ * 4) 最後の _ に続く3桁 + 任意の英字（例: 60_106_288, 60_106_288b）
+ * 5) 3桁 + 英字1〜2文字 直結（例: 219g, 219ab）※ 219 と 219g は別クリエイティブ
+ * 6) 3桁の数字のみ（例: 219）※ 直後に英数字がある場合は別パターンへ委ねる
  * Meta/Beyond・Live/History 共通で processMetaData / processBeyondData から利用。
  */
 export function extractCreativeFromAdName(adName: string): string {
@@ -303,29 +304,33 @@ export function extractCreativeFromAdName(adName: string): string {
 
     const s = adName.trim();
 
-    // 1) 3桁_英1〜2文字
+    // 1) Meta入稿名ではカッコ内が入稿番号、カッコ直後がクリエイティブ番号
+    const metaCreativeMatch = s.match(/[】\]]\s*(\d{3}[a-zA-Z]*)(?![0-9A-Za-z])/);
+    if (metaCreativeMatch) return metaCreativeMatch[1].toLowerCase();
+
+    // 2) 3桁_英1〜2文字
     const reC = /(?<![0-9A-Za-z])(\d{3}_[a-zA-Z]{1,2})(?![a-zA-Z])/gi;
     reC.lastIndex = 0;
     const mC = reC.exec(s);
     if (mC) return mC[1].toLowerCase();
 
-    // 2) 互換: bt◯◯ 系（末尾の _001 などより先に拾う）
+    // 3) 互換: bt◯◯ 系（末尾の _001 などより先に拾う）
     const matchBt = s.match(/(bt\d+)/i);
     if (matchBt) return matchBt[1].toLowerCase();
 
-    // 3) UTM形式は末尾側の「3桁 + 任意の英字」をクリエイティブ名として扱う
+    // 4) UTM形式は末尾側の「3桁 + 任意の英字」をクリエイティブ名として扱う
     const utmSegmentMatches = [...s.matchAll(/(?:^|_)(\d{3}[a-zA-Z]*)(?![0-9A-Za-z])/g)];
     if (utmSegmentMatches.length > 0) {
         return utmSegmentMatches[utmSegmentMatches.length - 1][1].toLowerCase();
     }
 
-    // 4) 3桁+英1〜2文字（直結）
+    // 5) 3桁+英1〜2文字（直結）
     const reB = /(?<![0-9A-Za-z])(\d{3}[a-zA-Z]{1,2})(?![a-zA-Z])/gi;
     reB.lastIndex = 0;
     const mB = reB.exec(s);
     if (mB) return mB[1].toLowerCase();
 
-    // 5) 3桁のみ（日付っぽい連続はスキップ）
+    // 6) 3桁のみ（日付っぽい連続はスキップ）
     const reA = /(?<![0-9A-Za-z])(\d{3})(?![0-9a-zA-Z])/g;
     let mA: RegExpExecArray | null;
     while ((mA = reA.exec(s)) !== null) {

@@ -23,6 +23,9 @@ function loadDataProcessor() {
 const { extractCreativeFromAdName, processData } = loadDataProcessor();
 
 const extractionCases = [
+    ['【60_109】286_0309_カスタムCV［SAC_予算］', '286'],
+    ['【60_109】287b_0309_カスタムCV［SAC_予算］', '287b'],
+    ['[60_110]294_0403_SAC', '294'],
     ['60_106_288', '288'],
     ['60_106_288b', '288b'],
     ['60_106_288AB', '288ab'],
@@ -67,6 +70,15 @@ const processed = processData({
     Meta_Live: [
         {
             Day: '2026-08-08',
+            'Ad Name': '【60_109】286_0309_SAC',
+            'Account Name': '',
+            'Amount Spent': '100',
+            Impressions: '801',
+            'Link Clicks': '13',
+            Results: '0',
+        },
+        {
+            Day: '2026-08-08',
             'Ad Name': 'SAC_60_106_288b',
             'Account Name': '',
             'Amount Spent': '100',
@@ -109,6 +121,7 @@ const processed = processData({
 });
 
 const integrationCases = [
+    ['SAC_budget', 'Meta', '286'],
     ['SAC_budget', 'Meta', '288b'],
     [`${churable}_budget`, 'Meta', '4_003'],
     ['SAC_budget', 'Beyond', '288b'],
@@ -116,8 +129,29 @@ const integrationCases = [
 ];
 
 for (const [campaign, media, expected] of integrationCases) {
-    const row = processed.find(item => item.Campaign_Name === campaign && item.Media === media);
-    assert.equal(row?.creative_value, expected, `${campaign}/${media}`);
+    const hasExpectedCreative = processed.some(item =>
+        item.Campaign_Name === campaign &&
+        item.Media === media &&
+        item.creative_value === expected
+    );
+    assert.equal(hasExpectedCreative, true, `${campaign}/${media}/${expected}`);
 }
 
-console.log(`Creative ID tests passed: ${extractionCases.length + integrationCases.length}`);
+const meta286 = processed.find(item =>
+    item.Campaign_Name === 'SAC_budget' &&
+    item.Media === 'Meta' &&
+    item.creative_value === '286'
+);
+assert.equal(meta286?.Impressions, 801, 'Meta/286 impressions');
+assert.equal(meta286?.Clicks, 13, 'Meta/286 clicks');
+assert.equal(
+    processed.some(item =>
+        item.Campaign_Name === 'SAC_budget' &&
+        item.Media === 'Meta' &&
+        item.creative_value === '109'
+    ),
+    false,
+    'Meta submission number must not become creative ID'
+);
+
+console.log(`Creative ID tests passed: ${extractionCases.length + integrationCases.length + 3}`);
