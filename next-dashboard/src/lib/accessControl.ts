@@ -1,8 +1,10 @@
 import { ProcessedRow, CreativeMasterItem } from './dataProcessor';
 import { loadSheetData } from './googleSheets';
+import { parseFinancialVisibility } from './financialAccess';
 
 export interface CampaignAccess {
     allowedCampaigns: string[];
+    canViewFinancials: boolean;
 }
 
 const ALL_CAMPAIGNS = '*';
@@ -37,14 +39,14 @@ function parseAccessMap(): Record<string, string[]> {
 
 export function resolveCampaignAccess(password: string): CampaignAccess | null {
     if (password && password === process.env.LOGIN_KEY) {
-        return { allowedCampaigns: [ALL_CAMPAIGNS] };
+        return { allowedCampaigns: [ALL_CAMPAIGNS], canViewFinancials: true };
     }
 
     const accessMap = parseAccessMap();
     const allowedCampaigns = accessMap[password];
     if (!allowedCampaigns || allowedCampaigns.length === 0) return null;
 
-    return { allowedCampaigns };
+    return { allowedCampaigns, canViewFinancials: true };
 }
 
 function getRowValue(row: Record<string, string>, candidates: string[]): string {
@@ -67,7 +69,7 @@ export async function resolveCampaignAccessFromSheet(password: string): Promise<
     if (!trimmedPassword) return null;
 
     if (trimmedPassword === process.env.LOGIN_KEY) {
-        return { allowedCampaigns: [ALL_CAMPAIGNS] };
+        return { allowedCampaigns: [ALL_CAMPAIGNS], canViewFinancials: true };
     }
 
     const envAccess = resolveCampaignAccess(trimmedPassword);
@@ -85,7 +87,17 @@ export async function resolveCampaignAccessFromSheet(password: string): Promise<
         const allowedCampaigns = parseAllowedCampaigns(allowedProjects);
         if (allowedCampaigns.length === 0) return null;
 
-        return { allowedCampaigns };
+        const showFinancials = getRowValue(row, [
+            'show_financials',
+            'Show Financials',
+            'financials',
+            '売上利益表示',
+        ]);
+
+        return {
+            allowedCampaigns,
+            canViewFinancials: parseFinancialVisibility(showFinancials),
+        };
     }
 
     return null;

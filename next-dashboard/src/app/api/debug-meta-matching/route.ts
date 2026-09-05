@@ -1,5 +1,6 @@
 // Debug API for investigating Meta data matching issues
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
+import { isAdminAccess, readRequestAccess } from '@/lib/requestAccess';
 
 const SHEET_ID = "14pa730BytKIRONuhqljERM8ag8zm3bEew3zv6lXbMGU";
 
@@ -84,7 +85,11 @@ const LEGACY_PRODUCT_MAPPING: Record<string, {
     },
 };
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    if (!isAdminAccess(await readRequestAccess(request))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const [metaLive, metaHistory, masterSetting] = await Promise.all([
         loadSheetData("Meta_Live"),
         loadSheetData("Meta_History"),

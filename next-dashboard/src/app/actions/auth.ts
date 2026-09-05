@@ -15,7 +15,7 @@ export async function login(prevState: AuthState | null, formData: FormData): Pr
 
     if (access) {
         // Create signed token
-        const token = await createSessionToken(access.allowedCampaigns);
+        const token = await createSessionToken(access.allowedCampaigns, access.canViewFinancials);
 
         // Set cookie with configurable options
         const cookieStore = await cookies();

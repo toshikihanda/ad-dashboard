@@ -27,6 +27,7 @@ interface DashboardClientProps {
     reportListData?: Record<string, string>[];
     isDemo?: boolean;
     canUseGlobalAssistant?: boolean;
+    canViewFinancials?: boolean;
 }
 
 type TabType = 'total' | 'meta' | 'beyond' | 'knowledge';
@@ -50,7 +51,7 @@ function formatDateForTitle(date: Date): string {
     return `${month}/${day}`;
 }
 
-export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData, isDemo, canUseGlobalAssistant = true }: DashboardClientProps) {
+export default function DashboardClient({ initialData, baselineData, masterProjects, creativeMasterData, articleMasterData, reportListData, isDemo, canUseGlobalAssistant = true, canViewFinancials = true }: DashboardClientProps) {
     const [selectedTab, setSelectedTab] = useState<TabType>('total');
     const [selectedCampaigns, setSelectedCampaigns] = useState<string[]>([]);
     // 複数選択対応（配列で管理）
@@ -507,7 +508,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 >
                                     <span className={isRefreshing ? 'animate-spin block text-xs' : 'text-xs'}>🔄</span>
                                 </button>
-                                <button
+                                {canViewFinancials && <button
                                     onClick={() => {
                                         setIsReportModalOpen(true);
                                     }}
@@ -515,21 +516,21 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     title="レポート作成"
                                 >
                                     <span className="text-xs">📋</span>
-                                </button>
-                                <button
+                                </button>}
+                                {canViewFinancials && <button
                                     onClick={() => setIsAnalysisModalOpen(true)}
                                     className="p-1 text-blue-600 hover:text-blue-800 rounded-full hover:bg-blue-50"
                                     title="AI分析"
                                 >
                                     <span className="text-xs">📊</span>
-                                </button>
-                                <button
+                                </button>}
+                                {canViewFinancials && <button
                                     onClick={() => setIsComparisonModalOpen(true)}
                                     className="p-1 text-teal-600 hover:text-teal-800 rounded-full hover:bg-teal-50"
                                     title="比較"
                                 >
                                     <span className="text-xs">📈</span>
-                                </button>
+                                </button>}
                                 <button
                                     onClick={handleLogout}
                                     className="p-1 text-gray-600 hover:text-gray-800 rounded-full hover:bg-gray-200"
@@ -576,7 +577,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 >
                                     Beyond
                                 </button>
-                                <button
+                                {canUseGlobalAssistant && <button
                                     onClick={() => setSelectedTab('knowledge')}
                                     className={cn(
                                         "flex-1 md:flex-none px-3 py-1.5 md:py-1 text-[11px] md:text-xs font-medium rounded-md transition-all whitespace-nowrap text-center",
@@ -586,7 +587,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                     )}
                                 >
                                     ナレッジ候補
-                                </button>
+                                </button>}
                             </div>
                         </div>
 
@@ -604,7 +605,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 <span className={isRefreshing ? 'animate-spin' : ''}>🔄</span>
                                 <span>{isRefreshing ? '更新中...' : '更新'}</span>
                             </button>
-                            <button
+                            {canViewFinancials && <button
                                 onClick={() => {
                                     setIsReportModalOpen(true);
                                 }}
@@ -612,21 +613,21 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             >
                                 <span>📋</span>
                                 <span>レポート</span>
-                            </button>
-                            <button
+                            </button>}
+                            {canViewFinancials && <button
                                 onClick={() => setIsAnalysisModalOpen(true)}
                                 className="px-3 py-1.5 text-xs font-bold bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-all shadow-sm flex items-center gap-1.5"
                             >
                                 <span>📊</span>
                                 <span>AI分析</span>
-                            </button>
-                            <button
+                            </button>}
+                            {canViewFinancials && <button
                                 onClick={() => setIsComparisonModalOpen(true)}
                                 className="px-3 py-1.5 text-xs font-bold bg-teal-600 text-white rounded-lg hover:bg-teal-700 transition-all shadow-sm flex items-center gap-1.5"
                             >
                                 <span>📈</span>
                                 <span>比較</span>
-                            </button>
+                            </button>}
                             <button
                                 onClick={handleLogout}
                                 className="px-3 py-1.5 text-xs font-bold bg-white text-gray-700 border border-gray-300 rounded-lg hover:bg-gray-50 transition-all shadow-sm flex items-center gap-1.5"
@@ -811,7 +812,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                     )}
                 </div>
 
-                {selectedTab === 'knowledge' && (
+                {canUseGlobalAssistant && selectedTab === 'knowledge' && (
                     <KnowledgeCandidatesPanel isDemo={isDemo} masterProjects={masterProjects} />
                 )}
 
@@ -819,13 +820,13 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                 {(selectedTab === 'total' || selectedTab === 'beyond') && (
                     <div className="space-y-2">
                         {/* Always visible grid on all screens */}
-                        <div className="grid grid-cols-3 md:grid-cols-6 gap-2">
+                        <div className={cn("grid grid-cols-3 gap-2", canViewFinancials && "md:grid-cols-6")}>
                             <KPICard label="出稿金額" value={fmtAmt(kpis.cost)} unit="円" colorClass="text-red" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="売上" value={fmtAmt(kpis.revenue)} unit="円" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="粗利" value={fmtAmt(kpis.profit)} unit="円" colorClass="text-orange" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            {canViewFinancials && <KPICard label="売上" value={fmtAmt(kpis.revenue)} unit="円" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />}
+                            {canViewFinancials && <KPICard label="粗利" value={fmtAmt(kpis.profit)} unit="円" colorClass="text-orange" source={selectedTab === 'total' ? 'Beyond' : undefined} />}
                             <KPICard label="CPA" value={fmtAmt(kpis.cpa)} unit="円" source={selectedTab === 'total' ? 'Beyond' : undefined} />
                             <KPICard label="CV" value={kpis.cv} unit="件" source={selectedTab === 'total' ? 'Beyond' : undefined} />
-                            <KPICard label="ROAS" value={kpis.roas} unit="%" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />
+                            {canViewFinancials && <KPICard label="ROAS" value={kpis.roas} unit="%" colorClass="text-blue" source={selectedTab === 'total' ? 'Beyond' : undefined} />}
                         </div>
 
                         {/* Secondary Metrics - Also always visible in compact grid */}
@@ -862,7 +863,7 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                                 </>
                             )}
                         </div>
-                        {selectedTab === 'total' && (
+                        {canViewFinancials && selectedTab === 'total' && (
                             <p className="text-[9px] md:text-[10px] text-gray-500 px-0.5">
                                 ※ 1行目の出稿・売上・粗利・CPA・CV・ROASはBeyond基準。CPM/CPCはMeta出稿÷MetaのImp/Clickです（出稿金額の数字とは分母が異なります）。
                             </p>
@@ -922,31 +923,33 @@ export default function DashboardClient({ initialData, baselineData, masterProje
 
                 {/* Ranking and Data Tables Section */}
                 <div className={cn("mt-12 space-y-6", selectedTab === 'knowledge' && 'hidden')}>
-                    <RankingPanel data={filteredData} selectedCampaign={selectedCampaigns} isVersionFilterActive={isVersionFilterActive} />
+                    <RankingPanel data={filteredData} selectedCampaign={selectedCampaigns} isVersionFilterActive={isVersionFilterActive} showFinancials={canViewFinancials} />
 
                     <CreativeMetricsTable
                         data={filteredData}
                         title={`■クリエイティブ別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
                         creativeMasterData={creativeMasterData}
                         viewMode={tableViewMode}
+                        isReport={!canViewFinancials}
                     />
 
                     <VersionMetricsTable
                         data={filteredData}
                         title={`■記事別数値（${startDate.replace(/-/g, '/')}〜${endDate.replace(/-/g, '/')}）`}
                         viewMode={tableViewMode}
+                        isReport={!canViewFinancials}
                     />
 
-                    <DataTable data={todayData} title={`■案件別数値（${formatDateForTitle(today)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={yesterdayData} title={`■案件別数値（${formatDateForTitle(yesterday)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={threeDayData} title={`■案件別数値（${formatDateForTitle(threeDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={sevenDayData} title={`■案件別数値（${formatDateForTitle(sevenDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
-                    <DataTable data={filteredData} title={`■案件別数値（${formatDateForTitle(new Date(startDate))}〜${formatDateForTitle(new Date(endDate))}）`} viewMode={tableViewMode} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={todayData} title={`■案件別数値（${formatDateForTitle(today)}）`} viewMode={tableViewMode} isReport={!canViewFinancials} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={yesterdayData} title={`■案件別数値（${formatDateForTitle(yesterday)}）`} viewMode={tableViewMode} isReport={!canViewFinancials} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={threeDayData} title={`■案件別数値（${formatDateForTitle(threeDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={tableViewMode} isReport={!canViewFinancials} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={sevenDayData} title={`■案件別数値（${formatDateForTitle(sevenDaysAgo)}〜${formatDateForTitle(today)}）`} viewMode={tableViewMode} isReport={!canViewFinancials} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
+                    <DataTable data={filteredData} title={`■案件別数値（${formatDateForTitle(new Date(startDate))}〜${formatDateForTitle(new Date(endDate))}）`} viewMode={tableViewMode} isReport={!canViewFinancials} filters={{ beyondPageNames: selectedBeyondPageNames, versionNames: selectedVersionNames, creatives: selectedCreatives, metaCampaignNames: selectedMetaCampaignNames, metaAdSetNames: selectedMetaAdSetNames, metaAdNames: selectedMetaAdNames }} />
                 </div>
 
                 {/* Daily Data Table - placed above Charts */}
                 <div className={cn("mt-8", selectedTab === 'knowledge' && 'hidden')}>
-                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={tableViewMode} isVersionFilterActive={isVersionFilterActive} />
+                    <DailyDataTable data={filteredData} title="■選択期間（日別）" viewMode={tableViewMode} isVersionFilterActive={isVersionFilterActive} showFinancials={canViewFinancials} />
                 </div>
 
                 {/* Charts */}
@@ -956,11 +959,11 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             {/* Row 1: 出稿金額、売上、粗利、CPA、CV、ROAS - same order as KPI cards */}
                             <div className="grid grid-cols-3 gap-4">
                                 <CostChart data={filteredData.filter(r => r.Media === 'Beyond')} title="出稿金額" />
-                                <RevenueChart data={filteredData.filter(r => r.Media === 'Beyond')} title="売上" />
-                                <GenericBarChart data={filteredData} title="粗利" dataKey="Gross_Profit" />
+                                {canViewFinancials && <RevenueChart data={filteredData.filter(r => r.Media === 'Beyond')} title="売上" />}
+                                {canViewFinancials && <GenericBarChart data={filteredData} title="粗利" dataKey="Gross_Profit" />}
                                 <CostMetricChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CPA" costDivisorKey="CV" />
                                 <CVChart data={filteredData.filter(r => r.Media === 'Beyond')} title="CV" />
-                                <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={100} unit="%" />
+                                {canViewFinancials && <GenericRateChart data={filteredData.filter(r => r.Media === 'Beyond')} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={100} unit="%" />}
                             </div>
                             <div className="h-4" />
                             {/* Row 2: IMP、CLICK、商品LP CLICK、CTR、MCVR、CVR */}
@@ -1010,11 +1013,11 @@ export default function DashboardClient({ initialData, baselineData, masterProje
                             {/* Row 1: 出稿金額、売上、粗利、CPA、CV、ROAS */}
                             <div className="grid grid-cols-3 gap-4">
                                 <CostChart data={filteredData} title="出稿金額" />
-                                <RevenueChart data={filteredData} title="売上" />
-                                <GenericBarChart data={filteredData} title="粗利" dataKey="Gross_Profit" />
+                                {canViewFinancials && <RevenueChart data={filteredData} title="売上" />}
+                                {canViewFinancials && <GenericBarChart data={filteredData} title="粗利" dataKey="Gross_Profit" />}
                                 <CostMetricChart data={filteredData} title="CPA" costDivisorKey="CV" />
                                 <CVChart data={filteredData} title="CV" />
-                                <GenericRateChart data={filteredData} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={1} unit="倍" />
+                                {canViewFinancials && <GenericRateChart data={filteredData} title="ROAS" numeratorKey="Revenue" denominatorKey="Cost" multiplier={1} unit="倍" />}
                             </div>
                             <div className="h-4" />
                             {/* Row 2: PV、商品LP CLICK、MCVR、CVR、CPC、MCPA */}
@@ -1039,24 +1042,24 @@ export default function DashboardClient({ initialData, baselineData, masterProje
             </div>
 
             {/* AI Analysis Modal */}
-            <AIAnalysisModal
+            {canViewFinancials && <AIAnalysisModal
                 isOpen={isAnalysisModalOpen}
                 onClose={() => setIsAnalysisModalOpen(false)}
                 data={initialData}
                 campaigns={campaigns}
                 baselineData={baselineData}
-            />
+            />}
 
             {/* Period Comparison Modal */}
-            <PeriodComparisonModal
+            {canViewFinancials && <PeriodComparisonModal
                 isOpen={isComparisonModalOpen}
                 onClose={() => setIsComparisonModalOpen(false)}
                 data={initialData}
                 campaigns={campaigns}
-            />
+            />}
 
             {/* Report Generation Modal */}
-            {isReportModalOpen && (
+            {canViewFinancials && isReportModalOpen && (
                 <div className="fixed inset-0 z-[100] bg-black/50 flex items-center justify-center p-4">
                     <div className="bg-white p-6 rounded-xl shadow-2xl w-full max-w-lg flex flex-col gap-4 animate-in zoom-in-95 max-h-[90vh] overflow-y-auto">
                         <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">

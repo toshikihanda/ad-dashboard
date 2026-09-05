@@ -7,6 +7,7 @@ interface RankingPanelProps {
     data: ProcessedRow[];
     selectedCampaign: string | string[];
     isVersionFilterActive?: boolean;
+    showFinancials?: boolean;
 }
 
 interface RankingItem {
@@ -288,9 +289,10 @@ interface RankingTableProps {
     sortKey: SortType;
     sortOrder: 'asc' | 'desc';
     onSort: (key: SortType) => void;
+    showFinancials: boolean;
 }
 
-function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: RankingTableProps) {
+function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort, showFinancials }: RankingTableProps) {
     const getSortIcon = (key: SortType) => {
         if (sortKey !== key) return '';
         return sortOrder === 'asc' ? ' ▲' : ' ▼';
@@ -333,16 +335,16 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
 
     return (
         <div className="overflow-x-auto -mx-4 px-4">
-            <table className="w-full text-sm table-fixed" style={{ minWidth: '1150px' }}>
+            <table className="w-full text-sm table-fixed" style={{ minWidth: showFinancials ? '1150px' : '950px' }}>
                 <thead>
                     <tr className="bg-gray-50">
                         <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                         <th onClick={() => onSort('creative')} className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>商材/記事×クリエイティブ{getSortIcon('creative')}</th>
                         {showDate && <th onClick={() => onSort('date')} className={`${thClass} text-left ${colW.date}`}>日付{getSortIcon('date')}</th>}
                         <th onClick={() => onSort('cost')} className={`${thClass} ${colW.cost}`}>出稿金額{getSortIcon('cost')}</th>
-                        <th onClick={() => onSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>
-                        <th onClick={() => onSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>
-                        <th onClick={() => onSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>
+                        {showFinancials && <th onClick={() => onSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>}
+                        {showFinancials && <th onClick={() => onSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>}
+                        {showFinancials && <th onClick={() => onSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>}
                         <th onClick={() => onSort('impressions')} className={`${thClass} ${colW.imp}`}>Imp{getSortIcon('impressions')}</th>
                         <th onClick={() => onSort('clicks')} className={`${thClass} ${colW.clicks}`}>Clicks{getSortIcon('clicks')}</th>
                         <th onClick={() => onSort('mcv')} className={`${thClass} ${colW.lpClick}`}>商品LPクリック{getSortIcon('mcv')}</th>
@@ -371,9 +373,9 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
                             </td>
                             {showDate && <td className={`${tdClass} text-left ${colW.date}`}>{item.date?.replace(/-/g, '/')}</td>}
                             <td className={`${tdClass} ${colW.cost} font-bold`}>{formatNumber(item.cost)}円</td>
-                            <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(item.revenue)}円</td>
-                            <td className={`${tdClass} ${colW.profit}`}>{formatNumber(item.profit)}円</td>
-                            <td className={`${tdClass} ${colW.roas}`}>{item.roas}%</td>
+                            {showFinancials && <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(item.revenue)}円</td>}
+                            {showFinancials && <td className={`${tdClass} ${colW.profit}`}>{formatNumber(item.profit)}円</td>}
+                            {showFinancials && <td className={`${tdClass} ${colW.roas}`}>{item.roas}%</td>}
                             <td className={`${tdClass} ${colW.imp}`}>{formatNumber(item.impressions)}</td>
                             <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(item.clicks)}</td>
                             <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(item.mcv)}</td>
@@ -396,7 +398,7 @@ function RankingTable({ ranking, showDate, sortKey, sortOrder, onSort }: Ranking
     );
 }
 
-export function RankingPanel({ data, selectedCampaign, isVersionFilterActive = false }: RankingPanelProps) {
+export function RankingPanel({ data, selectedCampaign, isVersionFilterActive = false, showFinancials = true }: RankingPanelProps) {
     const [period, setPeriod] = useState<PeriodType>('today');
     const [sortBy, setSortBy] = useState<SortType>('cpa');
     const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
@@ -476,8 +478,7 @@ export function RankingPanel({ data, selectedCampaign, isVersionFilterActive = f
                 </div>
             </div>
 
-            <RankingTable ranking={rankingData} showDate={period === 'bestday'} sortKey={sortBy} sortOrder={sortOrder} onSort={handleSort} />
+            <RankingTable ranking={rankingData} showDate={period === 'bestday'} sortKey={sortBy} sortOrder={sortOrder} onSort={handleSort} showFinancials={showFinancials} />
         </div>
     );
 }
-

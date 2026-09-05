@@ -7,6 +7,7 @@ interface DailyDataTableProps {
     title: string;
     viewMode: 'total' | 'meta' | 'beyond';
     isVersionFilterActive?: boolean;
+    showFinancials?: boolean;
 }
 
 interface DailyTableRow {
@@ -137,7 +138,7 @@ function formatPercent(value: number): string {
     return `${value.toFixed(1)}%`;
 }
 
-export function DailyDataTable({ data, title, viewMode, isVersionFilterActive = false }: DailyDataTableProps) {
+export function DailyDataTable({ data, title, viewMode, isVersionFilterActive = false, showFinancials = true }: DailyDataTableProps) {
     const rawRows = aggregateByDateAndCampaign(data, viewMode, isVersionFilterActive);
 
     // ソート状態: null = デフォルト(日付昇順), 'asc' = 昇順, 'desc' = 降順
@@ -234,16 +235,16 @@ export function DailyDataTable({ data, title, viewMode, isVersionFilterActive = 
             <h3 className="text-sm font-semibold text-gray-700 mb-3">{title}</h3>
             <div className="overflow-x-auto -mx-4 px-4">
                 <div className="max-h-[330px] overflow-y-auto">
-                    <table className="w-full text-sm table-fixed" style={{ minWidth: '1200px' }}>
+                    <table className="w-full text-sm table-fixed" style={{ minWidth: showFinancials ? '1200px' : '1000px' }}>
                         <thead className="bg-gray-50 sticky top-0 z-30">
                             <tr>
                                 <th className={`px-1 py-1 text-center text-[10px] font-semibold text-gray-500 sticky left-0 bg-gray-50 z-20 ${colW.rank}`}>#</th>
                                 <th onClick={() => handleSort('date')} className={`${thClass} text-left sticky left-[24px] bg-gray-50 z-20 ${colW.date}`}>日付{getSortIcon('date')}</th>
                                 <th onClick={() => handleSort('campaign')} className={`${thClass} text-left sticky left-[104px] bg-gray-50 z-20 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>商材{getSortIcon('campaign')}</th>
                                 <th onClick={() => handleSort('cost')} className={`${thClass} ${colW.cost}`}>出稿金額{getSortIcon('cost')}</th>
-                                <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>
-                                <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>
-                                <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>
+                                {showFinancials && <th onClick={() => handleSort('revenue')} className={`${thClass} ${colW.revenue}`}>売上{getSortIcon('revenue')}</th>}
+                                {showFinancials && <th onClick={() => handleSort('profit')} className={`${thClass} ${colW.profit}`}>粗利{getSortIcon('profit')}</th>}
+                                {showFinancials && <th onClick={() => handleSort('roas')} className={`${thClass} ${colW.roas}`}>ROAS{getSortIcon('roas')}</th>}
                                 <th onClick={() => handleSort('impressions')} className={`${thClass} ${colW.imp}`}>Imp{getSortIcon('impressions')}</th>
                                 <th onClick={() => handleSort('clicks')} className={`${thClass} ${colW.clicks}`}>Clicks{getSortIcon('clicks')}</th>
                                 <th onClick={() => handleSort('mcv')} className={`${thClass} ${colW.lpClick}`}>商品LPクリック{getSortIcon('mcv')}</th>
@@ -267,9 +268,9 @@ export function DailyDataTable({ data, title, viewMode, isVersionFilterActive = 
                                     <td className={`px-1.5 py-1 text-left text-[10px] text-gray-600 whitespace-nowrap sticky left-[24px] bg-white group-hover:bg-gray-50 z-10 ${colW.date}`}>{row.displayDate}</td>
                                     <td className={`px-1.5 py-1 text-left text-[10px] text-gray-700 whitespace-nowrap sticky left-[104px] bg-white group-hover:bg-gray-50 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.1)] ${colW.label}`}>{row.campaign}</td>
                                     <td className={`${tdClass} ${colW.cost}`}>{formatNumber(row.cost)}円</td>
-                                    <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>
-                                    <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>
-                                    <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>
+                                    {showFinancials && <td className={`${tdClass} ${colW.revenue}`}>{formatNumber(row.revenue)}円</td>}
+                                    {showFinancials && <td className={`${tdClass} ${colW.profit}`}>{formatNumber(row.profit)}円</td>}
+                                    {showFinancials && <td className={`${tdClass} ${colW.roas}`}>{row.roas}%</td>}
                                     <td className={`${tdClass} ${colW.imp}`}>{formatNumber(row.impressions)}</td>
                                     <td className={`${tdClass} ${colW.clicks}`}>{formatNumber(row.clicks)}</td>
                                     <td className={`${tdClass} ${colW.lpClick}`}>{formatNumber(row.mcv)}</td>

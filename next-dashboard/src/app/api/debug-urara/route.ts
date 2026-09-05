@@ -1,9 +1,14 @@
-import { NextResponse } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { loadDataFromSheets } from '@/lib/googleSheets';
+import { isAdminAccess, readRequestAccess } from '@/lib/requestAccess';
 
 export const dynamic = 'force-dynamic';
 
-export async function GET() {
+export async function GET(request: NextRequest) {
+    if (!isAdminAccess(await readRequestAccess(request))) {
+        return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     try {
         const sheetsData = await loadDataFromSheets();
 

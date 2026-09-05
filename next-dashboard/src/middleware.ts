@@ -1,6 +1,14 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
-import { verifySessionToken } from '@/lib/session';
+import { readSessionPayload, verifySessionToken } from '@/lib/session';
+
+const ADMIN_ONLY_PATHS = [
+    '/api/ai-analysis',
+    '/api/chat',
+    '/api/debug-',
+    '/api/knowledge-candidates',
+    '/api/revalidate',
+];
 
 export async function middleware(request: NextRequest) {
     const { pathname } = request.nextUrl;
@@ -37,6 +45,17 @@ export async function middleware(request: NextRequest) {
         return NextResponse.redirect(new URL('/login', request.url));
     }
 
+    if (ADMIN_ONLY_PATHS.some(prefix => pathname.startsWith(prefix))) {
+        const access = authSession ? await readSessionPayload(authSession) : null;
+        const isAdmin = Boolean(
+            access?.canViewFinancials &&
+            access.allowedCampaigns?.includes('*')
+        );
+        if (!isAdmin) {
+            return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+        }
+    }
+
     return NextResponse.next();
 }
 
@@ -52,6 +71,6 @@ export const config = {
          * - api/auth-debug (auth debugging endpoint)
          * - api/auth-debug-headers (auth header debugging)
          */
-        '/((?!_next/static|_next/image|favicon.ico|api/login|api/logout|api/auth-debug|api/auth-debug-headers|api/debug-urara).*)',
+        '/((?!_next/static|_next/image|favicon.ico|api/login|api/logout|api/auth-debug|api/auth-debug-headers).*)',
     ],
 };

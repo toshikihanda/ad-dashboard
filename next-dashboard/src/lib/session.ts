@@ -22,6 +22,7 @@ export interface SessionPayload {
     authenticated: true;
     expires: number;
     allowedCampaigns?: string[];
+    canViewFinancials: boolean;
 }
 
 // --- Base64URL helpers (RFC 4648) ---
@@ -74,13 +75,17 @@ async function getCryptoKey() {
 }
 
 // --- Token Creation (base64url encoded) ---
-export async function createSessionToken(allowedCampaigns: string[] = ['*']): Promise<string> {
+export async function createSessionToken(
+    allowedCampaigns: string[] = ['*'],
+    canViewFinancials = true
+): Promise<string> {
     const key = await getCryptoKey();
     const enc = new TextEncoder();
     const payload = JSON.stringify({
         authenticated: true,
         expires: Date.now() + TOKEN_EXPIRY_MS,
         allowedCampaigns,
+        canViewFinancials,
     });
 
     const signature = await crypto.subtle.sign(
@@ -111,6 +116,8 @@ export async function readSessionPayload(token: string): Promise<SessionPayload 
             allowedCampaigns: Array.isArray(data.allowedCampaigns)
                 ? data.allowedCampaigns.map((campaign: unknown) => String(campaign || '').trim()).filter(Boolean)
                 : ['*'],
+            // Existing sessions predate this field, so preserve their previous visibility.
+            canViewFinancials: data.canViewFinancials !== false,
         };
     } catch {
         return null;
@@ -153,7 +160,12 @@ export async function verifySessionTokenWithReason(token: string): Promise<Verif
             return { valid: false, reason: 'bad_signature' };
         }
 
-        let data: { authenticated?: boolean; expires?: number };
+        let data: {
+            authenticated?: boolean;
+            expires?: number;
+            allowedCampaigns?: unknown[];
+            canViewFinancials?: boolean;
+        };
         try {
             data = JSON.parse(payload);
         } catch (e) {

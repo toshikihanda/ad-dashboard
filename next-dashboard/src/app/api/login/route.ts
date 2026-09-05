@@ -17,7 +17,7 @@ export async function POST(request: NextRequest) {
         }
 
         // Create signed token
-        const token = await createSessionToken(access.allowedCampaigns);
+        const token = await createSessionToken(access.allowedCampaigns, access.canViewFinancials);
         const cookieOptions = getSessionCookieOptions();
 
         // Log (no sensitive values)

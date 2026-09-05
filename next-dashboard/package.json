@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "test:creative-id": "node scripts/test-creative-id.mjs"
+    "test:creative-id": "node scripts/test-creative-id.mjs",
+    "test:access-control": "node scripts/test-access-control.mjs"
   },
   "dependencies": {
     "@google/generative-ai": "^0.24.1",

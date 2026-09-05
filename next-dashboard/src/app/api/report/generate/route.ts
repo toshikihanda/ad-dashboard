@@ -3,8 +3,18 @@ import { createReportSheet, writeDataToSheet } from '@/lib/googleAuth';
 import { addReportToList, getSheetUrl } from '@/lib/reportStore';
 import { loadDataFromSheets } from '@/lib/googleSheets';
 import { processData } from '@/lib/dataProcessor';
+import { filterProcessedDataByAccess, isCampaignAllowed } from '@/lib/accessControl';
+import { readRequestAccess } from '@/lib/requestAccess';
 
 export async function POST(req: NextRequest) {
+    const access = await readRequestAccess(req);
+    if (!access) {
+        return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+    }
+    if (!access.canViewFinancials) {
+        return NextResponse.json({ error: 'このアカウントではレポートを作成できません' }, { status: 403 });
+    }
+
     // 0. 環境変数の事前チェック
     const requiredEnvVars = [
         'GOOGLE_SHEETS_MASTER_ID',
@@ -24,6 +34,9 @@ export async function POST(req: NextRequest) {
         if (!campaigns || !Array.isArray(campaigns) || campaigns.length === 0) {
             return NextResponse.json({ error: '商材を選択してください' }, { status: 400 });
         }
+        if (campaigns.some(campaign => !isCampaignAllowed(String(campaign), access.allowedCampaigns))) {
+            return NextResponse.json({ error: '閲覧権限のない商材が含まれています' }, { status: 403 });
+        }
 
         console.log(`[Phase1] Report generation started: ${campaigns.join(', ')} (${startDate} ~ ${endDate})`);
 
@@ -32,9 +45,9 @@ export async function POST(req: NextRequest) {
 
         // 2. データ取得とフィルタリング
         const rawData = await loadDataFromSheets();
-        const processed = processData(rawData);
+        const processed = filterProcessedDataByAccess(processData(rawData), access.allowedCampaigns);
 
-        const toDateString = (d: any): string => {
+        const toDateString = (d: unknown): string => {
             if (!d) return '';
             if (typeof d === 'string') return d.split('T')[0];
             if (d instanceof Date) return d.toISOString().split('T')[0];
@@ -64,7 +77,7 @@ export async function POST(req: NextRequest) {
 
         const headers = Object.keys(filteredData[0]);
         const rows = filteredData.map(d => headers.map(h => {
-            const val = (d as any)[h];
+            const val = (d as unknown as Record<string, unknown>)[h];
             if (val instanceof Date) return toDateString(val);
             return val;
         }));
@@ -94,12 +107,12 @@ export async function POST(req: NextRequest) {
             spreadsheetUrl
         });
 
-    } catch (error: any) {
+    } catch (error: unknown) {
         console.error('[Phase1] Report generation error:', error);
+        const message = error instanceof Error ? error.message : String(error);
         return NextResponse.json(
-            { error: `レポート生成中にエラーが発生しました: ${error.message}` },
+            { error: `レポート生成中にエラーが発生しました: ${message}` },
             { status: 500 }
         );
     }
 }
-

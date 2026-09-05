@@ -11,6 +11,7 @@ import {
   isAllCampaignsAllowed,
 } from '@/lib/accessControl';
 import DashboardClient from './DashboardClient';
+import { redactFinancialData } from '@/lib/financialAccess';
 
 import { generateDemoData, getDemoProjectNames } from '@/lib/demoData';
 
@@ -33,6 +34,7 @@ export default async function Home({ searchParams }: PageProps) {
   let reportListData: Record<string, string>[] = [];
   let baselineData = {};
   let canUseGlobalAssistant = true;
+  let canViewFinancials = true;
 
   if (isDemo) {
     processedData = generateDemoData();
@@ -44,7 +46,8 @@ export default async function Home({ searchParams }: PageProps) {
     const authSession = cookieStore.get('auth_session')?.value;
     const sessionPayload = authSession ? await readSessionPayload(authSession) : null;
     const allowedCampaigns = sessionPayload?.allowedCampaigns ?? ['*'];
-    canUseGlobalAssistant = isAllCampaignsAllowed(allowedCampaigns);
+    canViewFinancials = sessionPayload?.canViewFinancials !== false;
+    canUseGlobalAssistant = isAllCampaignsAllowed(allowedCampaigns) && canViewFinancials;
 
     processedData = processData(rawData);
     baselineData = parseBaselineData(rawData.Baseline);
@@ -57,6 +60,12 @@ export default async function Home({ searchParams }: PageProps) {
     masterProjects = filterProjectNamesByAccess(masterProjects, allowedCampaigns);
     creativeMasterData = filterCreativeMasterByAccess(creativeMasterData, allowedCampaigns);
     articleMasterData = filterArticleMasterByAccess(articleMasterData, allowedCampaigns);
+
+    if (!canViewFinancials) {
+      processedData = redactFinancialData(processedData);
+      baselineData = {};
+      reportListData = [];
+    }
   }
 
   return (
@@ -70,6 +79,7 @@ export default async function Home({ searchParams }: PageProps) {
         reportListData={reportListData}
         isDemo={isDemo}
         canUseGlobalAssistant={canUseGlobalAssistant}
+        canViewFinancials={canViewFinancials}
       />
     </main>
   );
