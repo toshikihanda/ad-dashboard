@@ -36,7 +36,8 @@ const SHEET_GIDS: Record<string, number> = {
 /** APIルートからも呼べるよう export。シート名を指定してCSVで取得。 */
 export async function loadSheetData(sheetName: string, options?: { cache?: RequestCache }): Promise<Record<string, string>[]> {
   const encodedName = encodeURIComponent(sheetName);
-  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}&tq=${encodeURIComponent('SELECT * LIMIT 50000')}`;
+  const cacheBust = options?.cache === 'no-store' ? `&_=${Date.now()}` : '';
+  const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=${encodedName}&tq=${encodeURIComponent('SELECT * LIMIT 50000')}${cacheBust}`;
 
   try {
     // ダッシュボード値とシートの整合を優先し、デフォルトは no-store で常に最新を読む
