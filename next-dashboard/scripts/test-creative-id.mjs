@@ -23,6 +23,12 @@ function loadDataProcessor() {
 const { extractCreativeFromAdName, processData } = loadDataProcessor();
 
 const extractionCases = [
+    ['SAC_b001', 'b001'],
+    ['SNP_b001.png', 'b001'],
+    ['60_120_b001', 'b001'],
+    ['【60_120】b001,*0309*寄付［SAC_予算］', 'b001'],
+    ['【60_120】281,b001_0309_SAC', '281'],
+    ['SNP_013', '013'],
     ['【60_109】286_0309_カスタムCV［SAC_予算］', '286'],
     ['【60_109】287b_0309_カスタムCV［SAC_予算］', '287b'],
     ['[60_110]294_0403_SAC', '294'],

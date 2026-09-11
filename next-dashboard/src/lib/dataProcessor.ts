@@ -305,8 +305,11 @@ export function extractCreativeFromAdName(adName: string): string {
     const s = adName.trim();
 
     // 1) Meta入稿名ではカッコ内が入稿番号、カッコ直後がクリエイティブ番号
-    const metaCreativeMatch = s.match(/[】\]]\s*(\d{3}[a-zA-Z]*)(?![0-9A-Za-z])/);
+    const metaCreativeMatch = s.match(/[】\]]\s*(b\d{3}|\d{3}[a-zA-Z]*)(?![0-9A-Za-z])/i);
     if (metaCreativeMatch) return metaCreativeMatch[1].toLowerCase();
+
+    const bannerMatch = s.match(/(?:^|_)(b\d{3})(?=$|[^0-9A-Za-z])/i);
+    if (bannerMatch) return bannerMatch[1].toLowerCase();
 
     // 2) 3桁_英1〜2文字
     const reC = /(?<![0-9A-Za-z])(\d{3}_[a-zA-Z]{1,2})(?![a-zA-Z])/gi;
@@ -353,8 +356,11 @@ function isChurableProject(projectName: string): boolean {
 }
 
 function extractBannerCreativeName(value: string): string {
-    const text = String(value || '').trim();
+    const text = String(value || '').trim().replace(/^[【\[][^】\]]*[】\]]\s*/, '');
     if (!text) return '';
+
+    const newBanner = text.match(/(?:^|_)(b\d{3})(?=$|[^0-9A-Za-z])/i);
+    if (newBanner) return newBanner[1].toLowerCase();
 
     const matches = [...text.matchAll(/(?:^|[^0-9A-Za-z])(\d+_\d{3})(?!\d)/g)];
     if (matches.length === 0) return '';
@@ -524,8 +530,9 @@ function processBeyondData(
     // Create a matching map for Meta campaigns/adsets/ads -> Beyond creatives
     const creativeToMetaMap = new Map<string, { campaign: string, adset: string, ad: string }>();
     for (const row of metaData) {
-        if (row.creative_value && !creativeToMetaMap.has(row.creative_value)) {
-            creativeToMetaMap.set(row.creative_value, {
+        const key = JSON.stringify([row.Campaign_Name, row.creative_value]);
+        if (row.creative_value && !creativeToMetaMap.has(key)) {
+            creativeToMetaMap.set(key, {
                 campaign: row.meta_campaign_name || '',
                 adset: row.meta_adset_name || '',
                 ad: row.meta_ad_name || ''
@@ -557,7 +564,7 @@ function processBeyondData(
             : (extractCreativeFromAdName(rawCreativeValue) || rawCreativeValue);
 
         // Lookup meta mapping
-        const metaInfo = creativeToMetaMap.get(creativeValue) || { campaign: '', adset: '', ad: '' };
+        const metaInfo = creativeToMetaMap.get(JSON.stringify([config.projectName, creativeValue])) || { campaign: '', adset: '', ad: '' };
 
         const versionName = (row['version_name'] || '').trim();
 

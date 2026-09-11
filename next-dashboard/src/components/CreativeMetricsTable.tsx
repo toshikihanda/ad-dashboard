@@ -101,8 +101,9 @@ function aggregateByCreative(data: ProcessedRow[], viewMode: 'total' | 'meta' | 
     const grouped = new Map<string, ProcessedRow[]>();
 
     for (const row of data) {
-        const key = row.creative_value || row.Creative;
-        if (!key) continue;
+        const creativeId = row.creative_value || row.Creative;
+        if (!creativeId) continue;
+        const key = JSON.stringify([row.Campaign_Name, creativeId]);
         if (!grouped.has(key)) {
             grouped.set(key, []);
         }
@@ -111,7 +112,8 @@ function aggregateByCreative(data: ProcessedRow[], viewMode: 'total' | 'meta' | 
 
     const rows: CreativeRow[] = [];
 
-    for (const [key, rowData] of grouped) {
+    for (const rowData of grouped.values()) {
+        const key = rowData[0].creative_value || rowData[0].Creative;
         const metaData = rowData.filter(row => row.Media === 'Meta');
         const beyondData = rowData.filter(row => row.Media === 'Beyond');
 
@@ -251,6 +253,9 @@ export function CreativeMetricsTable({ data, title = 'クリエイティブ別�
         // 2. fileName 側の安全な一致のみ許可
         //    例: SAC_219_b / SAC_219b / 219b.mp4 を同一扱い
         const exactFileMatch = campaignCandidates.find(item => {
+            const bannerId = item.fileName.trim().match(/^(?:SAC_|SNP_)?(b\d{3})(?:\.[^.]+)?$/i);
+            if (bannerId) return bannerId[1].toLowerCase() === normalizedCreativeId;
+            if (/^b\d{3}$/.test(normalizedCreativeId)) return false;
             const plainThreeDigitCreative = /^\d{3}$/.test(normalizedCreativeId);
             const bannerStyleFile = /^\d+[_-]\d{3}(?:\.[^.]+)?$/i.test(item.fileName.trim());
             if (plainThreeDigitCreative && bannerStyleFile) {
